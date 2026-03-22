@@ -1,0 +1,280 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { BriefcaseBusiness, Save, Users } from 'lucide-react'
+
+import type { UserRoleKey } from '@/lib/rbac'
+
+type CommissionValueType = 'AMOUNT' | 'PERCENT'
+
+type CommissionRule = {
+  id: string
+  userId: string
+  userName: string
+  userRole: 'DIRECTOR' | 'MANAGER'
+  catalogKey: string
+  brand: string
+  model: string
+  version: string
+  year: string | null
+  valueType: CommissionValueType
+  value: number | null
+}
+
+function formatDate(value: string | null) {
+  if (!value) {
+    return 'Brak synchronizacji'
+  }
+
+  return new Intl.DateTimeFormat('pl-PL', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
+export function CommissionsWorkspace({
+  role,
+  roleLabel,
+  targetUserId,
+  editable,
+  users,
+  rules,
+  summary,
+  updatedAt,
+  updatedBy,
+  saveCommissionRulesAction,
+}: {
+  role: UserRoleKey
+  roleLabel: string
+  targetUserId: string | null
+  editable: boolean
+  users: Array<{ id: string; fullName: string; role: 'DIRECTOR' | 'MANAGER' }>
+  rules: CommissionRule[]
+  summary: { total: number; configured: number; missing: number; archived: number }
+  updatedAt: string | null
+  updatedBy: string | null
+  saveCommissionRulesAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
+}) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [draftRules, setDraftRules] = useState(rules)
+
+  useEffect(() => {
+    setDraftRules(rules)
+  }, [rules])
+
+  const groupedRules = useMemo(() => {
+    return draftRules.reduce<Record<string, CommissionRule[]>>((groups, rule) => {
+      const key = `${rule.brand}`
+      groups[key] = groups[key] ? [...groups[key], rule] : [rule]
+      return groups
+    }, {})
+  }, [draftRules])
+
+  function updateRuleValue(ruleId: string, field: 'valueType' | 'value', nextValue: string) {
+    setDraftRules((current) => current.map((rule) => {
+      if (rule.id !== ruleId) {
+        return rule
+      }
+
+      if (field === 'valueType') {
+        return { ...rule, valueType: nextValue as CommissionValueType }
+      }
+
+      const trimmed = nextValue.trim()
+      return { ...rule, value: trimmed ? Number(trimmed) : null }
+    }))
+  }
+
+  async function handleSave() {
+    if (!targetUserId) {
+      return
+    }
+
+    setFeedback(null)
+    const formData = new FormData()
+    formData.set('targetUserId', targetUserId)
+    formData.set('rulesJson', JSON.stringify(draftRules.map((rule) => ({
+      id: rule.id,
+      valueType: rule.valueType,
+      value: rule.value,
+    }))))
+
+    const result = await saveCommissionRulesAction(formData)
+
+    if (!result.ok) {
+      setFeedback({ type: 'error', message: result.error || 'Nie udało się zapisać prowizji.' })
+      return
+    }
+
+    setFeedback({ type: 'success', message: 'Lista prowizji została zapisana. Istniejące wpisy zostały zachowane, a nowe modele wymagają tylko uzupełnienia braków.' })
+    router.refresh()
+  }
+
+  function handleUserChange(nextUserId: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('userId', nextUserId)
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
+  return (
+    <main className="grid gap-4">
+      <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] px-4 py-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:px-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#f3d998]">Prowizje struktury</div>
+            <div className="mt-2 flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-4">
+              <h2 className="text-2xl font-semibold text-white">Prowizje dyrektora i menedżera per model</h2>
+              <span className="inline-flex w-fit rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#aeb7c2]">
+                Rola: {roleLabel}
+              </span>
+            </div>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-[#9ba6b2]">
+              Po zmianie polityki cenowej CRM synchronizuje listę modeli z prowizjami. Dotychczasowe wpisy zostają zachowane,
+              a nowe pozycje pojawiają się jako brakujące do uzupełnienia bez przepisywania całej listy od początku.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-[#aeb7c2]">
+            <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">Łącznie: {summary.total}</span>
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-emerald-200">Uzupełnione: {summary.configured}</span>
+            <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-amber-100">Brakujące: {summary.missing}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid gap-4">
+          <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:p-5">
+            <div className="flex items-center gap-3">
+              <Users className="h-5 w-5 text-[#f3d998]" />
+              <div>
+                <div className="text-sm font-semibold text-white">Zakres konfiguracji</div>
+                <div className="text-sm text-[#9ba6b2]">Administrator może podejrzeć każdą listę. Dyrektor i manager edytują własną.</div>
+              </div>
+            </div>
+
+            {role === 'ADMIN' ? (
+              <label className="mt-4 block">
+                <span className="text-sm font-medium text-white">Użytkownik</span>
+                <select
+                  value={targetUserId ?? ''}
+                  onChange={(event) => handleUserChange(event.target.value)}
+                  className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-[#131922] px-4 text-sm text-white outline-none transition focus:border-[rgba(216,180,90,0.45)]"
+                >
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.fullName} ({user.role === 'DIRECTOR' ? 'Dyrektor' : 'Manager'})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <div className="mt-4 rounded-[24px] border border-white/8 bg-white/[0.03] p-4 text-sm text-[#c2cad4]">
+                {users.find((user) => user.id === targetUserId)?.fullName ?? 'Brak użytkownika'}
+              </div>
+            )}
+
+            <div className="mt-4 rounded-[24px] border border-white/8 bg-white/[0.03] p-4 text-sm leading-6 text-[#c2cad4]">
+              Ostatnia synchronizacja listy: {formatDate(updatedAt)}
+              <br />
+              Ostatni zapis: {updatedBy ?? 'brak autora'}
+            </div>
+
+            {feedback ? (
+              <div className={[
+                'mt-4 rounded-2xl px-4 py-3 text-sm',
+                feedback.type === 'success'
+                  ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-200'
+                  : 'border border-red-400/20 bg-red-500/10 text-red-200',
+              ].join(' ')}>
+                {feedback.message}
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!editable || !targetUserId}
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[rgba(216,180,90,0.4)] bg-[linear-gradient(135deg,#d8b45a,#b98b1d)] px-4 text-sm font-semibold text-[#111827] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              <span>Zapisz listę prowizji</span>
+            </button>
+          </section>
+
+          <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:p-5">
+            <div className="flex items-center gap-3">
+              <BriefcaseBusiness className="h-5 w-5 text-[#f3d998]" />
+              <div>
+                <div className="text-sm font-semibold text-white">Zasada działania</div>
+                <div className="text-sm text-[#9ba6b2]">Uzupełniasz tylko brakujące pozycje po zmianie katalogu.</div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 text-sm text-[#c2cad4]">
+              <div>1. Aktualizacja polityki cenowej nie usuwa starych prowizji.</div>
+              <div>2. Nowy model lub wersja dodaje tylko nową pozycję do listy.</div>
+              <div>3. Wartość można ustawić kwotowo albo procentowo dla każdej pozycji osobno.</div>
+            </div>
+          </section>
+        </div>
+
+        <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:p-5">
+          <div className="overflow-hidden rounded-[24px] border border-white/8">
+            <div className="hidden grid-cols-[0.85fr_1fr_1fr_0.65fr_0.7fr_0.7fr] gap-4 border-b border-white/8 bg-white/[0.03] px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#f3d998] lg:grid">
+              <span>Marka</span>
+              <span>Model</span>
+              <span>Wersja</span>
+              <span>Rocznik</span>
+              <span>Typ</span>
+              <span>Wartość</span>
+            </div>
+
+            <div className="grid">
+              {draftRules.length > 0 ? Object.entries(groupedRules).map(([brand, brandRules]) => (
+                <div key={brand} className="border-b border-white/6 last:border-b-0">
+                  <div className="border-b border-white/8 bg-white/[0.04] px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#f3d998]">
+                    {brand}
+                  </div>
+                  {brandRules.map((rule) => (
+                    <div key={rule.id} className="grid gap-4 border-b border-white/6 px-5 py-4 last:border-b-0 lg:grid-cols-[0.85fr_1fr_1fr_0.65fr_0.7fr_0.7fr] lg:items-center">
+                      <div className="text-sm font-semibold text-white">{rule.brand}</div>
+                      <div className="text-sm text-[#c2cad4]">{rule.model}</div>
+                      <div className="text-sm text-[#c2cad4]">{rule.version}</div>
+                      <div className="text-sm text-[#c2cad4]">{rule.year ?? '—'}</div>
+                      <select
+                        value={rule.valueType}
+                        onChange={(event) => updateRuleValue(rule.id, 'valueType', event.target.value)}
+                        disabled={!editable}
+                        className="h-11 rounded-2xl border border-white/10 bg-[#131922] px-4 text-sm text-white outline-none transition focus:border-[rgba(216,180,90,0.45)] disabled:opacity-60"
+                      >
+                        <option value="AMOUNT">Kwota</option>
+                        <option value="PERCENT">Procent</option>
+                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={rule.value ?? ''}
+                        onChange={(event) => updateRuleValue(rule.id, 'value', event.target.value)}
+                        disabled={!editable}
+                        placeholder={rule.valueType === 'PERCENT' ? 'np. 10' : 'np. 3000'}
+                        className="h-11 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none transition focus:border-[rgba(216,180,90,0.45)] disabled:opacity-60"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )) : (
+                <div className="px-4 py-16 text-center text-sm text-[#7f8a97]">
+                  Brak pozycji prowizyjnych. Najpierw zapisz politykę cenową i dodaj dyrektorów lub managerów.
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  )
+}

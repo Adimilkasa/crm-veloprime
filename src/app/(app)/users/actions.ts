@@ -1,0 +1,56 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+
+import { getSession } from '@/lib/auth'
+import type { UserRoleKey } from '@/lib/rbac'
+import { createManagedUser, toggleManagedUserStatus } from '@/lib/user-management'
+
+async function requireAdmin() {
+  const session = await getSession()
+
+  if (!session) {
+    redirect('/login')
+  }
+
+  if (session.role !== 'ADMIN') {
+    redirect('/dashboard')
+  }
+
+  return session
+}
+
+export async function createUserAction(formData: FormData) {
+  await requireAdmin()
+
+  const result = await createManagedUser({
+    fullName: String(formData.get('fullName') || ''),
+    email: String(formData.get('email') || ''),
+    role: String(formData.get('role') || 'SALES') as UserRoleKey,
+    region: String(formData.get('region') || ''),
+    teamName: String(formData.get('teamName') || ''),
+    reportsToUserId: String(formData.get('reportsToUserId') || ''),
+  })
+
+  if (!result.ok) {
+    redirect(`/users?error=${encodeURIComponent(result.error)}`)
+  }
+
+  revalidatePath('/users')
+  redirect('/users?success=created')
+}
+
+export async function toggleUserStatusAction(formData: FormData) {
+  await requireAdmin()
+
+  const userId = String(formData.get('userId') || '')
+  const result = await toggleManagedUserStatus(userId)
+
+  if (!result.ok) {
+    redirect(`/users?error=${encodeURIComponent(result.error)}`)
+  }
+
+  revalidatePath('/users')
+  redirect('/users?success=toggled')
+}
