@@ -1,13 +1,18 @@
 import 'server-only'
 
+import { OfferColorKind, Prisma } from '@prisma/client'
+
 import type { AuthSession } from '@/lib/auth'
 import { getDemoUsers } from '@/lib/auth'
+import { findColorPalette, listColorPalettes, type ModelColorPalette } from '@/lib/color-management'
 import { listActiveCommissionRules } from '@/lib/commission-management'
-import { listManagedLeads } from '@/lib/lead-management'
+import { db, hasDatabaseUrl } from '@/lib/db'
+import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
+import { listManagedLeads, type ManagedLead } from '@/lib/lead-management'
 import { calculateOfferSummary, type OfferCalculationSummary, type OfferCustomerType } from '@/lib/offer-calculations'
-import { buildDetailedPricingCatalog } from '@/lib/pricing-catalog'
+import { buildDetailedPricingCatalog, type DetailedPricingCatalogItem } from '@/lib/pricing-catalog'
 import { getActivePricingSheet } from '@/lib/pricing-management'
-import { listManagedUsers } from '@/lib/user-management'
+import { listManagedUsers, type ManagedUser } from '@/lib/user-management'
 
 export type OfferStatus = 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
 
@@ -16,6 +21,65 @@ export type OfferVersion = {
   versionNumber: number
   summary: string
   createdAt: string
+  pdfUrl: string | null
+  payloadJson: OfferDocumentPayload | null
+  customerSnapshotJson: OfferCustomerSnapshot | null
+  internalSnapshotJson: OfferInternalSnapshot | null
+}
+
+export type OfferCustomerSnapshot = {
+  offerNumber: string
+  title: string
+  customerName: string
+  customerEmail: string | null
+  customerPhone: string | null
+  modelName: string | null
+  selectedColorName: string | null
+  financingVariant: string | null
+  notes: string | null
+  validUntil: string | null
+  listPriceLabel: string
+  discountLabel: string
+  discountPercentLabel: string
+  finalGrossLabel: string
+  finalNetLabel: string
+  financingSummary: string | null
+  financingDisclaimer: string | null
+  createdAt: string
+}
+
+export type OfferInternalSnapshot = {
+  catalogKey: string | null
+  customerType: OfferCustomerType
+  listPriceGross: number | null
+  listPriceNet: number | null
+  basePriceGross: number | null
+  basePriceNet: number | null
+  colorSurchargeGross: number | null
+  colorSurchargeNet: number | null
+  marginPoolGross: number | null
+  marginPoolNet: number | null
+  directorShare: number | null
+  managerShare: number | null
+  availableDiscount: number | null
+  appliedDiscount: number | null
+  salespersonCommission: number | null
+  finalPriceGross: number | null
+  finalPriceNet: number | null
+  selectedColorName: string | null
+  baseColorName: string | null
+  ownerName: string
+  ownerRole: AuthSession['role']
+  financing: OfferFinancingSummary | null
+  generatedAt: string
+}
+
+export type OfferDocumentPayload = {
+  versionId: string
+  versionNumber: number
+  createdAt: string
+  customer: OfferCustomerSnapshot
+  internal: OfferInternalSnapshot
 }
 
 export type ManagedOffer = {
@@ -29,6 +93,7 @@ export type ManagedOffer = {
   customerPhone: string | null
   modelName: string | null
   pricingCatalogKey: string | null
+  selectedColorName: string | null
   customerType: OfferCustomerType
   discountValue: number | null
   ownerId: string
@@ -37,6 +102,10 @@ export type ManagedOffer = {
   totalGross: number | null
   totalNet: number | null
   financingVariant: string | null
+  financingTermMonths: number | null
+  financingInputMode: FinancingInputMode
+  financingInputValue: number | null
+  financingBuyoutPercent: number | null
   notes: string | null
   versions: OfferVersion[]
   createdAt: string
@@ -62,11 +131,31 @@ export type OfferPricingOption = {
   model: string
   version: string
   year: string | null
+  powertrain: string | null
+  powerHp: string | null
+  listPriceGross: number | null
+  listPriceNet: number | null
+  basePriceGross: number | null
+  basePriceNet: number | null
+  marginPoolGross: number | null
+  marginPoolNet: number | null
 }
+
+export type OfferColorPaletteOption = ModelColorPalette
 
 const globalForOffers = globalThis as unknown as {
   crmOffers?: ManagedOffer[]
 }
+
+type DbOfferRecord = Prisma.OfferGetPayload<{
+  include: {
+    customer: true
+    owner: true
+    salesCatalogItem: true
+    financing: true
+    versions: true
+  }
+}>
 
 export const offerStatusOptions: Array<{ value: OfferStatus; label: string }> = [
   { value: 'DRAFT', label: 'Szkic' },
@@ -94,6 +183,41 @@ function formatMoney(value: number | null) {
     currency: 'PLN',
     maximumFractionDigits: 2,
   }).format(value)
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(2).replace('.', ',')}%`
+}
+
+function buildFinancingPersistence(input: {
+  financingTermMonths: number | null
+  financingInputMode: FinancingInputMode
+  financingInputValue: number | null
+  financingBuyoutPercent: number | null
+  financingSummary: OfferFinancingSummary | null
+}) {
+  if (
+    input.financingTermMonths === null
+    || input.financingInputValue === null
+    || input.financingBuyoutPercent === null
+  ) {
+    return null
+  }
+
+  return {
+    termMonths: input.financingTermMonths,
+    downPaymentInputMode: input.financingInputMode,
+    downPaymentInputValue: input.financingInputValue,
+    downPaymentAmount: input.financingSummary?.downPaymentAmount ?? null,
+    downPaymentPercent: input.financingSummary?.downPaymentPercent ?? null,
+    buyoutPercent: input.financingBuyoutPercent,
+    buyoutAmount: input.financingSummary?.buyoutAmount ?? null,
+    financedAssetValue: input.financingSummary?.financedAssetValue ?? null,
+    leaseTotalFactor: input.financingSummary?.leaseTotalFactor ?? null,
+    totalLeaseCost: input.financingSummary?.totalLeaseCost ?? null,
+    estimatedInstallment: input.financingSummary?.estimatedInstallment ?? null,
+    disclaimerText: input.financingSummary?.disclaimerText ?? null,
+  } satisfies Prisma.OfferFinancingCreateWithoutOfferInput
 }
 
 function nextOfferNumber(offers: ManagedOffer[]) {
@@ -124,6 +248,7 @@ async function buildSeedOffers() {
       customerPhone: lead.phone,
       modelName: lead.interestedModel,
       pricingCatalogKey: null,
+      selectedColorName: null,
       customerType: 'PRIVATE',
       discountValue: null,
       ownerId: lead.salespersonId ?? adminSession?.sub ?? 'demo-admin',
@@ -132,6 +257,10 @@ async function buildSeedOffers() {
       totalGross: index === 0 ? 184900 : 203500,
       totalNet: index === 0 ? 150325.2 : 165447.15,
       financingVariant: index === 0 ? 'Leasing 36 miesięcy / wpłata 15%' : 'Wynajem długoterminowy 48 miesięcy',
+      financingTermMonths: index === 0 ? 36 : 48,
+      financingInputMode: 'PERCENT',
+      financingInputValue: index === 0 ? 15 : 10,
+      financingBuyoutPercent: index === 0 ? 30 : 20,
       notes: index === 0 ? 'Uwzględniono pakiet serwisowy i odbiór w Warszawie.' : 'Klient prosi o porównanie z finansowaniem gotówkowym.',
       versions: [
         {
@@ -139,6 +268,10 @@ async function buildSeedOffers() {
           versionNumber: 1,
           summary: `Wersja startowa / ${lead.interestedModel ?? 'model'} / ${formatMoney(index === 0 ? 184900 : 203500)}`,
           createdAt,
+          pdfUrl: null,
+          payloadJson: null,
+          customerSnapshotJson: null,
+          internalSnapshotJson: null,
         },
       ],
       createdAt,
@@ -155,11 +288,84 @@ async function getStore() {
   return globalForOffers.crmOffers
 }
 
+function buildOfferVersionSnapshot(offer: ManagedOfferWithCalculation, versionId: string, versionNumber: number): OfferDocumentPayload {
+  const discountAmount = offer.calculation?.appliedDiscount ?? offer.discountValue ?? 0
+  const referencePrice = offer.customerType === 'BUSINESS'
+    ? offer.calculation?.listPriceNet ?? offer.totalNet ?? 0
+    : offer.calculation?.listPriceGross ?? offer.totalGross ?? 0
+  const discountPercent = referencePrice > 0 ? (discountAmount / referencePrice) * 100 : 0
+  const createdAt = new Date().toISOString()
+  const financing = calculateOfferFinancing({
+    customerType: offer.customerType,
+    finalPriceGross: offer.totalGross,
+    finalPriceNet: offer.totalNet,
+    termMonths: offer.financingTermMonths,
+    downPaymentInputMode: offer.financingInputMode,
+    downPaymentInputValue: offer.financingInputValue,
+    buyoutPercent: offer.financingBuyoutPercent,
+  })
+  const financingSummary = financing && financing.ok
+    ? `${financing.summary.termMonths} mies. / wplata ${formatMoney(financing.summary.downPaymentAmount)} / wykup ${formatPercent(financing.summary.buyoutPercent)} / rata od ${formatMoney(financing.summary.estimatedInstallment)}`
+    : offer.financingVariant
+
+  return {
+    versionId,
+    versionNumber,
+    createdAt,
+    customer: {
+      offerNumber: offer.number,
+      title: offer.title,
+      customerName: offer.customerName,
+      customerEmail: offer.customerEmail,
+      customerPhone: offer.customerPhone,
+      modelName: offer.modelName,
+      selectedColorName: offer.calculation?.selectedColorName ?? offer.selectedColorName,
+      financingVariant: offer.financingVariant,
+      notes: offer.notes,
+      validUntil: offer.validUntil,
+      listPriceLabel: formatMoney(offer.customerType === 'BUSINESS' ? offer.calculation?.listPriceNet ?? offer.totalNet : offer.calculation?.listPriceGross ?? offer.totalGross),
+      discountLabel: formatMoney(discountAmount),
+      discountPercentLabel: formatPercent(discountPercent),
+      finalGrossLabel: formatMoney(offer.totalGross),
+      finalNetLabel: formatMoney(offer.totalNet),
+      financingSummary,
+      financingDisclaimer: financing && financing.ok ? financing.summary.disclaimerText : null,
+      createdAt,
+    },
+    internal: {
+      catalogKey: offer.pricingCatalogKey,
+      customerType: offer.customerType,
+      listPriceGross: offer.calculation?.listPriceGross ?? null,
+      listPriceNet: offer.calculation?.listPriceNet ?? null,
+      basePriceGross: offer.calculation?.basePriceGross ?? null,
+      basePriceNet: offer.calculation?.basePriceNet ?? null,
+      colorSurchargeGross: offer.calculation?.colorSurchargeGross ?? null,
+      colorSurchargeNet: offer.calculation?.colorSurchargeNet ?? null,
+      marginPoolGross: offer.calculation?.marginPoolGross ?? null,
+      marginPoolNet: offer.calculation?.marginPoolNet ?? null,
+      directorShare: offer.calculation?.directorShare ?? null,
+      managerShare: offer.calculation?.managerShare ?? null,
+      availableDiscount: offer.calculation?.availableDiscount ?? null,
+      appliedDiscount: offer.calculation?.appliedDiscount ?? null,
+      salespersonCommission: offer.calculation?.salespersonCommission ?? null,
+      finalPriceGross: offer.calculation?.finalPriceGross ?? offer.totalGross,
+      finalPriceNet: offer.calculation?.finalPriceNet ?? offer.totalNet,
+      selectedColorName: offer.calculation?.selectedColorName ?? offer.selectedColorName,
+      baseColorName: offer.calculation?.baseColorName ?? null,
+      ownerName: offer.ownerName,
+      ownerRole: offer.calculation?.ownerRole ?? 'SALES',
+      financing: financing && financing.ok ? financing.summary : null,
+      generatedAt: createdAt,
+    },
+  }
+}
+
 async function resolveOfferPricing(input: {
   pricingCatalogKey?: string
   customerType: OfferCustomerType
   discountValue: number | null
   ownerId: string
+  selectedColorName?: string | null
 }) {
   if (!input.pricingCatalogKey) {
     return null
@@ -177,6 +383,11 @@ async function resolveOfferPricing(input: {
     return { ok: false as const, error: 'Wybrana konfiguracja cenowa nie istnieje w zapisanej polityce cenowej.' }
   }
 
+  const colorPalette = await findColorPalette(catalogItem.brand, catalogItem.model)
+  const resolvedColorName = input.selectedColorName?.trim()
+    ? colorPalette?.colors.find((color) => color.name === input.selectedColorName?.trim())?.name ?? null
+    : colorPalette?.colors.find((color) => color.isBase)?.name ?? colorPalette?.baseColorName ?? null
+
   const calculation = calculateOfferSummary({
     catalogItem,
     ownerId: input.ownerId,
@@ -184,16 +395,37 @@ async function resolveOfferPricing(input: {
     commissionRules,
     customerType: input.customerType,
     discountValue: input.discountValue,
+    colorPalette,
+    selectedColorName: resolvedColorName,
   })
 
   if (!calculation) {
     return { ok: false as const, error: 'Wybrana konfiguracja nie ma kompletnych cen katalogowych i bazowych.' }
   }
 
-  return { ok: true as const, catalogItem, calculation }
+  return { ok: true as const, catalogItem, calculation, selectedColorName: resolvedColorName, colorPalette }
 }
 
 export async function listManagedOffers(session: AuthSession) {
+  if (isPrismaOfferStorageEnabled() && db) {
+    const offers = await db.offer.findMany({
+      include: {
+        customer: true,
+        owner: true,
+        salesCatalogItem: true,
+        financing: true,
+        versions: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    })
+
+    return offers
+      .map((offer) => mapDbOfferToManagedOffer(offer))
+      .filter((offer) => canViewOffer(session, offer))
+  }
+
   const offers = await getStore()
 
   return [...offers]
@@ -202,20 +434,23 @@ export async function listManagedOffers(session: AuthSession) {
 }
 
 export async function listManagedOffersWithCalculation(session: AuthSession) {
-  const [offers, pricingSheet, commissionRules, users] = await Promise.all([
+  const [offers, pricingSheet, commissionRules, users, colorPalettes] = await Promise.all([
     listManagedOffers(session),
     getActivePricingSheet(),
     listActiveCommissionRules(),
     listManagedUsers(),
+    listColorPalettes(),
   ])
 
   const catalogByKey = new Map(buildDetailedPricingCatalog(pricingSheet).map((item) => [item.key, item]))
+  const paletteByKey = new Map(colorPalettes.map((palette) => [palette.paletteKey, palette]))
 
   return offers.map((offer) => ({
     ...offer,
     calculation: offer.pricingCatalogKey
       ? (() => {
           const catalogItem = catalogByKey.get(offer.pricingCatalogKey)
+          const colorPalette = catalogItem ? paletteByKey.get(`${catalogItem.brand.toLowerCase()}::${catalogItem.model.toLowerCase()}`) ?? null : null
           return catalogItem
             ? calculateOfferSummary({
                 catalogItem,
@@ -224,11 +459,44 @@ export async function listManagedOffersWithCalculation(session: AuthSession) {
                 commissionRules,
                 customerType: offer.customerType,
                 discountValue: offer.discountValue,
+                colorPalette,
+                selectedColorName: offer.selectedColorName,
               })
             : null
         })()
       : null,
   })) satisfies ManagedOfferWithCalculation[]
+}
+
+export async function getManagedOfferWithCalculation(session: AuthSession, offerId: string) {
+  const offers = await listManagedOffersWithCalculation(session)
+  return offers.find((offer) => offer.id === offerId) ?? null
+}
+
+export async function getOfferDocumentSnapshot(session: AuthSession, offerId: string, versionId?: string | null) {
+  const offer = await getManagedOfferWithCalculation(session, offerId)
+
+  if (!offer) {
+    return null
+  }
+
+  const version = versionId
+    ? offer.versions.find((entry) => entry.id === versionId) ?? null
+    : offer.versions[0] ?? null
+
+  if (version?.payloadJson && version.customerSnapshotJson && version.internalSnapshotJson) {
+    return {
+      offer,
+      version,
+      payload: version.payloadJson,
+    }
+  }
+
+  return {
+    offer,
+    version,
+    payload: buildOfferVersionSnapshot(offer, version?.id ?? `offer-live-${offer.id}`, version?.versionNumber ?? offer.versions.length),
+  }
 }
 
 export async function listOfferLeadOptions(session: AuthSession) {
@@ -253,7 +521,19 @@ export async function listOfferPricingOptions() {
     model: item.model,
     version: item.version,
     year: item.year,
+    powertrain: item.powertrain,
+    powerHp: item.powerHp,
+    listPriceGross: item.listPriceGross,
+    listPriceNet: item.listPriceNet,
+    basePriceGross: item.basePriceGross,
+    basePriceNet: item.basePriceNet,
+    marginPoolGross: item.marginPoolGross,
+    marginPoolNet: item.marginPoolNet,
   })) satisfies OfferPricingOption[]
+}
+
+export async function listOfferColorPalettes() {
+  return listColorPalettes()
 }
 
 export async function createManagedOffer(
@@ -262,9 +542,14 @@ export async function createManagedOffer(
     leadId: string
     title: string
     pricingCatalogKey?: string
+    selectedColorName?: string
     customerType?: OfferCustomerType
     discountValue?: string
     financingVariant?: string
+    financingTermMonths?: string
+    financingInputMode?: FinancingInputMode
+    financingInputValue?: string
+    financingBuyoutPercent?: string
     validUntil?: string
     notes?: string
   }
@@ -279,21 +564,120 @@ export async function createManagedOffer(
   const title = input.title.trim() || `Oferta ${lead.interestedModel ?? 'sprzedażowa'} dla ${lead.fullName}`
   const customerType = input.customerType === 'BUSINESS' ? 'BUSINESS' : 'PRIVATE'
   const discountValue = input.discountValue?.trim() ? Number(input.discountValue) : null
+  const financingTermMonths = input.financingTermMonths?.trim() ? Number(input.financingTermMonths) : null
+  const financingInputValue = input.financingInputValue?.trim() ? Number(input.financingInputValue) : null
+  const financingBuyoutPercent = input.financingBuyoutPercent?.trim() ? Number(input.financingBuyoutPercent) : null
+  const financingInputMode = input.financingInputMode === 'AMOUNT' ? 'AMOUNT' : 'PERCENT'
 
   if (input.discountValue?.trim() && (discountValue === null || Number.isNaN(discountValue))) {
     return { ok: false as const, error: 'Rabat klienta musi być poprawną liczbą.' }
   }
 
+  if (input.financingTermMonths?.trim() && (financingTermMonths === null || Number.isNaN(financingTermMonths))) {
+    return { ok: false as const, error: 'Okres finansowania musi być poprawną liczbą.' }
+  }
+
+  if (input.financingInputValue?.trim() && (financingInputValue === null || Number.isNaN(financingInputValue))) {
+    return { ok: false as const, error: 'Wpłata własna musi być poprawną liczbą.' }
+  }
+
+  if (input.financingBuyoutPercent?.trim() && (financingBuyoutPercent === null || Number.isNaN(financingBuyoutPercent))) {
+    return { ok: false as const, error: 'Wykup musi być poprawną liczbą.' }
+  }
+
   const ownerId = lead.salespersonId ?? session.sub
+  const pricingSheet = await getActivePricingSheet()
+  const catalogItems = buildDetailedPricingCatalog(pricingSheet)
   const pricingResult = await resolveOfferPricing({
     pricingCatalogKey: input.pricingCatalogKey?.trim() || undefined,
     customerType,
     discountValue,
     ownerId,
+    selectedColorName: input.selectedColorName,
   })
 
   if (pricingResult && !pricingResult.ok) {
     return pricingResult
+  }
+
+  if (pricingResult && pricingResult.ok) {
+    const financingResult = calculateOfferFinancing({
+      customerType,
+      finalPriceGross: pricingResult.calculation.finalPriceGross,
+      finalPriceNet: pricingResult.calculation.finalPriceNet,
+      termMonths: financingTermMonths,
+      downPaymentInputMode: financingInputMode,
+      downPaymentInputValue: financingInputValue,
+      buyoutPercent: financingBuyoutPercent,
+    })
+
+    if (financingResult && !financingResult.ok) {
+      return financingResult
+    }
+  }
+
+  const financingResult = pricingResult && pricingResult.ok
+    ? calculateOfferFinancing({
+        customerType,
+        finalPriceGross: pricingResult.calculation.finalPriceGross,
+        finalPriceNet: pricingResult.calculation.finalPriceNet,
+        termMonths: financingTermMonths,
+        downPaymentInputMode: financingInputMode,
+        downPaymentInputValue: financingInputValue,
+        buyoutPercent: financingBuyoutPercent,
+      })
+    : null
+
+  const financingPersistence = buildFinancingPersistence({
+    financingTermMonths,
+    financingInputMode,
+    financingInputValue,
+    financingBuyoutPercent,
+    financingSummary: financingResult && financingResult.ok ? financingResult.summary : null,
+  })
+
+  if (isPrismaOfferStorageEnabled() && db) {
+    const users = await listManagedUsers()
+    await ensureUsersInDb(users)
+    const catalogIds = await syncCatalogItemsToDb(catalogItems)
+    const customer = await ensureCustomerFromLead(lead, ownerId)
+
+    if (!customer) {
+      return { ok: false as const, error: 'Nie udało się przygotować klienta do zapisu w bazie.' }
+    }
+
+    const offers = await listManagedOffers(session)
+    const created = await db.offer.create({
+      data: {
+        number: nextOfferNumber(offers),
+        status: 'DRAFT',
+        title,
+        customerId: customer.id,
+        ownerId,
+        salesCatalogItemId: pricingResult && pricingResult.ok ? catalogIds.get(pricingResult.catalogItem.key) ?? null : null,
+        customerType,
+        selectedColorKind: pricingResult && pricingResult.ok && pricingResult.calculation.colorSurchargeGross > 0 ? OfferColorKind.EXTRA_PAID : OfferColorKind.BASE,
+        selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
+        colorSurchargeGross: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeGross : null,
+        colorSurchargeNet: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeNet : null,
+        discountAmount: discountValue,
+        validUntil: input.validUntil?.trim() ? new Date(input.validUntil) : null,
+        totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
+        totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
+        financingVariant: input.financingVariant?.trim() || null,
+        notes: input.notes?.trim() || lead.message || null,
+        ...(financingPersistence ? { financing: { create: financingPersistence } } : {}),
+      },
+      include: {
+        customer: true,
+        owner: true,
+        salesCatalogItem: true,
+        financing: true,
+        versions: true,
+      },
+    })
+
+    return { ok: true as const, offer: mapDbOfferToManagedOffer(created) }
   }
 
   const offers = await getStore()
@@ -308,6 +692,7 @@ export async function createManagedOffer(
     customerPhone: lead.phone,
     modelName: pricingResult && pricingResult.ok ? `${pricingResult.catalogItem.brand} ${pricingResult.catalogItem.model} ${pricingResult.catalogItem.version}` : lead.interestedModel,
     pricingCatalogKey: pricingResult && pricingResult.ok ? pricingResult.catalogItem.key : null,
+    selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
     customerType,
     discountValue,
     ownerId,
@@ -316,6 +701,10 @@ export async function createManagedOffer(
     totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
     totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
     financingVariant: input.financingVariant?.trim() || null,
+    financingTermMonths,
+    financingInputMode,
+    financingInputValue,
+    financingBuyoutPercent,
     notes: input.notes?.trim() || lead.message || null,
     versions: [],
     createdAt: new Date().toISOString(),
@@ -334,15 +723,21 @@ export async function updateManagedOffer(
     title: string
     status: OfferStatus
     pricingCatalogKey?: string
+    selectedColorName?: string
     customerType?: OfferCustomerType
     discountValue?: string
     financingVariant?: string
+    financingTermMonths?: string
+    financingInputMode?: FinancingInputMode
+    financingInputValue?: string
+    financingBuyoutPercent?: string
     validUntil?: string
     notes?: string
   }
 ) {
-  const offers = await getStore()
-  const offer = offers.find((entry) => entry.id === input.offerId)
+  const offer = isPrismaOfferStorageEnabled()
+    ? await getManagedOfferWithCalculation(session, input.offerId)
+    : (await getStore()).find((entry) => entry.id === input.offerId) ?? null
 
   if (!offer) {
     return { ok: false as const, error: 'Nie znaleziono oferty.' }
@@ -354,9 +749,25 @@ export async function updateManagedOffer(
 
   const customerType = input.customerType === 'BUSINESS' ? 'BUSINESS' : 'PRIVATE'
   const discountValue = input.discountValue?.trim() ? Number(input.discountValue) : null
+  const financingTermMonths = input.financingTermMonths?.trim() ? Number(input.financingTermMonths) : null
+  const financingInputValue = input.financingInputValue?.trim() ? Number(input.financingInputValue) : null
+  const financingBuyoutPercent = input.financingBuyoutPercent?.trim() ? Number(input.financingBuyoutPercent) : null
+  const financingInputMode = input.financingInputMode === 'AMOUNT' ? 'AMOUNT' : 'PERCENT'
 
   if (input.discountValue?.trim() && (discountValue === null || Number.isNaN(discountValue))) {
     return { ok: false as const, error: 'Rabat klienta musi być poprawną liczbą.' }
+  }
+
+  if (input.financingTermMonths?.trim() && (financingTermMonths === null || Number.isNaN(financingTermMonths))) {
+    return { ok: false as const, error: 'Okres finansowania musi być poprawną liczbą.' }
+  }
+
+  if (input.financingInputValue?.trim() && (financingInputValue === null || Number.isNaN(financingInputValue))) {
+    return { ok: false as const, error: 'Wpłata własna musi być poprawną liczbą.' }
+  }
+
+  if (input.financingBuyoutPercent?.trim() && (financingBuyoutPercent === null || Number.isNaN(financingBuyoutPercent))) {
+    return { ok: false as const, error: 'Wykup musi być poprawną liczbą.' }
   }
 
   const pricingResult = await resolveOfferPricing({
@@ -364,18 +775,111 @@ export async function updateManagedOffer(
     customerType,
     discountValue,
     ownerId: offer.ownerId,
+    selectedColorName: input.selectedColorName,
   })
 
   if (pricingResult && !pricingResult.ok) {
     return pricingResult
   }
 
+  if (pricingResult && pricingResult.ok) {
+    const financingResult = calculateOfferFinancing({
+      customerType,
+      finalPriceGross: pricingResult.calculation.finalPriceGross,
+      finalPriceNet: pricingResult.calculation.finalPriceNet,
+      termMonths: financingTermMonths,
+      downPaymentInputMode: financingInputMode,
+      downPaymentInputValue: financingInputValue,
+      buyoutPercent: financingBuyoutPercent,
+    })
+
+    if (financingResult && !financingResult.ok) {
+      return financingResult
+    }
+  }
+
+  const financingResult = pricingResult && pricingResult.ok
+    ? calculateOfferFinancing({
+        customerType,
+        finalPriceGross: pricingResult.calculation.finalPriceGross,
+        finalPriceNet: pricingResult.calculation.finalPriceNet,
+        termMonths: financingTermMonths,
+        downPaymentInputMode: financingInputMode,
+        downPaymentInputValue: financingInputValue,
+        buyoutPercent: financingBuyoutPercent,
+      })
+    : null
+
+  const financingPersistence = buildFinancingPersistence({
+    financingTermMonths,
+    financingInputMode,
+    financingInputValue,
+    financingBuyoutPercent,
+    financingSummary: financingResult && financingResult.ok ? financingResult.summary : null,
+  })
+
+  if (isPrismaOfferStorageEnabled() && db) {
+    const pricingSheet = await getActivePricingSheet()
+    const catalogItems = buildDetailedPricingCatalog(pricingSheet)
+    await ensureUsersInDb(await listManagedUsers())
+    const catalogIds = await syncCatalogItemsToDb(catalogItems)
+    const updated = await db.offer.update({
+      where: { id: input.offerId },
+      data: {
+        title: input.title.trim() || offer.title,
+        status: input.status,
+        salesCatalogItemId: pricingResult && pricingResult.ok ? catalogIds.get(pricingResult.catalogItem.key) ?? null : null,
+        customerType,
+        selectedColorKind: pricingResult && pricingResult.ok && pricingResult.calculation.colorSurchargeGross > 0 ? OfferColorKind.EXTRA_PAID : OfferColorKind.BASE,
+        selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
+        colorSurchargeGross: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeGross : null,
+        colorSurchargeNet: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeNet : null,
+        discountAmount: discountValue,
+        financingVariant: input.financingVariant?.trim() || null,
+        validUntil: input.validUntil?.trim() ? new Date(input.validUntil) : null,
+        totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
+        totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
+        notes: input.notes?.trim() || null,
+        ...(financingPersistence
+          ? {
+              financing: {
+                upsert: {
+                  create: financingPersistence,
+                  update: financingPersistence,
+                },
+              },
+            }
+          : offer.financingTermMonths !== null
+            ? {
+                financing: {
+                  delete: true,
+                },
+              }
+            : {}),
+      },
+      include: {
+        customer: true,
+        owner: true,
+        salesCatalogItem: true,
+        financing: true,
+        versions: true,
+      },
+    })
+
+    return { ok: true as const, offer: mapDbOfferToManagedOffer(updated) }
+  }
+
   offer.title = input.title.trim() || offer.title
   offer.status = input.status
   offer.pricingCatalogKey = pricingResult && pricingResult.ok ? pricingResult.catalogItem.key : null
+  offer.selectedColorName = pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null
   offer.customerType = customerType
   offer.discountValue = discountValue
   offer.financingVariant = input.financingVariant?.trim() || null
+  offer.financingTermMonths = financingTermMonths
+  offer.financingInputMode = financingInputMode
+  offer.financingInputValue = financingInputValue
+  offer.financingBuyoutPercent = financingBuyoutPercent
   offer.totalGross = pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null
   offer.totalNet = pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null
   offer.modelName = pricingResult && pricingResult.ok ? `${pricingResult.catalogItem.brand} ${pricingResult.catalogItem.model} ${pricingResult.catalogItem.version}` : offer.modelName
@@ -387,8 +891,7 @@ export async function updateManagedOffer(
 }
 
 export async function createManagedOfferVersion(session: AuthSession, offerId: string) {
-  const offers = await getStore()
-  const offer = offers.find((entry) => entry.id === offerId)
+  const offer = await getManagedOfferWithCalculation(session, offerId)
 
   if (!offer) {
     return { ok: false as const, error: 'Nie znaleziono oferty.' }
@@ -398,15 +901,230 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
     return { ok: false as const, error: 'Nie masz dostępu do tej oferty.' }
   }
 
+  const versionId = `offer-version-${crypto.randomUUID()}`
+  const versionNumber = offer.versions.length + 1
+  const payload = buildOfferVersionSnapshot(offer, versionId, versionNumber)
+
   const nextVersion: OfferVersion = {
-    id: `offer-version-${crypto.randomUUID()}`,
-    versionNumber: offer.versions.length + 1,
-    summary: `${offer.title} / ${offer.financingVariant ?? 'wariant bez finansowania'} / ${formatMoney(offer.totalGross)}`,
-    createdAt: new Date().toISOString(),
+    id: versionId,
+    versionNumber,
+    summary: `${offer.title} / ${offer.selectedColorName ?? 'kolor bazowy'} / ${offer.financingVariant ?? 'wariant bez finansowania'} / ${formatMoney(offer.totalGross)}`,
+    createdAt: payload.createdAt,
+    pdfUrl: `/offers/${offer.id}/pdf?versionId=${versionId}`,
+    payloadJson: payload,
+    customerSnapshotJson: payload.customer,
+    internalSnapshotJson: payload.internal,
   }
 
-  offer.versions.unshift(nextVersion)
-  offer.updatedAt = new Date().toISOString()
+  if (isPrismaOfferStorageEnabled() && db) {
+    await db.offerVersion.create({
+      data: {
+        id: nextVersion.id,
+        offerId: offer.id,
+        versionNumber: nextVersion.versionNumber,
+        pdfUrl: nextVersion.pdfUrl,
+        payloadJson: nextVersion.payloadJson as Prisma.InputJsonValue,
+        customerSnapshotJson: nextVersion.customerSnapshotJson as Prisma.InputJsonValue,
+        internalSnapshotJson: nextVersion.internalSnapshotJson as Prisma.InputJsonValue,
+      },
+    })
+
+    return { ok: true as const, version: nextVersion }
+  }
+
+  const offers = await getStore()
+  const storedOffer = offers.find((entry) => entry.id === offerId)
+
+  if (!storedOffer) {
+    return { ok: false as const, error: 'Nie znaleziono oferty w pamięci roboczej.' }
+  }
+
+  storedOffer.versions.unshift(nextVersion)
+  storedOffer.updatedAt = new Date().toISOString()
 
   return { ok: true as const, version: nextVersion }
+}
+
+function isPrismaOfferStorageEnabled() {
+  return hasDatabaseUrl() && Boolean(db)
+}
+
+async function ensureUsersInDb(users: ManagedUser[]) {
+  if (!db) {
+    return
+  }
+
+  const sortedUsers = [...users].sort((left, right) => {
+    const rank = { ADMIN: 0, DIRECTOR: 1, MANAGER: 2, SALES: 3 } as const
+    return rank[left.role] - rank[right.role]
+  })
+
+  for (const user of sortedUsers) {
+    await db.user.upsert({
+      where: { id: user.id },
+      update: {
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive,
+        region: user.region,
+        teamName: user.teamName,
+        reportsToUserId: user.reportsToUserId,
+      },
+      create: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive,
+        region: user.region,
+        teamName: user.teamName,
+        reportsToUserId: user.reportsToUserId,
+      },
+    })
+  }
+}
+
+async function syncCatalogItemsToDb(catalogItems: DetailedPricingCatalogItem[]) {
+  if (!db) {
+    return new Map<string, string>()
+  }
+
+  const idsByKey = new Map<string, string>()
+
+  for (const item of catalogItems) {
+    const brandSetting = await db.brandSetting.upsert({
+      where: { brand: item.brand },
+      update: {
+        isActive: true,
+      },
+      create: {
+        brand: item.brand,
+      },
+    })
+
+    const existing = await db.salesCatalogItem.findFirst({
+      where: {
+        brand: item.brand,
+        model: item.model,
+        version: item.version,
+        year: item.year,
+      },
+    })
+
+    const record = existing
+      ? await db.salesCatalogItem.update({
+          where: { id: existing.id },
+          data: {
+            powertrain: item.powertrain,
+            powerHp: item.powerHp,
+            listPriceGross: item.listPriceGross,
+            listPriceNet: item.listPriceNet,
+            basePriceGross: item.basePriceGross,
+            basePriceNet: item.basePriceNet,
+            isActive: true,
+            brandSettingId: brandSetting.id,
+          },
+        })
+      : await db.salesCatalogItem.create({
+          data: {
+            brand: item.brand,
+            model: item.model,
+            version: item.version,
+            year: item.year,
+            powertrain: item.powertrain,
+            powerHp: item.powerHp,
+            listPriceGross: item.listPriceGross,
+            listPriceNet: item.listPriceNet,
+            basePriceGross: item.basePriceGross,
+            basePriceNet: item.basePriceNet,
+            isActive: true,
+            brandSettingId: brandSetting.id,
+          },
+        })
+
+    idsByKey.set(item.key, record.id)
+  }
+
+  return idsByKey
+}
+
+async function ensureCustomerFromLead(lead: ManagedLead, ownerId: string) {
+  if (!db) {
+    return null
+  }
+
+  const existing = await db.customer.findFirst({
+    where: {
+      fullName: lead.fullName,
+      OR: [
+        lead.email ? { email: lead.email } : undefined,
+        lead.phone ? { phone: lead.phone } : undefined,
+      ].filter(Boolean) as Prisma.CustomerWhereInput[],
+    },
+  })
+
+  if (existing) {
+    return existing
+  }
+
+  return db.customer.create({
+    data: {
+      fullName: lead.fullName,
+      email: lead.email,
+      phone: lead.phone,
+      city: lead.region,
+      notes: lead.message,
+      ownerId,
+    },
+  })
+}
+
+function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
+  const pricingCatalogKey = offer.salesCatalogItem
+    ? [offer.salesCatalogItem.brand, offer.salesCatalogItem.model, offer.salesCatalogItem.version, offer.salesCatalogItem.year || ''].join('::').toLowerCase()
+    : null
+
+  return {
+    id: offer.id,
+    number: offer.number,
+    status: offer.status,
+    title: offer.title,
+    leadId: null,
+    customerName: offer.customer.fullName,
+    customerEmail: offer.customer.email,
+    customerPhone: offer.customer.phone,
+    modelName: offer.salesCatalogItem ? `${offer.salesCatalogItem.brand} ${offer.salesCatalogItem.model} ${offer.salesCatalogItem.version}` : null,
+    pricingCatalogKey,
+    selectedColorName: offer.selectedColorName,
+    customerType: offer.customerType,
+    discountValue: offer.discountAmount ? Number(offer.discountAmount) : null,
+    ownerId: offer.ownerId,
+    ownerName: offer.owner.fullName,
+    validUntil: offer.validUntil?.toISOString() ?? null,
+    totalGross: offer.totalGross ? Number(offer.totalGross) : null,
+    totalNet: offer.totalNet ? Number(offer.totalNet) : null,
+    financingVariant: offer.financingVariant,
+    financingTermMonths: offer.financing?.termMonths ?? null,
+    financingInputMode: offer.financing?.downPaymentInputMode ?? 'PERCENT',
+    financingInputValue: offer.financing?.downPaymentInputValue ? Number(offer.financing.downPaymentInputValue) : null,
+    financingBuyoutPercent: offer.financing?.buyoutPercent ? Number(offer.financing.buyoutPercent) : null,
+    notes: offer.notes,
+    versions: offer.versions
+      .sort((left, right) => right.versionNumber - left.versionNumber)
+      .map((version) => ({
+        id: version.id,
+        versionNumber: version.versionNumber,
+        summary: typeof version.payloadJson === 'object' && version.payloadJson && 'customer' in version.payloadJson
+          ? `${offer.title} / ${offer.selectedColorName ?? 'kolor bazowy'} / ${offer.financingVariant ?? 'wariant bez finansowania'} / ${formatMoney(offer.totalGross ? Number(offer.totalGross) : null)}`
+          : `${offer.title} / ${formatMoney(offer.totalGross ? Number(offer.totalGross) : null)}`,
+        createdAt: version.createdAt.toISOString(),
+        pdfUrl: version.pdfUrl,
+        payloadJson: (version.payloadJson as OfferDocumentPayload | null) ?? null,
+        customerSnapshotJson: (version.customerSnapshotJson as OfferCustomerSnapshot | null) ?? null,
+        internalSnapshotJson: (version.internalSnapshotJson as OfferInternalSnapshot | null) ?? null,
+      })),
+    createdAt: offer.createdAt.toISOString(),
+    updatedAt: offer.updatedAt.toISOString(),
+  }
 }

@@ -22,9 +22,14 @@ export async function createOfferAction(formData: FormData) {
     leadId: String(formData.get('leadId') || ''),
     title: String(formData.get('title') || ''),
     pricingCatalogKey: String(formData.get('pricingCatalogKey') || ''),
+    selectedColorName: String(formData.get('selectedColorName') || ''),
     customerType: String(formData.get('customerType') || 'PRIVATE') as 'PRIVATE' | 'BUSINESS',
     discountValue: String(formData.get('discountValue') || ''),
     financingVariant: String(formData.get('financingVariant') || ''),
+    financingTermMonths: String(formData.get('financingTermMonths') || ''),
+    financingInputMode: String(formData.get('financingInputMode') || 'PERCENT') as 'AMOUNT' | 'PERCENT',
+    financingInputValue: String(formData.get('financingInputValue') || ''),
+    financingBuyoutPercent: String(formData.get('financingBuyoutPercent') || ''),
     validUntil: String(formData.get('validUntil') || ''),
     notes: String(formData.get('notes') || ''),
   })
@@ -44,9 +49,14 @@ export async function updateOfferAction(formData: FormData) {
     title: String(formData.get('title') || ''),
     status: String(formData.get('status') || 'DRAFT') as 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED',
     pricingCatalogKey: String(formData.get('pricingCatalogKey') || ''),
+    selectedColorName: String(formData.get('selectedColorName') || ''),
     customerType: String(formData.get('customerType') || 'PRIVATE') as 'PRIVATE' | 'BUSINESS',
     discountValue: String(formData.get('discountValue') || ''),
     financingVariant: String(formData.get('financingVariant') || ''),
+    financingTermMonths: String(formData.get('financingTermMonths') || ''),
+    financingInputMode: String(formData.get('financingInputMode') || 'PERCENT') as 'AMOUNT' | 'PERCENT',
+    financingInputValue: String(formData.get('financingInputValue') || ''),
+    financingBuyoutPercent: String(formData.get('financingBuyoutPercent') || ''),
     validUntil: String(formData.get('validUntil') || ''),
     notes: String(formData.get('notes') || ''),
   })
@@ -68,5 +78,5 @@ export async function createOfferVersionAction(formData: FormData) {
   }
 
   revalidatePath('/offers')
-  return { ok: true as const }
+  return { ok: true as const, versionId: result.version.id, pdfUrl: result.version.pdfUrl ?? undefined }
 }

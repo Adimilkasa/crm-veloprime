@@ -1,0 +1,100 @@
+[
+  {
+    "brand": "BYD",
+    "model": "Dolphin Surf",
+    "baseColorName": "Lime Green",
+    "optionalColorSurchargeGross": 3000,
+    "colors": [
+      { "name": "Lime Green", "isBase": true, "surchargeGross": 0, "sortOrder": 0 },
+      { "name": "Polar Night Black", "isBase": false, "surchargeGross": 3000, "sortOrder": 1 },
+      { "name": "Apricity White", "isBase": false, "surchargeGross": 3000, "sortOrder": 2 },
+      { "name": "Ice Blue", "isBase": false, "surchargeGross": 3000, "sortOrder": 3 }
+    ]
+  },
+  {
+    "brand": "BYD",
+    "model": "Atto 2",
+    "baseColorName": "Time Grey",
+    "optionalColorSurchargeGross": 3400,
+    "colors": [
+      { "name": "Time Grey", "isBase": true, "surchargeGross": 0, "sortOrder": 0 },
+      { "name": "Hiking Green", "isBase": false, "surchargeGross": 3400, "sortOrder": 1 },
+      { "name": "Skiing White", "isBase": false, "surchargeGross": 3400, "sortOrder": 2 },
+      { "name": "Obsidian Black", "isBase": false, "surchargeGross": 3400, "sortOrder": 3 }
+    ]
+  },
+  {
+    "brand": "BYD",
+    "model": "Seal 5",
+    "baseColorName": "Czarny Space",
+    "optionalColorSurchargeGross": 3400,
+    "colors": [
+      { "name": "Czarny Space", "isBase": true, "surchargeGross": 0, "sortOrder": 0 },
+      { "name": "Szary Time", "isBase": false, "surchargeGross": 3400, "sortOrder": 1 },
+      { "name": "Szary Atlantis", "isBase": false, "surchargeGross": 3400, "sortOrder": 2 }
+    ]
+  },
+  {
+    "brand": "BYD",
+    "model": "Seal 6",
+    "baseColorName": "Polar White",
+    "optionalColorSurchargeGross": 5000,
+    "colors": [
+      { "name": "Polar White", "isBase": true, "surchargeGross": 0, "sortOrder": 0 },
+      { "name": "Obsidian Black", "isBase": false, "surchargeGross": 5000, "sortOrder": 1 },
+      { "name": "Atlantis Blue", "isBase": false, "surchargeGross": 5000, "sortOrder": 2 },
+      { "name": "Sandstone", "isBase": false, "surchargeGross": 5000, "sortOrder": 3 }
+    ]
+  },
+  {
+    "brand": "BYD",
+    "model": "Seal 6 Touring",
+    "baseColorName": "Polar White",
+    "optionalColorSurchargeGross": 5000,
+    "colors": [
+      { "name": "Polar White", "isBase": true, "surchargeGross": 0, "sortOrder": 0 },
+      { "name": "Obsidian Black", "isBase": false, "surchargeGross": 5000, "sortOrder": 1 },
+      { "name": "Atlantis Blue", "isBase": false, "surchargeGross": 5000, "sortOrder": 2 },
+      { "name": "Sandstone", "isBase": false, "surchargeGross": 5000, "sortOrder": 3 }
+    ]
+  },
+  {
+    "brand": "BYD",
+    "model": "Seal U",
+    "baseColorName": "Szary Time",
+    "optionalColorSurchargeGross": 5000,
+    "colors": [
+      { "name": "Szary Time", "isBase": true, "surchargeGross": 0, "sortOrder": 0 },
+      { "name": "Biały Snow", "isBase": false, "surchargeGross": 5000, "sortOrder": 1 },
+      { "name": "Niebieski Tain Qing", "isBase": false, "surchargeGross": 5000, "sortOrder": 2 },
+      { "name": "Szary Boundless", "isBase": false, "surchargeGross": 5000, "sortOrder": 3 },
+      { "name": "Czarny Obsidian", "isBase": false, "surchargeGross": 5000, "sortOrder": 4 }
+    ]
+  },
+  {
+    "brand": "BYD",
+    "model": "Seal",
+    "baseColorName": "Indigo Grey",
+    "optionalColorSurchargeGross": 5000,
+    "colors": [
+      { "name": "Indigo Grey", "isBase": true, "surchargeGross": 0, "sortOrder": 0 },
+      { "name": "Obsidian Black", "isBase": false, "surchargeGross": 5000, "sortOrder": 1 },
+      { "name": "Polar White", "isBase": false, "surchargeGross": 5000, "sortOrder": 2 },
+      { "name": "Atlantis Grey", "isBase": false, "surchargeGross": 5000, "sortOrder": 3 },
+      { "name": "Lavender Grey", "isBase": false, "surchargeGross": 5000, "sortOrder": 4 },
+      { "name": "Ruby Red", "isBase": false, "surchargeGross": 5000, "sortOrder": 5 }
+    ]
+  },
+  {
+    "brand": "BYD",
+    "model": "Sealion 7",
+    "baseColorName": "Atlantis Grey",
+    "optionalColorSurchargeGross": 5000,
+    "colors": [
+      { "name": "Atlantis Grey", "isBase": true, "surchargeGross": 0, "sortOrder": 0 },
+      { "name": "Polar White", "isBase": false, "surchargeGross": 5000, "sortOrder": 1 },
+      { "name": "Obsidian Black", "isBase": false, "surchargeGross": 5000, "sortOrder": 2 },
+      { "name": "Indigo Grey", "isBase": false, "surchargeGross": 5000, "sortOrder": 3 }
+    ]
+  }
+]

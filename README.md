@@ -17,6 +17,15 @@ npm install
 npm run dev
 ```
 
+## Prisma
+
+```bash
+npx prisma migrate deploy
+npm run db:seed
+```
+
+Seed wczytuje palety kolorów modeli z `data/byd-color-palettes.json` do tabel `SalesModelColorPalette` i `SalesModelColorOption`.
+
 ## Environment
 
 Skopiuj `.env.example` do `.env` i ustaw `DATABASE_URL` przed podpinaniem bazy danych.

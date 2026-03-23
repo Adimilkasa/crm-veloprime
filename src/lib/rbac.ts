@@ -97,6 +97,12 @@ export const navigationItems: NavigationItem[] = [
     icon: BriefcaseBusiness,
     roles: ['ADMIN', 'DIRECTOR'],
   },
+  {
+    href: '/colors',
+    label: 'Palety kolorow',
+    icon: CarFront,
+    roles: ['ADMIN', 'DIRECTOR'],
+  },
 ]
 
 export function getRoleDefinition(role: UserRoleKey) {

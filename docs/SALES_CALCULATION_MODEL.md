@@ -16,6 +16,9 @@ Opcjonalne parametry oferty:
 - rocznik
 - kolor bazowy lub kolor dodatkowo płatny
 - wariant finansowania
+- okres finansowania
+- wpłata własna
+- wykup
 
 System nie wymaga pól takich jak VIN, stock number, lokalizacja auta, status placowy ani przebieg.
 
@@ -25,7 +28,7 @@ System nie wymaga pól takich jak VIN, stock number, lokalizacja auta, status pl
 
 - ustala cenę bazową dla każdej wersji auta
 - ustala ceny katalogowe netto i brutto
-- ustala dopłatę za kolor niestandardowy dla danej marki
+- ustala bazowy kolor i dopłatę za kolory opcjonalne dla danego modelu
 - zarządza strukturą użytkowników
 
 ### Dyrektor
@@ -45,6 +48,31 @@ System nie wymaga pól takich jak VIN, stock number, lokalizacja auta, status pl
 - wybiera produkt i buduje ofertę
 - może udzielić klientowi rabatu tylko z puli pozostałej po odjęciu udziału dyrektora i menadżera
 - jego prowizja jest resztą puli po wszystkich wcześniejszych potrąceniach i po rabacie dla klienta
+
+## Widoczność danych w ofercie
+
+### Dokument dla klienta
+
+Oferta generowana dla klienta pokazuje wyłącznie:
+
+- cenę katalogową
+- cenę po rabacie
+- rabat procentowy
+- rabat kwotowy
+- informacje o finansowaniu jako propozycję
+
+Oferta dla klienta nie pokazuje:
+
+- ceny bazowej
+- prowizji dyrektora
+- prowizji menadżera
+- prowizji handlowca
+
+### Widoczność wewnętrzna
+
+- menadżer nie powinien widzieć prowizji dyrektora
+- handlowiec nie powinien widzieć prowizji menadżera ani dyrektora
+- pełna kalkulacja marży pozostaje danymi wewnętrznymi CRM
 
 ## Podstawowy model cenowy
 
@@ -127,16 +155,108 @@ W praktyce system powinien przechowywać oba zestawy wartości i wyliczać pulę
 
 Dopłata za kolor niestandardowy:
 
-- jest definiowana na poziomie marki
+- jest definiowana na poziomie marki i modelu
 - nie jest definiowana per egzemplarz
 - może być doliczana jednorazowo do oferty
 
 Przykład:
 
-- marka BYD
-- dopłata za kolor niestandardowy: 4500 zł brutto
+- BYD Dolphin Surf: dopłata 3000 zł
+- BYD Atto 2: dopłata 3400 zł
+- BYD Seal 6: dopłata 5000 zł
 
-Niezależnie od modelu tej marki, dopłata za kolor jest taka sama, dopóki administrator jej nie zmieni.
+W ramach jednego modelu możemy mieć:
+
+- jeden kolor bazowy w cenie 0 zł
+- wiele kolorów opcjonalnych z tą samą dopłatą
+
+Różne modele tej samej marki mogą mieć różne dopłaty za lakier.
+
+Kolor jest wybierany na etapie oferty, a nie jako osobny rekord katalogowy dla każdej wersji.
+
+## Finansowanie
+
+Oferta musi wspierać konfigurację finansowania przez handlowca.
+
+Minimalne pola finansowania:
+
+- okres finansowania w miesiącach: 24, 36, 48, 60, 71
+- wpłata własna kwotowa albo procentowa
+- wykup procentowy
+- wartość pojazdu do finansowania po rabacie
+
+### Reguły wykupu
+
+- dla 71 miesięcy wykup nie może być większy niż 20%
+- dla 60 miesięcy wykup nie może być większy niż 30%
+- dla 48 miesięcy wykup nie może być większy niż 40%
+- dla 36 miesięcy wykup nie może być większy niż 50%
+- dla 24 miesięcy wykup nie może być większy niż 60%
+
+Okres 12 miesięcy nie jest wspierany.
+
+### Sposób wprowadzania wpłaty własnej
+
+Handlowiec może wprowadzić wpłatę własną:
+
+- procentowo, na przykład 10% lub 20%
+- kwotowo, na przykład 20000 zł
+
+System powinien zapisać obie postacie:
+
+- tryb wejścia
+- wartość źródłową wpisaną przez handlowca
+- wyliczoną wartość kwotową i procentową do snapshotu oferty
+
+### Charakter wyliczeń finansowania
+
+Wyliczenia finansowania prezentowane w ofercie mają charakter szacunkowy i poglądowy.
+
+Wygenerowana oferta musi zawierać zastrzeżenie, że:
+
+- przedstawione warunki finansowania są propozycją
+- nie stanowią wiążącej oferty w rozumieniu przepisów prawa
+- warunki finansowe są weryfikowane indywidualnie na podstawie zdolności finansowej klienta
+- wyliczenia służą zobrazowaniu wariantu finansowania, a nie gwarancji uzyskania finansowania
+
+### Model leasingu 120%
+
+Na potrzeby CRM przyjmujemy, że leasing `120%` oznacza:
+
+- łączny koszt leasingu wynosi 120% wartości pojazdu
+- różnica między 120% a 100% wartości pojazdu stanowi koszt finansowania
+
+Przykład:
+
+- wartość pojazdu: 100000 zł
+- leasing 120%: łącznie do zapłaty 120000 zł
+- koszt finansowania: 20000 zł
+
+### Uproszczony algorytm wyliczenia raty
+
+Niech:
+
+- $V$ oznacza wartość pojazdu przyjętą do finansowania
+- $F$ oznacza współczynnik leasingu, domyślnie $1.20$
+- $W_w$ oznacza wpłatę własną kwotową
+- $W_k$ oznacza wykup kwotowy
+- $N$ oznacza liczbę miesięcy
+
+Wtedy:
+
+$$
+K_{total} = V \cdot F
+$$
+
+$$
+K_{rat} = K_{total} - W_w - W_k
+$$
+
+$$
+Rata = \frac{K_{rat}}{N}
+$$
+
+Jest to uproszczony model poglądowy, zgodny z wymaganiem biznesowym, że oferta ma prezentować szacunkową propozycję finansowania, a nie harmonogram prawny lub księgowy od leasingodawcy.
 
 ## Struktura danych do wdrożenia
 
@@ -163,9 +283,38 @@ Ta struktura zastępuje magazynowy model pojazdu w miejscach, gdzie celem jest k
 Tabela lub model powinien przechowywać ustawienia wspólne dla marki:
 
 - brand
-- nonBaseColorSurchargeGross
-- nonBaseColorSurchargeNet
 - defaultCurrency
+- isActive
+
+### 2a. Paleta kolorów modelu
+
+Tabela lub model powinien przechowywać reguły koloru dla konkretnego modelu:
+
+- brand
+- model
+- baseColorName
+- optionalColorSurchargeGross
+- optionalColorSurchargeNet opcjonalnie
+- isActive
+
+Tabela podrzędna powinna przechowywać konkretne kolory:
+
+- paletteId
+- colorName
+- isBase
+- surchargeGross
+- surchargeNet opcjonalnie
+- sortOrder
+- isActive
+
+### 2b. Ustawienia finansowania
+
+Tabela lub model powinien przechowywać parametry potrzebne do kalkulacji propozycji finansowania:
+
+- allowedTerms
+- buyoutLimitByTerm
+- leaseTotalFactor, domyślnie `1.20`
+- disclaimerTemplate
 - isActive
 
 ### 3. Struktura podległości użytkowników
@@ -205,6 +354,21 @@ Priorytet dopasowania:
 2. marka + model
 3. marka
 
+### 5. Snapshot oferty
+
+Każda wygenerowana oferta powinna zapisywać pełny snapshot z momentu utworzenia, aby CRM pamiętał dokładnie, co zostało wcześniej przedstawione klientowi.
+
+Snapshot powinien obejmować:
+
+- dane konfiguracji produktu
+- cenę katalogową z momentu generowania
+- rabat kwotowy i procentowy
+- cenę końcową netto i brutto
+- dane finansowania z momentu generowania
+- wewnętrzną kalkulację marży i prowizji
+
+Ponowne przeliczenie tej samej oferty w przyszłości powinno korzystać już z nowych danych systemowych, ale wcześniejszy snapshot musi pozostać dostępny historycznie.
+
 ## Kolejność stosowania reguł
 
 Rekomendowana kolejność liczenia:
@@ -222,22 +386,24 @@ Rekomendowana kolejność liczenia:
 11. doliczenie dopłaty za kolor, jeśli wybrano kolor dodatkowo płatny
 12. wpisanie rabatu klienta przez handlowca
 13. obliczenie ceny końcowej i prowizji handlowca
+14. opcjonalne wyliczenie propozycji finansowania
+15. zapis snapshotu oferty
 
 ## Wynik kalkulatora dla handlowca
 
 Na ekranie oferty handlowiec powinien widzieć:
 
 - cenę katalogową
-- cenę bazową
-- pulę całkowitą
-- udział dyrektora
-- udział menadżera
+- cenę po rabacie
 - pozostałą pulę dla handlowca
 - maksymalny możliwy rabat
 - rabat wpisany dla klienta
 - dopłatę za kolor
 - cenę końcową netto i brutto
 - prowizję handlowca po rabacie
+- propozycję finansowania
+
+Widoczność danych wewnętrznych musi być ograniczana per rola zgodnie z zasadami biznesowymi.
 
 ## Konsekwencje dla obecnego schematu
 
