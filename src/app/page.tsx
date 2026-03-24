@@ -28,25 +28,26 @@ const modules = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-7xl flex-col gap-10 px-6 py-10 lg:px-10">
-      <section className="grid gap-6 rounded-[32px] border border-white/10 bg-[rgba(18,24,33,0.82)] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.28)] lg:grid-cols-[1.2fr_0.8fr]">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(201,161,59,0.14),transparent_28%),linear-gradient(180deg,#fafaf9_0%,#f7f6f4_100%)]">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-10 px-6 py-10 lg:px-10">
+      <section className="grid gap-6 rounded-[32px] border border-[#e8e2d3] bg-[linear-gradient(135deg,#ffffff_0%,#fbf8f1_52%,#f7f3e8_100%)] p-8 shadow-[0_24px_70px_rgba(31,31,31,0.06)] lg:grid-cols-[1.2fr_0.8fr]">
         <div>
-          <div className="inline-flex rounded-full border border-[rgba(216,180,90,0.35)] bg-[rgba(216,180,90,0.12)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#f3d998]">
+          <div className="inline-flex rounded-full border border-[rgba(201,161,59,0.28)] bg-[rgba(201,161,59,0.12)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#8f6b18]">
             CRM foundation
           </div>
-          <h1 className="mt-5 max-w-[14ch] text-4xl font-semibold leading-tight text-white lg:text-6xl">
+          <h1 className="mt-5 max-w-[14ch] text-4xl font-semibold leading-tight text-[#1f1f1f] lg:text-6xl">
             Osobny panel CRM dla zespołu sprzedaży VeloPrime.
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-[#b8c0cb]">
+          <p className="mt-5 max-w-2xl text-base leading-7 text-[#5f5a4f]">
             Starter projektu pod logowanie, role, leady, samochody, wyceny i generowanie ofert PDF. Ten projekt jest niezależny od strony publicznej.
           </p>
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-6">
-          <div className="text-sm font-semibold uppercase tracking-[0.18em] text-[#f3d998]">Role systemowe</div>
+        <div className="rounded-[28px] border border-[#ece6d9] bg-white/90 p-6 shadow-[0_16px_34px_rgba(31,31,31,0.04)]">
+          <div className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Role systemowe</div>
           <div className="mt-4 grid gap-3">
             {roles.map((role) => (
-              <div key={role} className="rounded-2xl border border-white/8 bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm font-medium text-white">
+              <div key={role} className="rounded-2xl border border-[#ece6d9] bg-[#fcfbf8] px-4 py-3 text-sm font-medium text-[#1f1f1f]">
                 {role}
               </div>
             ))}
@@ -56,9 +57,9 @@ export default function Home() {
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {modules.map((module) => (
-          <article key={module.title} className="rounded-[28px] border border-white/10 bg-[rgba(18,24,33,0.76)] p-6 shadow-[0_18px_48px_rgba(0,0,0,0.18)]">
-            <h2 className="text-xl font-semibold text-white">{module.title}</h2>
-            <p className="mt-3 text-sm leading-6 text-[#a8b1bc]">{module.body}</p>
+          <article key={module.title} className="rounded-[28px] border border-[#ece6d9] bg-white p-6 shadow-[0_18px_48px_rgba(31,31,31,0.05)]">
+            <h2 className="text-xl font-semibold text-[#1f1f1f]">{module.title}</h2>
+            <p className="mt-3 text-sm leading-7 text-[#6b6b6b]">{module.body}</p>
           </article>
         ))}
       </section>
@@ -66,17 +67,18 @@ export default function Home() {
       <section className="flex flex-col gap-3 sm:flex-row">
         <Link
           href="/login"
-          className="inline-flex items-center justify-center rounded-2xl border border-[rgba(216,180,90,0.35)] bg-[linear-gradient(135deg,#d8b45a,#b98b1d)] px-6 py-3 text-sm font-semibold text-[#10161d]"
+          className="inline-flex items-center justify-center rounded-2xl border border-[rgba(201,161,59,0.3)] bg-[#c9a13b] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(201,161,59,0.22)] transition hover:bg-[#b8932f]"
         >
           Zobacz ekran logowania
         </Link>
         <Link
           href="/dashboard"
-          className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white"
+          className="inline-flex items-center justify-center rounded-2xl border border-[#e5dfd1] bg-white px-6 py-3 text-sm font-semibold text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]"
         >
           Zobacz shell dashboardu
         </Link>
       </section>
+      </div>
     </main>
   )
 }

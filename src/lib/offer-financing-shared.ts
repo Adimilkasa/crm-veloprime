@@ -27,17 +27,25 @@ export type OfferFinancingSummary = {
 
 const LEASE_TOTAL_FACTOR = 1.2
 const BUYOUT_LIMITS: Record<number, number> = {
-  24: 60,
-  36: 50,
-  48: 40,
-  60: 30,
-  71: 20,
+  24: 70,
+  36: 60,
+  48: 50,
+  60: 40,
+  71: 30,
 }
 
 export const FINANCING_DISCLAIMER = 'Przedstawione warunki finansowania mają charakter szacunkowy i poglądowy, nie stanowią wiążącej oferty w rozumieniu przepisów prawa oraz wymagają indywidualnej weryfikacji zdolności finansowej klienta.'
 
 function roundMoney(value: number) {
   return Number(value.toFixed(2))
+}
+
+export function getBuyoutLimit(termMonths: number | null) {
+  if (!termMonths) {
+    return null
+  }
+
+  return BUYOUT_LIMITS[termMonths] ?? null
 }
 
 export function calculateOfferFinancing(input: {
@@ -53,7 +61,7 @@ export function calculateOfferFinancing(input: {
     return null
   }
 
-  const buyoutLimit = BUYOUT_LIMITS[input.termMonths]
+  const buyoutLimit = getBuyoutLimit(input.termMonths)
 
   if (!buyoutLimit) {
     return { ok: false as const, error: 'Finansowanie wspiera tylko okresy 24, 36, 48, 60 i 71 miesięcy.' }
@@ -69,12 +77,8 @@ export function calculateOfferFinancing(input: {
     return { ok: false as const, error: 'Nie można policzyć finansowania bez końcowej ceny oferty.' }
   }
 
-  const downPaymentAmount = input.downPaymentInputMode === 'PERCENT'
-    ? roundMoney(financedAssetValue * (input.downPaymentInputValue / 100))
-    : roundMoney(input.downPaymentInputValue)
-  const downPaymentPercent = input.downPaymentInputMode === 'PERCENT'
-    ? roundMoney(input.downPaymentInputValue)
-    : roundMoney((downPaymentAmount / financedAssetValue) * 100)
+  const downPaymentAmount = roundMoney(input.downPaymentInputValue)
+  const downPaymentPercent = roundMoney((downPaymentAmount / financedAssetValue) * 100)
   const buyoutAmount = roundMoney(financedAssetValue * (input.buyoutPercent / 100))
   const totalLeaseCost = roundMoney(financedAssetValue * LEASE_TOTAL_FACTOR)
   const estimatedInstallment = roundMoney((totalLeaseCost - downPaymentAmount - buyoutAmount) / input.termMonths)
@@ -83,7 +87,7 @@ export function calculateOfferFinancing(input: {
     ok: true as const,
     summary: {
       termMonths: input.termMonths,
-      downPaymentInputMode: input.downPaymentInputMode,
+      downPaymentInputMode: 'AMOUNT',
       downPaymentInputValue: roundMoney(input.downPaymentInputValue),
       downPaymentAmount,
       downPaymentPercent,

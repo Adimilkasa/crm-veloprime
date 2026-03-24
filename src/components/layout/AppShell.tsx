@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, LogOut, Search } from 'lucide-react'
+import { Bell, LogOut } from 'lucide-react'
 
 import { getNavigationForRole, getRoleDefinition, type UserRoleKey } from '@/lib/rbac'
 
@@ -20,20 +20,19 @@ export function AppShell({
   const navigation = getNavigationForRole(role)
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#0b0f14_0%,#10161d_100%)] text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(201,161,59,0.14),transparent_28%),linear-gradient(180deg,#fafaf9_0%,#f7f6f4_100%)] text-[#1f1f1f]">
       <div className="min-h-screen">
-        <header className="sticky top-0 z-30 border-b border-white/8 bg-[rgba(11,15,20,0.9)] backdrop-blur-xl">
-          <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">
+        <header className="sticky top-0 z-30 border-b border-[#e9e4d9] bg-[rgba(250,250,249,0.86)] backdrop-blur-xl">
+          <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-8">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-4">
-                <Link href="/dashboard" className="inline-flex w-fit items-center rounded-full border border-[rgba(216,180,90,0.25)] bg-[rgba(216,180,90,0.12)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#f3d998]">
+                <Link href="/dashboard" className="inline-flex w-fit items-center rounded-full border border-[rgba(201,161,59,0.28)] bg-[rgba(201,161,59,0.12)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#8f6b18] shadow-[0_8px_22px_rgba(201,161,59,0.12)]">
                   CRM VeloPrime
                 </Link>
                 <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#f3d998]">Panel operacyjny</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-3">
-                    <h1 className="text-xl font-semibold text-white lg:text-2xl">Zarządzanie sprzedażą i ofertami</h1>
-                    <span className="inline-flex rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#aeb7c2]">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#9d7b27]">Panel operacyjny</p>
+                  <div className="mt-2">
+                    <span className="inline-flex rounded-full border border-[#ebe5d8] bg-white px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#6b6b6b] shadow-[0_8px_24px_rgba(31,31,31,0.04)]">
                       {roleDefinition.label}
                     </span>
                   </div>
@@ -41,17 +40,10 @@ export function AppShell({
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#d5dce5]">
-                  {userName}
-                </div>
-                <div className="flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#aeb7c2]">
-                  <Search className="h-4 w-4" />
-                  <span>Wyszukaj klienta, VIN lub ofertę</span>
-                </div>
-                <button type="button" className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.03] text-[#d5dce5] transition hover:bg-white/[0.08]">
+                <button type="button" className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[#ebe5d8] bg-white text-[#4d4d4d] shadow-[0_10px_30px_rgba(31,31,31,0.04)] transition hover:border-[rgba(201,161,59,0.28)] hover:text-[#8f6b18]">
                   <Bell className="h-4 w-4" />
                 </button>
-                <Link href="/logout" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] px-4 text-sm font-medium text-[#d5dce5] transition hover:bg-white/[0.08]">
+                <Link href="/logout" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#ebe5d8] bg-white px-4 text-sm font-medium text-[#4d4d4d] shadow-[0_10px_30px_rgba(31,31,31,0.04)] transition hover:border-[rgba(201,161,59,0.28)] hover:text-[#8f6b18]">
                   <LogOut className="h-4 w-4" />
                   <span>Wyloguj</span>
                 </Link>
@@ -68,10 +60,10 @@ export function AppShell({
                     key={item.href}
                     href={item.href}
                     className={[
-                      'inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium transition',
+                      'inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium shadow-[0_10px_24px_rgba(31,31,31,0.03)] transition',
                       isActive
-                        ? 'border-[rgba(216,180,90,0.28)] bg-[rgba(216,180,90,0.12)] text-white'
-                        : 'border-white/6 bg-white/[0.03] text-[#aeb7c2] hover:border-white/12 hover:bg-white/[0.05] hover:text-white',
+                        ? 'border-[rgba(201,161,59,0.34)] bg-[#c9a13b] text-white shadow-[0_16px_32px_rgba(201,161,59,0.22)]'
+                        : 'border-[#ebe5d8] bg-white text-[#6b6b6b] hover:border-[rgba(201,161,59,0.24)] hover:text-[#1f1f1f]',
                     ].join(' ')}
                   >
                     <Icon className="h-4 w-4" />
@@ -83,7 +75,7 @@ export function AppShell({
           </div>
         </header>
 
-        <div className="min-w-0 px-4 py-4 lg:px-6 lg:py-5">
+        <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-6 lg:px-8 lg:py-8">
           <div>{children}</div>
         </div>
       </div>

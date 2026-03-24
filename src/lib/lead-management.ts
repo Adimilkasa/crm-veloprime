@@ -60,6 +60,7 @@ type CreateLeadStageInput = {
   name: string
   color: string
   kind: LeadStageKind
+  afterStageId?: string
 }
 
 const globalForLeads = globalThis as unknown as {
@@ -239,7 +240,7 @@ async function resolveSalesperson(salespersonId?: string) {
   }
 
   const users = await listManagedUsers()
-  return users.find((user) => user.id === salespersonId && user.isActive && user.role === 'SALES') ?? null
+  return users.find((user) => user.id === salespersonId && user.isActive) ?? null
 }
 
 export async function listManagedLeads(session: AuthSession) {
@@ -267,12 +268,23 @@ export async function createManagedLeadStage(session: AuthSession, input: Create
     return { ok: false as const, error: 'Etap o takiej nazwie już istnieje.' }
   }
 
+  const afterStage = input.afterStageId
+    ? stages.find((stage) => stage.id === input.afterStageId) ?? null
+    : null
+  const insertionOrder = afterStage ? afterStage.order + 1 : stages.length
+
+  stages.forEach((stage) => {
+    if (stage.order >= insertionOrder) {
+      stage.order += 1
+    }
+  })
+
   const nextStage: LeadStage = {
     id: `stage-${crypto.randomUUID()}`,
     name,
     color: input.color.trim() || '#5aa9e6',
     kind: input.kind,
-    order: stages.length,
+    order: insertionOrder,
   }
 
   stages.push(nextStage)
@@ -312,7 +324,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
     const salesperson = await resolveSalesperson(input.salespersonId)
 
     if (input.salespersonId && !salesperson) {
-      return { ok: false as const, error: 'Wybrany handlowiec nie istnieje lub jest nieaktywny.' }
+      return { ok: false as const, error: 'Wybrany opiekun nie istnieje lub jest nieaktywny.' }
     }
 
     salespersonId = salesperson?.id ?? null
@@ -447,7 +459,7 @@ export async function assignManagedLeadSalesperson(session: AuthSession, leadId:
     const salesperson = await resolveSalesperson(salespersonId)
 
     if (!salesperson) {
-      return { ok: false as const, error: 'Wybrany handlowiec nie istnieje lub jest nieaktywny.' }
+      return { ok: false as const, error: 'Wybrany opiekun nie istnieje lub jest nieaktywny.' }
     }
 
     lead.salespersonId = salesperson.id

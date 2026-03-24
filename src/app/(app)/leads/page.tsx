@@ -11,7 +11,6 @@ import {
 import { LeadsWorkspace } from '@/components/leads/LeadsWorkspace'
 import { getSession } from '@/lib/auth'
 import { listManagedLeads, listManagedLeadStages } from '@/lib/lead-management'
-import { getRoleDefinition } from '@/lib/rbac'
 import { listManagedUsers } from '@/lib/user-management'
 
 export default async function LeadsPage({
@@ -32,7 +31,6 @@ export default async function LeadsPage({
     searchParams,
   ])
 
-  const roleDefinition = getRoleDefinition(session.role)
   const activeSalesUsers = users.filter((user) => user.isActive && user.role === 'SALES')
   const canAssign = session.role === 'ADMIN' || session.role === 'DIRECTOR' || session.role === 'MANAGER'
   const canManageStages = canAssign
@@ -49,10 +47,10 @@ export default async function LeadsPage({
   return (
     <>
       {error ? (
-        <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>
+        <div className="rounded-[18px] border border-[#f1d4d2] bg-[#fff5f4] px-4 py-3 text-sm text-[#a64b45] shadow-[0_12px_30px_rgba(31,31,31,0.03)]">{error}</div>
       ) : null}
       {success ? (
-        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <div className="rounded-[18px] border border-[#d9ece4] bg-[#f4fbf8] px-4 py-3 text-sm text-[#3f7d64] shadow-[0_12px_30px_rgba(31,31,31,0.03)]">
           {success === 'created'
             ? 'Lead został dodany do pipeline.'
             : success === 'assigned'
@@ -64,7 +62,6 @@ export default async function LeadsPage({
       ) : null}
 
       <LeadsWorkspace
-        roleLabel={roleDefinition.label}
         leads={leads}
         stages={stages}
         salesUsers={activeSalesUsers}

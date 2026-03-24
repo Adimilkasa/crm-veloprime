@@ -136,29 +136,29 @@ export function ColorPalettesWorkspace({
   }
 
   return (
-    <main className="grid gap-4">
-      <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] px-4 py-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:px-5">
+    <main className="grid gap-6">
+      <section className="overflow-hidden rounded-[32px] border border-[#e8e2d3] bg-[linear-gradient(135deg,#ffffff_0%,#fbf8f1_52%,#f7f3e8_100%)] px-5 py-5 shadow-[0_24px_70px_rgba(31,31,31,0.06)] lg:px-6 lg:py-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#f3d998]">Palety kolorow</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Palety kolorow</div>
             <div className="mt-2 flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-4">
-              <h2 className="text-2xl font-semibold text-white">Konfiguracja lakierow do ofert</h2>
-              <span className="inline-flex w-fit rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#aeb7c2]">
+              <h2 className="text-2xl font-semibold text-[#1f1f1f]">Konfiguracja lakierow do ofert</h2>
+              <span className="inline-flex w-fit rounded-full border border-[#e7dfd0] bg-white px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#6b6b6b] shadow-[0_10px_24px_rgba(31,31,31,0.03)]">
                 Rola: {roleLabel}
               </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-[#aeb7c2]">
-            <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">Palety: {stats.palettes}</span>
-            <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">Kolory: {stats.colors}</span>
+          <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-[#7a7262]">
+            <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Palety: {stats.palettes}</span>
+            <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Kolory: {stats.colors}</span>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <section className="grid gap-4 rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:p-5">
-          <button type="button" onClick={addPalette} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[rgba(216,180,90,0.4)] bg-[linear-gradient(135deg,#d8b45a,#b98b1d)] px-4 text-sm font-semibold text-[#111827] transition hover:brightness-105">
+        <section className="grid gap-4 rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
+          <button type="button" onClick={addPalette} className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white transition hover:bg-[#b8932f]">
             <Plus className="h-4 w-4" />
             <span>Dodaj palete</span>
           </button>
@@ -166,64 +166,64 @@ export function ColorPalettesWorkspace({
           <div className="grid gap-3">
             {draftPalettes.map((palette) => (
               <button key={palette.paletteKey} type="button" onClick={() => setSelectedPaletteKey(palette.paletteKey)} className={[
-                'rounded-[22px] border px-4 py-4 text-left transition',
+                'rounded-[22px] border px-4 py-4 text-left shadow-[0_12px_30px_rgba(31,31,31,0.04)] transition',
                 selectedPaletteKey === palette.paletteKey
-                  ? 'border-[rgba(216,180,90,0.35)] bg-[rgba(216,180,90,0.08)] shadow-[0_12px_32px_rgba(0,0,0,0.18)]'
-                  : 'border-white/8 bg-[rgba(18,24,33,0.78)] hover:border-white/16 hover:bg-[rgba(21,28,38,0.88)]',
+                  ? 'border-[rgba(201,161,59,0.30)] bg-[rgba(201,161,59,0.10)] shadow-[0_16px_32px_rgba(31,31,31,0.06)]'
+                  : 'border-[#e8e1d4] bg-white hover:border-[rgba(201,161,59,0.24)] hover:shadow-[0_16px_32px_rgba(31,31,31,0.06)]',
               ].join(' ')}>
-                <div className="text-[11px] uppercase tracking-[0.16em] text-[#8b96a3]">{palette.brand || 'Nowa marka'}</div>
-                <div className="mt-2 text-sm font-semibold text-white">{palette.model || 'Nowy model'}</div>
-                <div className="mt-3 text-sm text-[#c2cad4]">Bazowy: {palette.baseColorName || 'Do uzupelnienia'}</div>
+                <div className="text-[11px] uppercase tracking-[0.16em] text-[#8a826f]">{palette.brand || 'Nowa marka'}</div>
+                <div className="mt-2 text-sm font-semibold text-[#1f1f1f]">{palette.model || 'Nowy model'}</div>
+                <div className="mt-3 text-sm text-[#555555]">Bazowy: {palette.baseColorName || 'Do uzupelnienia'}</div>
               </button>
             ))}
           </div>
         </section>
 
         {selectedPalette ? (
-          <section className="grid gap-4 rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:p-5">
+          <section className="grid gap-4 rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-medium text-white">Marka</span>
-                <input value={selectedPalette.brand} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, brand: event.target.value }))} className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none" />
+                <span className="text-sm font-medium text-[#1f1f1f]">Marka</span>
+                <input value={selectedPalette.brand} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, brand: event.target.value }))} className="mt-2 h-11 w-full rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none" />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-white">Model</span>
-                <input value={selectedPalette.model} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, model: event.target.value }))} className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none" />
+                <span className="text-sm font-medium text-[#1f1f1f]">Model</span>
+                <input value={selectedPalette.model} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, model: event.target.value }))} className="mt-2 h-11 w-full rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none" />
               </label>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-medium text-white">Kolor bazowy</span>
-                <input value={selectedPalette.baseColorName} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, baseColorName: event.target.value }))} className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none" />
+                <span className="text-sm font-medium text-[#1f1f1f]">Kolor bazowy</span>
+                <input value={selectedPalette.baseColorName} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, baseColorName: event.target.value }))} className="mt-2 h-11 w-full rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none" />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-white">Domyslna doplata brutto</span>
-                <input value={selectedPalette.optionalColorSurchargeGross ?? ''} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, optionalColorSurchargeGross: parseNumber(event.target.value) }))} className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none" />
+                <span className="text-sm font-medium text-[#1f1f1f]">Domyslna doplata brutto</span>
+                <input value={selectedPalette.optionalColorSurchargeGross ?? ''} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, optionalColorSurchargeGross: parseNumber(event.target.value) }))} className="mt-2 h-11 w-full rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none" />
               </label>
             </div>
 
-            <div className="grid gap-3 rounded-[24px] border border-white/8 bg-[#10161d] p-4">
+            <div className="grid gap-3 rounded-[24px] border border-[#e8e1d4] bg-[#fcfbf8] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-white">Kolory w palecie</div>
-                  <div className="text-sm text-[#9ba6b2]">Jeden kolor powinien byc bazowy z doplata 0 zl.</div>
+                  <div className="text-sm font-semibold text-[#1f1f1f]">Kolory w palecie</div>
+                  <div className="text-sm text-[#6b6b6b]">Jeden kolor powinien byc bazowy z doplata 0 zl.</div>
                 </div>
-                <button type="button" onClick={addColor} className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-white transition hover:bg-white/[0.08]">
+                <button type="button" onClick={addColor} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-4 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
                   <Plus className="h-4 w-4" />
                   <span>Dodaj kolor</span>
                 </button>
               </div>
 
               {selectedPalette.colors.map((color, index) => (
-                <div key={`${selectedPalette.paletteKey}-${index}`} className="grid gap-3 rounded-[20px] border border-white/8 bg-white/[0.03] p-4 md:grid-cols-[1.2fr_160px_120px_64px]">
-                  <input value={color.name} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, colors: palette.colors.map((entry, colorIndex) => colorIndex === index ? { ...entry, name: event.target.value } : entry) }))} className="h-11 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none" placeholder="Nazwa koloru" />
-                  <input value={color.surchargeGross ?? ''} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, colors: palette.colors.map((entry, colorIndex) => colorIndex === index ? { ...entry, surchargeGross: parseNumber(event.target.value) } : entry) }))} className="h-11 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none" placeholder="Brutto" />
-                  <label className="flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white">
+                <div key={`${selectedPalette.paletteKey}-${index}`} className="grid gap-3 rounded-[20px] border border-[#e8e1d4] bg-white p-4 md:grid-cols-[1.2fr_160px_120px_64px]">
+                  <input value={color.name} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, colors: palette.colors.map((entry, colorIndex) => colorIndex === index ? { ...entry, name: event.target.value } : entry) }))} className="h-11 rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none" placeholder="Nazwa koloru" />
+                  <input value={color.surchargeGross ?? ''} onChange={(event) => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, colors: palette.colors.map((entry, colorIndex) => colorIndex === index ? { ...entry, surchargeGross: parseNumber(event.target.value) } : entry) }))} className="h-11 rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none" placeholder="Brutto" />
+                  <label className="flex h-11 items-center gap-2 rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#4d4d4d]">
                     <input type="radio" checked={selectedPalette.baseColorName === color.name} onChange={() => updatePalette(selectedPalette.paletteKey, (palette) => ({ ...palette, baseColorName: color.name }))} />
                     <span>Bazowy</span>
                   </label>
-                  <button type="button" onClick={() => removeColor(index)} className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white transition hover:bg-white/[0.08]">
+                  <button type="button" onClick={() => removeColor(index)} className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -232,28 +232,28 @@ export function ColorPalettesWorkspace({
 
             {feedback ? (
               <div className={[
-                'rounded-2xl px-4 py-3 text-sm',
+                'rounded-[18px] px-4 py-3 text-sm shadow-[0_12px_30px_rgba(31,31,31,0.03)]',
                 feedback.type === 'success'
-                  ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-200'
-                  : 'border border-red-400/20 bg-red-500/10 text-red-200',
+                  ? 'border border-[#d9ece4] bg-[#f4fbf8] text-[#3f7d64]'
+                  : 'border border-[#f1d4d2] bg-[#fff5f4] text-[#a64b45]',
               ].join(' ')}>
                 {feedback.message}
               </div>
             ) : null}
 
             <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={handleSave} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[rgba(216,180,90,0.4)] bg-[linear-gradient(135deg,#d8b45a,#b98b1d)] px-4 text-sm font-semibold text-[#111827] transition hover:brightness-105">
+              <button type="button" onClick={handleSave} className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white transition hover:bg-[#b8932f]">
                 <Save className="h-4 w-4" />
                 <span>Zapisz palety</span>
               </button>
-              <button type="button" onClick={() => removePalette(selectedPalette.paletteKey)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-white transition hover:bg-white/[0.08]">
+              <button type="button" onClick={() => removePalette(selectedPalette.paletteKey)} className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-4 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
                 <Trash2 className="h-4 w-4" />
                 <span>Usun palete</span>
               </button>
             </div>
           </section>
         ) : (
-          <section className="rounded-[28px] border border-dashed border-white/10 bg-white/[0.03] px-4 py-20 text-center text-sm text-[#7f8a97]">
+          <section className="rounded-[28px] border border-dashed border-[#e7dfd0] bg-[#fcfbf8] px-4 py-20 text-center text-sm text-[#8a826f]">
             Dodaj pierwsza palete albo wybierz istniejaca z listy.
           </section>
         )}

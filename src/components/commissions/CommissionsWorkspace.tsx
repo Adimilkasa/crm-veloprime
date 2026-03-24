@@ -121,49 +121,49 @@ export function CommissionsWorkspace({
   }
 
   return (
-    <main className="grid gap-4">
-      <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] px-4 py-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:px-5">
+    <main className="grid gap-6">
+      <section className="overflow-hidden rounded-[32px] border border-[#e8e2d3] bg-[linear-gradient(135deg,#ffffff_0%,#fbf8f1_52%,#f7f3e8_100%)] px-5 py-5 shadow-[0_24px_70px_rgba(31,31,31,0.06)] lg:px-6 lg:py-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#f3d998]">Prowizje struktury</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Prowizje struktury</div>
             <div className="mt-2 flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-4">
-              <h2 className="text-2xl font-semibold text-white">Prowizje dyrektora i menedżera per model</h2>
-              <span className="inline-flex w-fit rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#aeb7c2]">
+              <h2 className="text-2xl font-semibold text-[#1f1f1f]">Prowizje dyrektora i menedżera per model</h2>
+              <span className="inline-flex w-fit rounded-full border border-[#e7dfd0] bg-white px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#6b6b6b] shadow-[0_10px_24px_rgba(31,31,31,0.03)]">
                 Rola: {roleLabel}
               </span>
             </div>
-            <p className="mt-3 max-w-4xl text-sm leading-6 text-[#9ba6b2]">
+            <p className="mt-3 max-w-4xl text-sm leading-7 text-[#6b6b6b]">
               Po zmianie polityki cenowej CRM synchronizuje listę modeli z prowizjami. Dotychczasowe wpisy zostają zachowane,
               a nowe pozycje pojawiają się jako brakujące do uzupełnienia bez przepisywania całej listy od początku.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-[#aeb7c2]">
-            <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">Łącznie: {summary.total}</span>
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-emerald-200">Uzupełnione: {summary.configured}</span>
-            <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-amber-100">Brakujące: {summary.missing}</span>
+          <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-[#7a7262]">
+            <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Łącznie: {summary.total}</span>
+            <span className="rounded-full border border-[#d9ece4] bg-[#f4fbf8] px-3 py-1 text-[#3f7d64]">Uzupełnione: {summary.configured}</span>
+            <span className="rounded-full border border-[#efe0ba] bg-[#fffaf0] px-3 py-1 text-[#9d7b27]">Brakujące: {summary.missing}</span>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         <div className="grid gap-4">
-          <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:p-5">
+          <section className="rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
             <div className="flex items-center gap-3">
-              <Users className="h-5 w-5 text-[#f3d998]" />
+              <Users className="h-5 w-5 text-[#9d7b27]" />
               <div>
-                <div className="text-sm font-semibold text-white">Zakres konfiguracji</div>
-                <div className="text-sm text-[#9ba6b2]">Administrator może podejrzeć każdą listę. Dyrektor i manager edytują własną.</div>
+                <div className="text-sm font-semibold text-[#1f1f1f]">Zakres konfiguracji</div>
+                <div className="text-sm text-[#6b6b6b]">Administrator może podejrzeć każdą listę. Dyrektor i manager edytują własną.</div>
               </div>
             </div>
 
             {role === 'ADMIN' ? (
               <label className="mt-4 block">
-                <span className="text-sm font-medium text-white">Użytkownik</span>
+                <span className="text-sm font-medium text-[#1f1f1f]">Użytkownik</span>
                 <select
                   value={targetUserId ?? ''}
                   onChange={(event) => handleUserChange(event.target.value)}
-                  className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-[#131922] px-4 text-sm text-white outline-none transition focus:border-[rgba(216,180,90,0.45)]"
+                  className="mt-2 h-12 w-full rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]"
                 >
                   {users.map((user) => (
                     <option key={user.id} value={user.id}>
@@ -173,12 +173,12 @@ export function CommissionsWorkspace({
                 </select>
               </label>
             ) : (
-              <div className="mt-4 rounded-[24px] border border-white/8 bg-white/[0.03] p-4 text-sm text-[#c2cad4]">
+              <div className="mt-4 rounded-[24px] border border-[#e8e1d4] bg-[#fcfbf8] p-4 text-sm text-[#555555]">
                 {users.find((user) => user.id === targetUserId)?.fullName ?? 'Brak użytkownika'}
               </div>
             )}
 
-            <div className="mt-4 rounded-[24px] border border-white/8 bg-white/[0.03] p-4 text-sm leading-6 text-[#c2cad4]">
+            <div className="mt-4 rounded-[24px] border border-[#e8e1d4] bg-[#fcfbf8] p-4 text-sm leading-7 text-[#555555]">
               Ostatnia synchronizacja listy: {formatDate(updatedAt)}
               <br />
               Ostatni zapis: {updatedBy ?? 'brak autora'}
@@ -186,10 +186,10 @@ export function CommissionsWorkspace({
 
             {feedback ? (
               <div className={[
-                'mt-4 rounded-2xl px-4 py-3 text-sm',
+                'mt-4 rounded-[18px] px-4 py-3 text-sm shadow-[0_12px_30px_rgba(31,31,31,0.03)]',
                 feedback.type === 'success'
-                  ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-200'
-                  : 'border border-red-400/20 bg-red-500/10 text-red-200',
+                  ? 'border border-[#d9ece4] bg-[#f4fbf8] text-[#3f7d64]'
+                  : 'border border-[#f1d4d2] bg-[#fff5f4] text-[#a64b45]',
               ].join(' ')}>
                 {feedback.message}
               </div>
@@ -199,22 +199,22 @@ export function CommissionsWorkspace({
               type="button"
               onClick={handleSave}
               disabled={!editable || !targetUserId}
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[rgba(216,180,90,0.4)] bg-[linear-gradient(135deg,#d8b45a,#b98b1d)] px-4 text-sm font-semibold text-[#111827] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white transition hover:bg-[#b8932f] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
               <span>Zapisz listę prowizji</span>
             </button>
           </section>
 
-          <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:p-5">
+          <section className="rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
             <div className="flex items-center gap-3">
-              <BriefcaseBusiness className="h-5 w-5 text-[#f3d998]" />
+              <BriefcaseBusiness className="h-5 w-5 text-[#9d7b27]" />
               <div>
-                <div className="text-sm font-semibold text-white">Zasada działania</div>
-                <div className="text-sm text-[#9ba6b2]">Uzupełniasz tylko brakujące pozycje po zmianie katalogu.</div>
+                <div className="text-sm font-semibold text-[#1f1f1f]">Zasada działania</div>
+                <div className="text-sm text-[#6b6b6b]">Uzupełniasz tylko brakujące pozycje po zmianie katalogu.</div>
               </div>
             </div>
-            <div className="mt-4 grid gap-2 text-sm text-[#c2cad4]">
+            <div className="mt-4 grid gap-2 text-sm text-[#555555]">
               <div>1. Aktualizacja polityki cenowej nie usuwa starych prowizji.</div>
               <div>2. Nowy model lub wersja dodaje tylko nową pozycję do listy.</div>
               <div>3. Wartość można ustawić kwotowo albo procentowo dla każdej pozycji osobno.</div>
@@ -222,9 +222,9 @@ export function CommissionsWorkspace({
           </section>
         </div>
 
-        <section className="rounded-[28px] border border-white/8 bg-[rgba(18,24,33,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.16)] lg:p-5">
-          <div className="overflow-hidden rounded-[24px] border border-white/8">
-            <div className="hidden grid-cols-[0.85fr_1fr_1fr_0.65fr_0.7fr_0.7fr] gap-4 border-b border-white/8 bg-white/[0.03] px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#f3d998] lg:grid">
+        <section className="rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
+          <div className="overflow-hidden rounded-[24px] border border-[#e8e1d4]">
+            <div className="hidden grid-cols-[0.85fr_1fr_1fr_0.65fr_0.7fr_0.7fr] gap-4 border-b border-[#e8e1d4] bg-[#f7f3ea] px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27] lg:grid">
               <span>Marka</span>
               <span>Model</span>
               <span>Wersja</span>
@@ -235,21 +235,21 @@ export function CommissionsWorkspace({
 
             <div className="grid">
               {draftRules.length > 0 ? Object.entries(groupedRules).map(([brand, brandRules]) => (
-                <div key={brand} className="border-b border-white/6 last:border-b-0">
-                  <div className="border-b border-white/8 bg-white/[0.04] px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#f3d998]">
+                <div key={brand} className="border-b border-[#ece5d7] last:border-b-0">
+                  <div className="border-b border-[#e8e1d4] bg-[#fcfbf8] px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">
                     {brand}
                   </div>
                   {brandRules.map((rule) => (
-                    <div key={rule.id} className="grid gap-4 border-b border-white/6 px-5 py-4 last:border-b-0 lg:grid-cols-[0.85fr_1fr_1fr_0.65fr_0.7fr_0.7fr] lg:items-center">
-                      <div className="text-sm font-semibold text-white">{rule.brand}</div>
-                      <div className="text-sm text-[#c2cad4]">{rule.model}</div>
-                      <div className="text-sm text-[#c2cad4]">{rule.version}</div>
-                      <div className="text-sm text-[#c2cad4]">{rule.year ?? '—'}</div>
+                    <div key={rule.id} className="grid gap-4 border-b border-[#ece5d7] px-5 py-4 last:border-b-0 lg:grid-cols-[0.85fr_1fr_1fr_0.65fr_0.7fr_0.7fr] lg:items-center">
+                      <div className="text-sm font-semibold text-[#1f1f1f]">{rule.brand}</div>
+                      <div className="text-sm text-[#555555]">{rule.model}</div>
+                      <div className="text-sm text-[#555555]">{rule.version}</div>
+                      <div className="text-sm text-[#555555]">{rule.year ?? '—'}</div>
                       <select
                         value={rule.valueType}
                         onChange={(event) => updateRuleValue(rule.id, 'valueType', event.target.value)}
                         disabled={!editable}
-                        className="h-11 rounded-2xl border border-white/10 bg-[#131922] px-4 text-sm text-white outline-none transition focus:border-[rgba(216,180,90,0.45)] disabled:opacity-60"
+                        className="h-11 rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)] disabled:opacity-60"
                       >
                         <option value="AMOUNT">Kwota</option>
                         <option value="PERCENT">Procent</option>
@@ -261,13 +261,13 @@ export function CommissionsWorkspace({
                         onChange={(event) => updateRuleValue(rule.id, 'value', event.target.value)}
                         disabled={!editable}
                         placeholder={rule.valueType === 'PERCENT' ? 'np. 10' : 'np. 3000'}
-                        className="h-11 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none transition focus:border-[rgba(216,180,90,0.45)] disabled:opacity-60"
+                        className="h-11 rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)] disabled:opacity-60"
                       />
                     </div>
                   ))}
                 </div>
               )) : (
-                <div className="px-4 py-16 text-center text-sm text-[#7f8a97]">
+                <div className="px-4 py-16 text-center text-sm text-[#8a826f]">
                   Brak pozycji prowizyjnych. Najpierw zapisz politykę cenową i dodaj dyrektorów lub managerów.
                 </div>
               )}

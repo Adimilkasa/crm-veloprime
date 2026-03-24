@@ -79,6 +79,7 @@ export async function createLeadStageAction(formData: FormData) {
     name: String(formData.get('name') || ''),
     color: String(formData.get('color') || ''),
     kind: (String(formData.get('kind') || 'OPEN') as 'OPEN' | 'WON' | 'LOST'),
+    afterStageId: String(formData.get('afterStageId') || ''),
   })
 
   if (!result.ok) {

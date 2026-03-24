@@ -181,30 +181,26 @@ Oferta musi wspierać konfigurację finansowania przez handlowca.
 Minimalne pola finansowania:
 
 - okres finansowania w miesiącach: 24, 36, 48, 60, 71
-- wpłata własna kwotowa albo procentowa
+- wpłata własna kwotowa
 - wykup procentowy
 - wartość pojazdu do finansowania po rabacie
 
 ### Reguły wykupu
 
-- dla 71 miesięcy wykup nie może być większy niż 20%
-- dla 60 miesięcy wykup nie może być większy niż 30%
-- dla 48 miesięcy wykup nie może być większy niż 40%
-- dla 36 miesięcy wykup nie może być większy niż 50%
-- dla 24 miesięcy wykup nie może być większy niż 60%
+- dla 71 miesięcy wykup nie może być większy niż 30%
+- dla 60 miesięcy wykup nie może być większy niż 40%
+- dla 48 miesięcy wykup nie może być większy niż 50%
+- dla 36 miesięcy wykup nie może być większy niż 60%
+- dla 24 miesięcy wykup nie może być większy niż 70%
 
 Okres 12 miesięcy nie jest wspierany.
 
 ### Sposób wprowadzania wpłaty własnej
 
-Handlowiec może wprowadzić wpłatę własną:
+Handlowiec wprowadza wpłatę własną wyłącznie kwotowo, na przykład 20000 zł.
 
-- procentowo, na przykład 10% lub 20%
-- kwotowo, na przykład 20000 zł
+System zapisuje:
 
-System powinien zapisać obie postacie:
-
-- tryb wejścia
 - wartość źródłową wpisaną przez handlowca
 - wyliczoną wartość kwotową i procentową do snapshotu oferty
 

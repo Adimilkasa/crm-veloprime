@@ -8,7 +8,7 @@ import { findColorPalette, listColorPalettes, type ModelColorPalette } from '@/l
 import { listActiveCommissionRules } from '@/lib/commission-management'
 import { db, hasDatabaseUrl } from '@/lib/db'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
-import { listManagedLeads, type ManagedLead } from '@/lib/lead-management'
+import { createManagedLead, listManagedLeads, listManagedLeadStages, type ManagedLead } from '@/lib/lead-management'
 import { calculateOfferSummary, type OfferCalculationSummary, type OfferCustomerType } from '@/lib/offer-calculations'
 import { buildDetailedPricingCatalog, type DetailedPricingCatalogItem } from '@/lib/pricing-catalog'
 import { getActivePricingSheet } from '@/lib/pricing-management'
@@ -173,6 +173,24 @@ function canViewOffer(session: AuthSession, offer: ManagedOffer) {
   return offer.ownerId === session.sub
 }
 
+function normalizeComparable(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function matchLeadForOffer(leads: ManagedLead[], offer: Pick<ManagedOffer, 'customerName' | 'customerEmail' | 'customerPhone'>) {
+  const normalizedName = normalizeComparable(offer.customerName)
+  const normalizedEmail = normalizeComparable(offer.customerEmail)
+  const normalizedPhone = normalizeComparable(offer.customerPhone)
+
+  return leads.find((lead) => {
+    const sameEmail = normalizedEmail && normalizeComparable(lead.email) === normalizedEmail
+    const samePhone = normalizedPhone && normalizeComparable(lead.phone) === normalizedPhone
+    const sameName = normalizedName && normalizeComparable(lead.fullName) === normalizedName
+
+    return Boolean(sameEmail || samePhone || (sameName && (!normalizedEmail || !normalizedPhone)))
+  }) ?? null
+}
+
 function formatMoney(value: number | null) {
   if (value === null) {
     return 'kwota do ustalenia'
@@ -258,8 +276,8 @@ async function buildSeedOffers() {
       totalNet: index === 0 ? 150325.2 : 165447.15,
       financingVariant: index === 0 ? 'Leasing 36 miesięcy / wpłata 15%' : 'Wynajem długoterminowy 48 miesięcy',
       financingTermMonths: index === 0 ? 36 : 48,
-      financingInputMode: 'PERCENT',
-      financingInputValue: index === 0 ? 15 : 10,
+      financingInputMode: 'AMOUNT',
+      financingInputValue: index === 0 ? 27735 : 20350,
       financingBuyoutPercent: index === 0 ? 30 : 20,
       notes: index === 0 ? 'Uwzględniono pakiet serwisowy i odbiór w Warszawie.' : 'Klient prosi o porównanie z finansowaniem gotówkowym.',
       versions: [
@@ -407,6 +425,8 @@ async function resolveOfferPricing(input: {
 }
 
 export async function listManagedOffers(session: AuthSession) {
+  const leads = await listManagedLeads(session)
+
   if (isPrismaOfferStorageEnabled() && db) {
     const offers = await db.offer.findMany({
       include: {
@@ -422,7 +442,11 @@ export async function listManagedOffers(session: AuthSession) {
     })
 
     return offers
-      .map((offer) => mapDbOfferToManagedOffer(offer))
+      .map((offer) => {
+        const mapped = mapDbOfferToManagedOffer(offer)
+        const matchedLead = matchLeadForOffer(leads, mapped)
+        return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
+      })
       .filter((offer) => canViewOffer(session, offer))
   }
 
@@ -539,7 +563,11 @@ export async function listOfferColorPalettes() {
 export async function createManagedOffer(
   session: AuthSession,
   input: {
-    leadId: string
+    leadId?: string
+    customerName?: string
+    customerEmail?: string
+    customerPhone?: string
+    customerRegion?: string
     title: string
     pricingCatalogKey?: string
     selectedColorName?: string
@@ -555,19 +583,33 @@ export async function createManagedOffer(
   }
 ) {
   const leads = await listManagedLeads(session)
-  const lead = leads.find((entry) => entry.id === input.leadId)
+  const lead = input.leadId?.trim() ? leads.find((entry) => entry.id === input.leadId?.trim()) ?? null : null
 
-  if (!lead) {
+  if (input.leadId?.trim() && !lead) {
     return { ok: false as const, error: 'Wybierz poprawnego leada do utworzenia oferty.' }
   }
 
-  const title = input.title.trim() || `Oferta ${lead.interestedModel ?? 'sprzedażowa'} dla ${lead.fullName}`
+  const customerNameInput = input.customerName?.trim() ?? ''
+  const customerName = (lead?.fullName ?? customerNameInput) || 'Klient do uzupełnienia'
+  const customerEmail = lead?.email ?? (input.customerEmail?.trim() || null)
+  const customerPhone = lead?.phone ?? (input.customerPhone?.trim() || null)
+  const customerRegion = lead?.region ?? (input.customerRegion?.trim() || null)
+
+  if (lead && !customerName) {
+    return { ok: false as const, error: 'Podaj klienta albo wybierz istniejącego leada.' }
+  }
+
+  if (lead && !customerEmail && !customerPhone) {
+    return { ok: false as const, error: 'Podaj email lub telefon klienta, aby zapisać ofertę.' }
+  }
+
+  const title = input.title.trim() || (lead ? `Oferta ${lead?.interestedModel ?? 'sprzedażowa'} dla ${customerName}` : 'Nowa oferta')
   const customerType = input.customerType === 'BUSINESS' ? 'BUSINESS' : 'PRIVATE'
   const discountValue = input.discountValue?.trim() ? Number(input.discountValue) : null
   const financingTermMonths = input.financingTermMonths?.trim() ? Number(input.financingTermMonths) : null
   const financingInputValue = input.financingInputValue?.trim() ? Number(input.financingInputValue) : null
   const financingBuyoutPercent = input.financingBuyoutPercent?.trim() ? Number(input.financingBuyoutPercent) : null
-  const financingInputMode = input.financingInputMode === 'AMOUNT' ? 'AMOUNT' : 'PERCENT'
+  const financingInputMode = 'AMOUNT'
 
   if (input.discountValue?.trim() && (discountValue === null || Number.isNaN(discountValue))) {
     return { ok: false as const, error: 'Rabat klienta musi być poprawną liczbą.' }
@@ -585,7 +627,7 @@ export async function createManagedOffer(
     return { ok: false as const, error: 'Wykup musi być poprawną liczbą.' }
   }
 
-  const ownerId = lead.salespersonId ?? session.sub
+  const ownerId = lead?.salespersonId ?? session.sub
   const pricingSheet = await getActivePricingSheet()
   const catalogItems = buildDetailedPricingCatalog(pricingSheet)
   const pricingResult = await resolveOfferPricing({
@@ -640,7 +682,16 @@ export async function createManagedOffer(
     const users = await listManagedUsers()
     await ensureUsersInDb(users)
     const catalogIds = await syncCatalogItemsToDb(catalogItems)
-    const customer = await ensureCustomerFromLead(lead, ownerId)
+    const customer = lead
+      ? await ensureCustomerFromLead(lead, ownerId)
+      : await ensureCustomerRecord({
+          fullName: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+          city: customerRegion,
+          notes: input.notes?.trim() || null,
+          ownerId,
+        })
 
     if (!customer) {
       return { ok: false as const, error: 'Nie udało się przygotować klienta do zapisu w bazie.' }
@@ -665,7 +716,7 @@ export async function createManagedOffer(
         totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
         totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
         financingVariant: input.financingVariant?.trim() || null,
-        notes: input.notes?.trim() || lead.message || null,
+        notes: input.notes?.trim() || lead?.message || null,
         ...(financingPersistence ? { financing: { create: financingPersistence } } : {}),
       },
       include: {
@@ -686,17 +737,17 @@ export async function createManagedOffer(
     number: nextOfferNumber(offers),
     status: 'DRAFT',
     title,
-    leadId: lead.id,
-    customerName: lead.fullName,
-    customerEmail: lead.email,
-    customerPhone: lead.phone,
-    modelName: pricingResult && pricingResult.ok ? `${pricingResult.catalogItem.brand} ${pricingResult.catalogItem.model} ${pricingResult.catalogItem.version}` : lead.interestedModel,
+    leadId: lead?.id ?? null,
+    customerName,
+    customerEmail,
+    customerPhone,
+    modelName: pricingResult && pricingResult.ok ? `${pricingResult.catalogItem.brand} ${pricingResult.catalogItem.model} ${pricingResult.catalogItem.version}` : lead?.interestedModel ?? null,
     pricingCatalogKey: pricingResult && pricingResult.ok ? pricingResult.catalogItem.key : null,
     selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
     customerType,
     discountValue,
     ownerId,
-    ownerName: lead.salespersonName ?? session.fullName,
+    ownerName: lead?.salespersonName ?? session.fullName,
     validUntil: input.validUntil?.trim() ? new Date(input.validUntil).toISOString() : null,
     totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
     totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
@@ -705,7 +756,7 @@ export async function createManagedOffer(
     financingInputMode,
     financingInputValue,
     financingBuyoutPercent,
-    notes: input.notes?.trim() || lead.message || null,
+    notes: input.notes?.trim() || lead?.message || null,
     versions: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -752,7 +803,7 @@ export async function updateManagedOffer(
   const financingTermMonths = input.financingTermMonths?.trim() ? Number(input.financingTermMonths) : null
   const financingInputValue = input.financingInputValue?.trim() ? Number(input.financingInputValue) : null
   const financingBuyoutPercent = input.financingBuyoutPercent?.trim() ? Number(input.financingBuyoutPercent) : null
-  const financingInputMode = input.financingInputMode === 'AMOUNT' ? 'AMOUNT' : 'PERCENT'
+  const financingInputMode = 'AMOUNT'
 
   if (input.discountValue?.trim() && (discountValue === null || Number.isNaN(discountValue))) {
     return { ok: false as const, error: 'Rabat klienta musi być poprawną liczbą.' }
@@ -945,6 +996,130 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
   return { ok: true as const, version: nextVersion }
 }
 
+export async function assignManagedOfferLead(
+  session: AuthSession,
+  input: {
+    offerId: string
+    leadId: string
+  }
+) {
+  const leads = await listManagedLeads(session)
+  const lead = leads.find((entry) => entry.id === input.leadId)
+
+  if (!lead) {
+    return { ok: false as const, error: 'Wybierz poprawnego leada do przypisania oferty.' }
+  }
+
+  const offer = isPrismaOfferStorageEnabled()
+    ? await getManagedOfferWithCalculation(session, input.offerId)
+    : (await getStore()).find((entry) => entry.id === input.offerId) ?? null
+
+  if (!offer) {
+    return { ok: false as const, error: 'Nie znaleziono oferty.' }
+  }
+
+  if (!canViewOffer(session, offer)) {
+    return { ok: false as const, error: 'Nie masz dostępu do tej oferty.' }
+  }
+
+  const nextOwnerId = lead.salespersonId ?? offer.ownerId
+  const nextOwnerName = lead.salespersonName ?? offer.ownerName
+
+  if (isPrismaOfferStorageEnabled() && db) {
+    const customer = await ensureCustomerFromLead(lead, nextOwnerId)
+
+    if (!customer) {
+      return { ok: false as const, error: 'Nie udało się przypisać klienta z leada do oferty.' }
+    }
+
+    const updated = await db.offer.update({
+      where: { id: input.offerId },
+      data: {
+        customerId: customer.id,
+        ownerId: nextOwnerId,
+        notes: offer.notes ?? lead.message ?? null,
+      },
+      include: {
+        customer: true,
+        owner: true,
+        salesCatalogItem: true,
+        financing: true,
+        versions: true,
+      },
+    })
+
+    return { ok: true as const, offer: { ...mapDbOfferToManagedOffer(updated), leadId: lead.id } }
+  }
+
+  offer.leadId = lead.id
+  offer.customerName = lead.fullName
+  offer.customerEmail = lead.email
+  offer.customerPhone = lead.phone
+  offer.ownerId = nextOwnerId
+  offer.ownerName = nextOwnerName
+  offer.notes = offer.notes ?? lead.message ?? null
+  offer.updatedAt = new Date().toISOString()
+
+  return { ok: true as const, offer }
+}
+
+export async function createLeadForManagedOffer(
+  session: AuthSession,
+  input: {
+    offerId: string
+    fullName?: string
+    email?: string
+    phone?: string
+    region?: string
+  }
+) {
+  const offer = isPrismaOfferStorageEnabled()
+    ? await getManagedOfferWithCalculation(session, input.offerId)
+    : (await getStore()).find((entry) => entry.id === input.offerId) ?? null
+
+  if (!offer) {
+    return { ok: false as const, error: 'Nie znaleziono oferty.' }
+  }
+
+  if (!canViewOffer(session, offer)) {
+    return { ok: false as const, error: 'Nie masz dostępu do tej oferty.' }
+  }
+
+  const stages = await listManagedLeadStages()
+  const firstStageId = stages.find((stage) => stage.kind === 'OPEN')?.id ?? stages[0]?.id ?? ''
+  const fullName = input.fullName?.trim() || offer.customerName
+  const email = input.email?.trim() || offer.customerEmail || ''
+  const phone = input.phone?.trim() || offer.customerPhone || ''
+  const region = input.region?.trim() || ''
+
+  const leadResult = await createManagedLead(session, {
+    source: 'Oferta PDF',
+    fullName,
+    email,
+    phone,
+    interestedModel: offer.modelName ?? '',
+    region,
+    message: offer.notes ?? '',
+    stageId: firstStageId,
+    salespersonId: offer.ownerId,
+  })
+
+  if (!leadResult.ok) {
+    return leadResult
+  }
+
+  const attachResult = await assignManagedOfferLead(session, {
+    offerId: offer.id,
+    leadId: leadResult.lead.id,
+  })
+
+  if (!attachResult.ok) {
+    return attachResult
+  }
+
+  return { ok: true as const, lead: leadResult.lead, offer: attachResult.offer }
+}
+
 function isPrismaOfferStorageEnabled() {
   return hasDatabaseUrl() && Boolean(db)
 }
@@ -1050,19 +1225,41 @@ async function syncCatalogItemsToDb(catalogItems: DetailedPricingCatalogItem[]) 
 }
 
 async function ensureCustomerFromLead(lead: ManagedLead, ownerId: string) {
+  return ensureCustomerRecord({
+    fullName: lead.fullName,
+    email: lead.email,
+    phone: lead.phone,
+    city: lead.region,
+    notes: lead.message,
+    ownerId,
+  })
+}
+
+async function ensureCustomerRecord(input: {
+  fullName: string
+  email: string | null
+  phone: string | null
+  city: string | null
+  notes: string | null
+  ownerId: string
+}) {
   if (!db) {
     return null
   }
 
-  const existing = await db.customer.findFirst({
-    where: {
-      fullName: lead.fullName,
-      OR: [
-        lead.email ? { email: lead.email } : undefined,
-        lead.phone ? { phone: lead.phone } : undefined,
-      ].filter(Boolean) as Prisma.CustomerWhereInput[],
-    },
-  })
+  const contactFilters = [
+    input.email ? { email: input.email } : undefined,
+    input.phone ? { phone: input.phone } : undefined,
+  ].filter(Boolean) as Prisma.CustomerWhereInput[]
+
+  const existing = contactFilters.length > 0
+    ? await db.customer.findFirst({
+        where: {
+          fullName: input.fullName,
+          OR: contactFilters,
+        },
+      })
+    : null
 
   if (existing) {
     return existing
@@ -1070,12 +1267,12 @@ async function ensureCustomerFromLead(lead: ManagedLead, ownerId: string) {
 
   return db.customer.create({
     data: {
-      fullName: lead.fullName,
-      email: lead.email,
-      phone: lead.phone,
-      city: lead.region,
-      notes: lead.message,
-      ownerId,
+      fullName: input.fullName,
+      email: input.email,
+      phone: input.phone,
+      city: input.city,
+      notes: input.notes,
+      ownerId: input.ownerId,
     },
   })
 }
@@ -1106,7 +1303,7 @@ function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
     totalNet: offer.totalNet ? Number(offer.totalNet) : null,
     financingVariant: offer.financingVariant,
     financingTermMonths: offer.financing?.termMonths ?? null,
-    financingInputMode: offer.financing?.downPaymentInputMode ?? 'PERCENT',
+    financingInputMode: offer.financing?.downPaymentInputMode ?? 'AMOUNT',
     financingInputValue: offer.financing?.downPaymentInputValue ? Number(offer.financing.downPaymentInputValue) : null,
     financingBuyoutPercent: offer.financing?.buyoutPercent ? Number(offer.financing.buyoutPercent) : null,
     notes: offer.notes,
