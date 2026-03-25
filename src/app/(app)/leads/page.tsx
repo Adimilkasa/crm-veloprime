@@ -11,6 +11,7 @@ import {
 import { LeadsWorkspace } from '@/components/leads/LeadsWorkspace'
 import { getSession } from '@/lib/auth'
 import { listManagedLeads, listManagedLeadStages } from '@/lib/lead-management'
+import { listManagedOffers } from '@/lib/offer-management'
 import { listManagedUsers } from '@/lib/user-management'
 
 export default async function LeadsPage({
@@ -24,12 +25,48 @@ export default async function LeadsPage({
     redirect('/login')
   }
 
-  const [leads, stages, users, { error, success }] = await Promise.all([
+  const [leads, stages, users, offers, { error, success }] = await Promise.all([
     listManagedLeads(session),
     listManagedLeadStages(),
     listManagedUsers(),
+    listManagedOffers(session),
     searchParams,
   ])
+
+  const leadOffersByLeadId = offers.reduce<Record<string, Array<{
+    id: string
+    number: string
+    title: string
+    status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
+    updatedAt: string
+    versionCount: number
+    pdfHref: string
+  }>>>((accumulator, offer) => {
+    if (!offer.leadId) {
+      return accumulator
+    }
+
+    const latestVersion = offer.versions[0] ?? null
+    const pdfHref = latestVersion
+      ? `/offers/${offer.id}/pdf?versionId=${latestVersion.id}`
+      : `/offers/${offer.id}/pdf`
+
+    if (!accumulator[offer.leadId]) {
+      accumulator[offer.leadId] = []
+    }
+
+    accumulator[offer.leadId].push({
+      id: offer.id,
+      number: offer.number,
+      title: offer.title,
+      status: offer.status,
+      updatedAt: offer.updatedAt,
+      versionCount: offer.versions.length,
+      pdfHref,
+    })
+
+    return accumulator
+  }, {})
 
   const activeSalesUsers = users.filter((user) => user.isActive && user.role === 'SALES')
   const canAssign = session.role === 'ADMIN' || session.role === 'DIRECTOR' || session.role === 'MANAGER'
@@ -63,6 +100,7 @@ export default async function LeadsPage({
 
       <LeadsWorkspace
         leads={leads}
+        leadOffersByLeadId={leadOffersByLeadId}
         stages={stages}
         salesUsers={activeSalesUsers}
         canAssign={canAssign}

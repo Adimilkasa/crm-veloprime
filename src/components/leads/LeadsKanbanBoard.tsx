@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarClock, FilePlus2, GripVertical, Phone, Plus, Search, UserRound, X } from 'lucide-react'
+import { ArrowLeft, CalendarClock, FilePlus2, FileText, GripVertical, Phone, Plus, Search, UserRound, X } from 'lucide-react'
 
 type LeadStage = {
   id: string
@@ -39,6 +39,16 @@ type ManagedLead = {
   updatedAt: string
 }
 
+type LeadOfferSummary = {
+  id: string
+  number: string
+  title: string
+  status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
+  updatedAt: string
+  versionCount: number
+  pdfHref: string
+}
+
 type SalesUser = {
   id: string
   fullName: string
@@ -70,8 +80,42 @@ function formatShortDate(value: string | null) {
 
 function getStageSurface(stage: LeadStage) {
   return {
-    borderColor: `${stage.color}44`,
-    backgroundColor: `${stage.color}12`,
+    borderColor: `${stage.color}66`,
+    background: `linear-gradient(180deg, ${stage.color}28 0%, ${stage.color}10 100%)`,
+  }
+}
+
+function getStageHeaderSurface(stage: LeadStage) {
+  return {
+    borderColor: `${stage.color}55`,
+    background: `linear-gradient(135deg, ${stage.color}32 0%, rgba(255,255,255,0.96) 78%)`,
+  }
+}
+
+function getStageBadgeSurface(stage: LeadStage) {
+  return {
+    borderColor: `${stage.color}66`,
+    backgroundColor: `${stage.color}22`,
+    color: '#2c2417',
+  }
+}
+
+function getLeadCardSurface(stage: LeadStage, hasOwner: boolean) {
+  return {
+    borderColor: hasOwner ? `${stage.color}3f` : `${stage.color}66`,
+    background: hasOwner
+      ? `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, ${stage.color}0f 100%)`
+      : `linear-gradient(180deg, ${stage.color}1e 0%, rgba(255,250,240,0.98) 100%)`,
+    boxShadow: hasOwner
+      ? '0 12px 26px rgba(31,31,31,0.05)'
+      : '0 14px 28px rgba(31,31,31,0.06)',
+  }
+}
+
+function getLeadMetaSurface(stage: LeadStage) {
+  return {
+    borderColor: `${stage.color}2f`,
+    background: `linear-gradient(180deg, rgba(255,255,255,0.88) 0%, ${stage.color}0d 100%)`,
   }
 }
 
@@ -87,8 +131,39 @@ function getNewestDetail(lead: ManagedLead) {
   )[0]
 }
 
+function getOfferStatusLabel(status: LeadOfferSummary['status']) {
+  switch (status) {
+    case 'APPROVED':
+      return 'Zaakceptowana'
+    case 'SENT':
+      return 'Wysłana'
+    case 'REJECTED':
+      return 'Odrzucona'
+    case 'EXPIRED':
+      return 'Wygasła'
+    default:
+      return 'Szkic'
+  }
+}
+
+function getOfferStatusClassName(status: LeadOfferSummary['status']) {
+  switch (status) {
+    case 'APPROVED':
+      return 'border-[#d9ece4] bg-[#f4fbf8] text-[#3f7d64]'
+    case 'SENT':
+      return 'border-[#dbe7f6] bg-[#f8fbff] text-[#4a90e2]'
+    case 'REJECTED':
+      return 'border-[#f1d4d2] bg-[#fff5f4] text-[#a64b45]'
+    case 'EXPIRED':
+      return 'border-[#e8e1d4] bg-[#fcfbf8] text-[#7a7262]'
+    default:
+      return 'border-[#efe0ba] bg-[#fffaf0] text-[#9d7b27]'
+  }
+}
+
 function LeadDetailsScreen({
   selectedLead,
+  leadOffers,
   stages,
   salesUsers,
   canAssign,
@@ -100,6 +175,7 @@ function LeadDetailsScreen({
   onClose,
 }: {
   selectedLead: ManagedLead | null
+  leadOffers: LeadOfferSummary[]
   stages: LeadStage[]
   salesUsers: SalesUser[]
   canAssign: boolean
@@ -244,11 +320,42 @@ function LeadDetailsScreen({
             ) : null}
 
             <div className="rounded-[22px] border border-[#ebe4d7] bg-white p-4 shadow-[0_14px_32px_rgba(31,31,31,0.04)]">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b27]">Oferta PDF</div>
-              <div className="mt-2 text-sm leading-6 text-[#666666]">Jeżeli rozmowa jest gotowa na ofertę, przejdź od razu do generatora z tym konkretnym leadem.</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b27]">Oferty klienta</div>
+              {leadOffers.length > 0 ? (
+                <>
+                  <div className="mt-2 text-sm leading-6 text-[#666666]">Dla tego leada są już przypisane oferty. Możesz wejść od razu do dokumentu PDF albo utworzyć kolejną wersję oferty.</div>
+                  <div className="mt-3 grid gap-3">
+                    {leadOffers.map((offer) => (
+                      <article key={offer.id} className="rounded-[18px] border border-[#e8e1d4] bg-[#fcfbf8] p-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-[#1f1f1f]">{offer.title}</div>
+                            <div className="mt-1 text-xs uppercase tracking-[0.14em] text-[#8a826f]">{offer.number} • aktualizacja {formatDate(offer.updatedAt)}</div>
+                          </div>
+                          <span className={[
+                            'inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]',
+                            getOfferStatusClassName(offer.status),
+                          ].join(' ')}>
+                            {getOfferStatusLabel(offer.status)}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <div className="text-xs uppercase tracking-[0.14em] text-[#8a826f]">Wersje: {offer.versionCount}</div>
+                          <Link href={offer.pdfHref} target="_blank" className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-3 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
+                            <FileText className="h-4 w-4" />
+                            <span>PDF</span>
+                          </Link>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-2 text-sm leading-6 text-[#666666]">Ten lead nie ma jeszcze przypisanej oferty. Jeśli chcesz, możesz od razu przejść do generatora i utworzyć pierwszy dokument PDF dla tego klienta.</div>
+              )}
               <Link href={`/offers?leadId=${selectedLead.id}`} className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white transition hover:bg-[#b8932f]">
                 <FilePlus2 className="h-4 w-4" />
-                <span>Stwórz nową ofertę</span>
+                <span>{leadOffers.length > 0 ? 'Nowa oferta dla tego klienta' : 'Stwórz nową ofertę'}</span>
               </Link>
             </div>
           </div>
@@ -371,6 +478,7 @@ function LeadDetailsScreen({
 
 export function LeadsKanbanBoard({
   leads,
+  leadOffersByLeadId,
   stages,
   salesUsers,
   canAssign,
@@ -382,6 +490,7 @@ export function LeadsKanbanBoard({
   addLeadCommentAction,
 }: {
   leads: ManagedLead[]
+  leadOffersByLeadId: Record<string, LeadOfferSummary[]>
   stages: LeadStage[]
   salesUsers: SalesUser[]
   canAssign: boolean
@@ -415,6 +524,7 @@ export function LeadsKanbanBoard({
   })
 
   const selectedLead = filteredLeads.find((lead) => lead.id === selectedLeadId) ?? leads.find((lead) => lead.id === selectedLeadId) ?? null
+  const selectedLeadOffers = selectedLead ? leadOffersByLeadId[selectedLead.id] ?? [] : []
 
   useEffect(() => {
     if (!selectedLeadId) {
@@ -452,7 +562,7 @@ export function LeadsKanbanBoard({
     const isHovered = hoveredStageId === stageId
 
     return [
-      'flex h-full flex-col rounded-[24px] border bg-white p-2.5 shadow-[0_18px_42px_rgba(31,31,31,0.05)] transition duration-150',
+      'flex h-full flex-col rounded-[24px] border p-2.5 shadow-[0_18px_42px_rgba(31,31,31,0.05)] transition duration-150',
       isHovered
         ? 'scale-[1.01] border-[rgba(201,161,59,0.28)] shadow-[0_24px_56px_rgba(31,31,31,0.08)] ring-2 ring-[rgba(201,161,59,0.12)]'
         : 'border-[#e8e1d4]',
@@ -484,6 +594,7 @@ export function LeadsKanbanBoard({
         <div className="fixed inset-0 z-40 bg-[rgba(36,30,20,0.16)] backdrop-blur-md">
           <LeadDetailsScreen
             selectedLead={selectedLead}
+            leadOffers={selectedLeadOffers}
             stages={stages}
             salesUsers={salesUsers}
             canAssign={canAssign}
@@ -561,147 +672,157 @@ export function LeadsKanbanBoard({
         </div>
       </div>
 
-      <div className="overflow-x-auto pb-2">
-        <div className="grid min-w-max grid-flow-col gap-2.5">
-          {stages.map((stage) => {
-            const stageLeads = filteredLeads.filter((lead) => lead.stageId === stage.id)
-            const stageStyle = getStageSurface(stage)
+      <div className="relative max-w-full overflow-hidden rounded-[28px]">
+        <div className="kanban-scroll-fade-strong overflow-x-auto overscroll-x-contain px-6 pb-2">
+          <div className="grid min-w-max grid-flow-col gap-2.5">
+            {stages.map((stage) => {
+              const stageLeads = filteredLeads.filter((lead) => lead.stageId === stage.id)
+              const stageStyle = getStageSurface(stage)
 
-            return (
-              <section
-                key={stage.id}
-                onDragEnter={() => setHoveredStageId(stage.id)}
-                onDragOver={(event) => {
-                  event.preventDefault()
-                  if (hoveredStageId !== stage.id) {
-                    setHoveredStageId(stage.id)
-                  }
-                }}
-                onDragLeave={(event) => {
-                  const nextTarget = event.relatedTarget
+              return (
+                <section
+                  key={stage.id}
+                  onDragEnter={() => setHoveredStageId(stage.id)}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    if (hoveredStageId !== stage.id) {
+                      setHoveredStageId(stage.id)
+                    }
+                  }}
+                  onDragLeave={(event) => {
+                    const nextTarget = event.relatedTarget
 
-                  if (!nextTarget || !(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
-                    setHoveredStageId((current) => (current === stage.id ? null : current))
-                  }
-                }}
-                onDrop={() => {
-                  if (draggedLeadId) {
-                    handleDrop(draggedLeadId, stage.id)
-                    setDraggedLeadId(null)
-                  }
-                  setHoveredStageId(null)
-                }}
-                className={`${getColumnClassNames(stage.id, stageLeads.length > 0)} w-[248px] sm:w-[274px] xl:w-[292px]`}
-                style={stageStyle}
-              >
-                <div className="border-b border-[#eee6d9] px-1 pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-[#1f1f1f]">{stage.name}</div>
-                      <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#8a826f]">{stageLeads.length} leadów</div>
+                    if (!nextTarget || !(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+                      setHoveredStageId((current) => (current === stage.id ? null : current))
+                    }
+                  }}
+                  onDrop={() => {
+                    if (draggedLeadId) {
+                      handleDrop(draggedLeadId, stage.id)
+                      setDraggedLeadId(null)
+                    }
+                    setHoveredStageId(null)
+                  }}
+                  className={`${getColumnClassNames(stage.id, stageLeads.length > 0)} w-[248px] sm:w-[274px] xl:w-[292px]`}
+                  style={stageStyle}
+                >
+                  <div className="rounded-[18px] border px-3 py-3" style={getStageHeaderSurface(stage)}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-[#1f1f1f]">{stage.name}</div>
+                        <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#6f6553]">{stageLeads.length} leadów</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {canManageStages ? (
+                          <button
+                            type="button"
+                            onClick={() => setStageInsertAfter(stage)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[#e7dfd0] bg-white text-[#8f6b18] transition hover:border-[rgba(201,161,59,0.34)] hover:bg-[#fff8ea]"
+                            aria-label={`Dodaj etap po ${stage.name}`}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        ) : null}
+                        <span className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={getStageBadgeSurface(stage)}>
+                          {stage.kind === 'OPEN' ? 'Otwarte' : stage.kind === 'WON' ? 'Wygrane' : 'Utracone'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {canManageStages ? (
-                        <button
-                          type="button"
-                          onClick={() => setStageInsertAfter(stage)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[#e7dfd0] bg-white text-[#8f6b18] transition hover:border-[rgba(201,161,59,0.34)] hover:bg-[#fff8ea]"
-                          aria-label={`Dodaj etap po ${stage.name}`}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      ) : null}
-                      <span className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#3d3d3d]" style={{ borderColor: `${stage.color}44`, backgroundColor: `${stage.color}15` }}>
-                        {stage.kind === 'OPEN' ? 'Otwarte' : stage.kind === 'WON' ? 'Wygrane' : 'Utracone'}
-                      </span>
-                    </div>
+                    <div className="mt-3 text-2xl font-semibold text-[#1f1f1f]">{stageLeads.length}</div>
                   </div>
-                  <div className="mt-3 text-2xl font-semibold text-[#1f1f1f]">{stageLeads.length}</div>
-                </div>
 
-                <div className="mt-3 grid min-h-[420px] gap-2 content-start">
-                  {stageLeads.map((lead) => (
-                    (() => {
-                      const newestDetail = getNewestDetail(lead)
+                  <div className="mt-3 grid min-h-[420px] gap-2 content-start">
+                    {stageLeads.map((lead) => (
+                      (() => {
+                        const newestDetail = getNewestDetail(lead)
+                        const leadOffers = leadOffersByLeadId[lead.id] ?? []
+                        const hasOwner = Boolean(lead.salespersonId)
 
-                      return (
-                        <button
-                          key={lead.id}
-                          type="button"
-                          draggable
-                          onDragStart={() => setDraggedLeadId(lead.id)}
-                          onDragEnd={() => setDraggedLeadId(null)}
-                          onClick={() => setSelectedLeadId(lead.id)}
-                          className={[
-                            'rounded-[18px] border border-[#ebe4d7] bg-[#fffdfa] px-3 py-2.5 text-left shadow-[0_10px_24px_rgba(31,31,31,0.04)] transition duration-150 hover:border-[rgba(201,161,59,0.22)] hover:shadow-[0_14px_28px_rgba(31,31,31,0.06)]',
-                            draggedLeadId === lead.id ? 'scale-[0.98] rotate-[0.6deg] border-[rgba(201,161,59,0.35)] opacity-60 shadow-[0_16px_30px_rgba(31,31,31,0.10)]' : '',
-                          ].join(' ')}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-[13px] font-semibold text-[#1f1f1f]">{lead.fullName}</div>
-                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                <span className="inline-flex rounded-full border border-[#ece4d6] bg-[#fcfbf8] px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-[#8a826f]">
-                                  {lead.source}
-                                </span>
-                                {lead.region ? (
-                                  <span className="inline-flex rounded-full border border-[#ece4d6] bg-[#fcfbf8] px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-[#8a826f]">
-                                    {lead.region}
+                        return (
+                          <button
+                            key={lead.id}
+                            type="button"
+                            draggable
+                            onDragStart={() => setDraggedLeadId(lead.id)}
+                            onDragEnd={() => setDraggedLeadId(null)}
+                            onClick={() => setSelectedLeadId(lead.id)}
+                            className={[
+                              'rounded-[18px] border px-3 py-2.5 text-left transition duration-150 hover:border-[rgba(201,161,59,0.28)] hover:shadow-[0_14px_28px_rgba(31,31,31,0.06)]',
+                              draggedLeadId === lead.id ? 'scale-[0.98] rotate-[0.6deg] border-[rgba(201,161,59,0.35)] opacity-60 shadow-[0_16px_30px_rgba(31,31,31,0.10)]' : '',
+                            ].join(' ')}
+                            style={getLeadCardSurface(stage, hasOwner)}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-[13px] font-semibold text-[#1f1f1f]">{lead.fullName}</div>
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-[#6a604d]" style={getLeadMetaSurface(stage)}>
+                                    {lead.source}
                                   </span>
-                                ) : null}
+                                  {lead.region ? (
+                                    <span className="inline-flex rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-[#6a604d]" style={getLeadMetaSurface(stage)}>
+                                      {lead.region}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#b09a63]" />
+                            </div>
+
+                            <div className="mt-2.5 grid gap-1">
+                              <div className="truncate text-[12px] font-medium text-[#444444]">{lead.interestedModel ?? 'Model nieokreślony'}</div>
+                              <div className="truncate text-[11px] text-[#6b6b6b]">{lead.phone ?? lead.email ?? 'Brak danych kontaktowych'}</div>
+                            </div>
+
+                            <div className="mt-2.5 flex flex-wrap gap-1.5">
+                              <span className={[
+                                'inline-flex rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.14em]',
+                                getCardStateClassName(lead),
+                              ].join(' ')}>
+                                Opiekun: <span className="ml-1">{lead.salespersonName ?? 'Brak'}</span>
+                              </span>
+                              {leadOffers.length > 0 ? (
+                                <span className="inline-flex rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-[#355f99]" style={{ borderColor: `${stage.color}42`, backgroundColor: `${stage.color}18` }}>
+                                  Oferty: <span className="ml-1">{leadOffers.length}</span>
+                                </span>
+                              ) : null}
+                              {newestDetail?.authorName ? (
+                                <span className="inline-flex rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-[#5f5a4f]" style={getLeadMetaSurface(stage)}>
+                                  Autor: <span className="ml-1">{newestDetail.authorName}</span>
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="mt-2.5 grid gap-1 rounded-2xl border px-2.5 py-2 text-[10px] uppercase tracking-[0.14em] text-[#5c564b]" style={getLeadMetaSurface(stage)}>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Następna akcja</span>
+                                <span className="text-right text-[#5f5a4f]">
+                                  <span className="sm:hidden">{formatShortDate(lead.nextActionAt)}</span>
+                                  <span className="hidden sm:inline">{formatShortDate(lead.nextActionAt)}</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Aktywność</span>
+                                <span className="text-right text-[#5f5a4f]">{formatShortDate(newestDetail?.createdAt ?? lead.updatedAt)}</span>
                               </div>
                             </div>
-                            <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#b09a63]" />
-                          </div>
+                          </button>
+                        )
+                      })()
+                    ))}
 
-                          <div className="mt-2.5 grid gap-1">
-                            <div className="truncate text-[12px] font-medium text-[#444444]">{lead.interestedModel ?? 'Model nieokreślony'}</div>
-                            <div className="truncate text-[11px] text-[#6b6b6b]">{lead.phone ?? lead.email ?? 'Brak danych kontaktowych'}</div>
-                          </div>
-
-                          <div className="mt-2.5 flex flex-wrap gap-1.5">
-                            <span className={[
-                              'inline-flex rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.14em]',
-                              getCardStateClassName(lead),
-                            ].join(' ')}>
-                              Opiekun: <span className="ml-1">{lead.salespersonName ?? 'Brak'}</span>
-                            </span>
-                            {newestDetail?.authorName ? (
-                              <span className="inline-flex rounded-full border border-[#e7dfd0] bg-white px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-[#5f5a4f]">
-                                Autor: <span className="ml-1">{newestDetail.authorName}</span>
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <div className="mt-2.5 grid gap-1 rounded-2xl border border-[#eee6d9] bg-[#fcfbf8] px-2.5 py-2 text-[10px] uppercase tracking-[0.14em] text-[#6b6b6b]">
-                            <div className="flex items-center justify-between gap-2">
-                              <span>Następna akcja</span>
-                              <span className="text-right text-[#5f5a4f]">
-                                <span className="sm:hidden">{formatShortDate(lead.nextActionAt)}</span>
-                                <span className="hidden sm:inline">{formatShortDate(lead.nextActionAt)}</span>
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span>Aktywność</span>
-                              <span className="text-right text-[#5f5a4f]">{formatShortDate(newestDetail?.createdAt ?? lead.updatedAt)}</span>
-                            </div>
-                          </div>
-                        </button>
-                      )
-                    })()
-                  ))}
-
-                  <div className={getDropZoneClassNames(stage.id)}>
-                    {hoveredStageId === stage.id
-                      ? 'Upuść leada, aby przenieść go do tego etapu.'
-                      : stageLeads.length === 0
-                        ? 'Upuść pierwszy lead tutaj.'
-                        : 'Miejsce na kolejnego leada.'}
+                    <div className={getDropZoneClassNames(stage.id)}>
+                      {hoveredStageId === stage.id
+                        ? 'Upuść leada, aby przenieść go do tego etapu.'
+                        : stageLeads.length === 0
+                          ? 'Upuść pierwszy lead tutaj.'
+                          : 'Miejsce na kolejnego leada.'}
+                    </div>
                   </div>
-                </div>
-              </section>
-            )
-          })}
+                </section>
+              )
+            })}
+          </div>
         </div>
       </div>
 

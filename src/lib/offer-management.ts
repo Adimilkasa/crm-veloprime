@@ -773,6 +773,10 @@ export async function updateManagedOffer(
     offerId: string
     title: string
     status: OfferStatus
+    customerName?: string
+    customerEmail?: string
+    customerPhone?: string
+    customerRegion?: string
     pricingCatalogKey?: string
     selectedColorName?: string
     customerType?: OfferCustomerType
@@ -799,6 +803,10 @@ export async function updateManagedOffer(
   }
 
   const customerType = input.customerType === 'BUSINESS' ? 'BUSINESS' : 'PRIVATE'
+  const customerName = input.customerName?.trim() || offer.customerName || 'Klient do uzupełnienia'
+  const customerEmail = input.customerEmail?.trim() || null
+  const customerPhone = input.customerPhone?.trim() || null
+  const customerRegion = input.customerRegion?.trim() || null
   const discountValue = input.discountValue?.trim() ? Number(input.discountValue) : null
   const financingTermMonths = input.financingTermMonths?.trim() ? Number(input.financingTermMonths) : null
   const financingInputValue = input.financingInputValue?.trim() ? Number(input.financingInputValue) : null
@@ -874,6 +882,26 @@ export async function updateManagedOffer(
     const catalogItems = buildDetailedPricingCatalog(pricingSheet)
     await ensureUsersInDb(await listManagedUsers())
     const catalogIds = await syncCatalogItemsToDb(catalogItems)
+
+    if (!offer.leadId) {
+      const offerRecord = await db.offer.findUnique({
+        where: { id: input.offerId },
+        select: { customerId: true },
+      })
+
+      if (offerRecord?.customerId) {
+        await db.customer.update({
+          where: { id: offerRecord.customerId },
+          data: {
+            fullName: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+            city: customerRegion,
+          },
+        })
+      }
+    }
+
     const updated = await db.offer.update({
       where: { id: input.offerId },
       data: {
@@ -922,6 +950,9 @@ export async function updateManagedOffer(
 
   offer.title = input.title.trim() || offer.title
   offer.status = input.status
+  offer.customerName = customerName
+  offer.customerEmail = customerEmail
+  offer.customerPhone = customerPhone
   offer.pricingCatalogKey = pricingResult && pricingResult.ok ? pricingResult.catalogItem.key : null
   offer.selectedColorName = pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null
   offer.customerType = customerType

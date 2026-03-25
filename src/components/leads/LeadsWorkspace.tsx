@@ -39,6 +39,16 @@ type ManagedLead = {
   updatedAt: string
 }
 
+type LeadOfferSummary = {
+  id: string
+  number: string
+  title: string
+  status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
+  updatedAt: string
+  versionCount: number
+  pdfHref: string
+}
+
 type SalesUser = {
   id: string
   fullName: string
@@ -65,6 +75,7 @@ function Overlay({ title, onClose, children }: { title: string; onClose: () => v
 
 export function LeadsWorkspace({
   leads,
+  leadOffersByLeadId,
   stages,
   salesUsers,
   canAssign,
@@ -79,6 +90,7 @@ export function LeadsWorkspace({
   addLeadCommentAction,
 }: {
   leads: ManagedLead[]
+  leadOffersByLeadId: Record<string, LeadOfferSummary[]>
   stages: LeadStage[]
   salesUsers: SalesUser[]
   canAssign: boolean
@@ -97,20 +109,22 @@ export function LeadsWorkspace({
 
   return (
     <main className="grid gap-6">
-      <section className="overflow-hidden rounded-[32px] border border-[#e8e2d3] bg-[linear-gradient(135deg,#ffffff_0%,#fbf8f1_52%,#f7f3e8_100%)] px-5 py-5 shadow-[0_24px_70px_rgba(31,31,31,0.06)] lg:px-6 lg:py-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <section className="overflow-hidden rounded-[22px] border border-[#e8e2d3] bg-[linear-gradient(135deg,#ffffff_0%,#fbf8f1_52%,#f7f3e8_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(31,31,31,0.05)] lg:px-5 lg:py-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Pipeline leadów</div>
-            <h2 className="mt-2 text-2xl font-semibold text-[#1f1f1f]">Pipeline leadów</h2>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-[#7a7262]">
-              <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Leady: {stats.visible}</span>
-              <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Otwarte: {stats.active}</span>
-              <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Wygrane: {stats.won}</span>
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8c6715]">Pipeline leadów</div>
+            <div className="mt-1 flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-3">
+              <h2 className="text-[20px] font-semibold text-[#1f1f1f]">Pipeline leadów</h2>
+              <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-[#7a7262]">
+                <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Leady: {stats.visible}</span>
+                <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Otwarte: {stats.active}</span>
+                <span className="rounded-full border border-[#e7dfd0] bg-white px-3 py-1">Wygrane: {stats.won}</span>
+              </div>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={() => setLeadModalOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(201,161,59,0.24)] transition hover:bg-[#b8932f]">
+            <button type="button" onClick={() => setLeadModalOpen(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(201,161,59,0.24)] transition hover:bg-[#b8932f]">
               <Plus className="h-4 w-4" />
               <span>Nowy lead</span>
             </button>
@@ -120,6 +134,7 @@ export function LeadsWorkspace({
 
       <LeadsKanbanBoard
         leads={leads}
+        leadOffersByLeadId={leadOffersByLeadId}
         stages={stages}
         salesUsers={salesUsers}
         canAssign={canAssign}
