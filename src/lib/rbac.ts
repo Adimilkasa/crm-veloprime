@@ -2,12 +2,10 @@ import {
   BadgeCheck,
   BadgePercent,
   BriefcaseBusiness,
-  CarFront,
   FileText,
   LayoutDashboard,
   type LucideIcon,
   ShieldCheck,
-  Users,
 } from 'lucide-react'
 
 export type UserRoleKey = 'ADMIN' | 'DIRECTOR' | 'MANAGER' | 'SALES'
@@ -62,18 +60,6 @@ export const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'SALES'],
   },
   {
-    href: '/customers',
-    label: 'Klienci',
-    icon: Users,
-    roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'SALES'],
-  },
-  {
-    href: '/vehicles',
-    label: 'Samochody',
-    icon: CarFront,
-    roles: ['ADMIN', 'DIRECTOR', 'MANAGER'],
-  },
-  {
     href: '/offers',
     label: 'Oferty PDF',
     icon: FileText,
@@ -100,7 +86,7 @@ export const navigationItems: NavigationItem[] = [
   {
     href: '/colors',
     label: 'Palety kolorow',
-    icon: CarFront,
+    icon: BadgeCheck,
     roles: ['ADMIN', 'DIRECTOR'],
   },
 ]
