@@ -4,8 +4,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { AuthSession } from '@/lib/auth'
+import { db, hasDatabaseUrl } from '@/lib/db'
 import { getActivePricingSheet } from '@/lib/pricing-management'
-import { buildPricingCatalog } from '@/lib/pricing-catalog'
+import { buildDetailedPricingCatalog, type DetailedPricingCatalogItem } from '@/lib/pricing-catalog'
 import { listManagedUsers } from '@/lib/user-management'
 
 export type CommissionValueType = 'AMOUNT' | 'PERCENT'
@@ -45,6 +46,10 @@ type CommissionStore = {
 
 const COMMISSION_DATA_DIR = path.join(process.cwd(), 'data')
 const COMMISSION_STORE_PATH = path.join(COMMISSION_DATA_DIR, 'commission-rules.json')
+
+function isDbCommissionStorageEnabled() {
+  return hasDatabaseUrl() && Boolean(db)
+}
 
 function canAccessCommissionModule(role: AuthSession['role']) {
   return role === 'ADMIN' || role === 'DIRECTOR' || role === 'MANAGER'
@@ -104,14 +109,252 @@ async function readStore() {
   }
 }
 
+async function ensureUsersInDb(users: Awaited<ReturnType<typeof listManagedUsers>>) {
+  if (!db) {
+    return
+  }
+
+  const sortedUsers = [...users].sort((left, right) => {
+    const rank = { ADMIN: 0, DIRECTOR: 1, MANAGER: 2, SALES: 3 } as const
+    return rank[left.role] - rank[right.role]
+  })
+
+  for (const user of sortedUsers) {
+    await db.user.upsert({
+      where: { id: user.id },
+      update: {
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive,
+        region: user.region,
+        teamName: user.teamName,
+        reportsToUserId: user.reportsToUserId,
+      },
+      create: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive,
+        region: user.region,
+        teamName: user.teamName,
+        reportsToUserId: user.reportsToUserId,
+      },
+    })
+  }
+}
+
+async function syncCatalogItemsToDb(catalogItems: DetailedPricingCatalogItem[]) {
+  if (!db) {
+    return new Map<string, string>()
+  }
+
+  const idsByKey = new Map<string, string>()
+
+  for (const item of catalogItems) {
+    const brandSetting = await db.brandSetting.upsert({
+      where: { brand: item.brand },
+      update: {
+        isActive: true,
+      },
+      create: {
+        brand: item.brand,
+      },
+    })
+
+    const existing = await db.salesCatalogItem.findFirst({
+      where: {
+        brand: item.brand,
+        model: item.model,
+        version: item.version,
+        year: item.year,
+      },
+    })
+
+    const record = existing
+      ? await db.salesCatalogItem.update({
+          where: { id: existing.id },
+          data: {
+            powertrain: item.powertrain,
+            powerHp: item.powerHp,
+            listPriceGross: item.listPriceGross,
+            listPriceNet: item.listPriceNet,
+            basePriceGross: item.basePriceGross,
+            basePriceNet: item.basePriceNet,
+            isActive: true,
+            brandSettingId: brandSetting.id,
+          },
+        })
+      : await db.salesCatalogItem.create({
+          data: {
+            brand: item.brand,
+            model: item.model,
+            version: item.version,
+            year: item.year,
+            powertrain: item.powertrain,
+            powerHp: item.powerHp,
+            listPriceGross: item.listPriceGross,
+            listPriceNet: item.listPriceNet,
+            basePriceGross: item.basePriceGross,
+            basePriceNet: item.basePriceNet,
+            isActive: true,
+            brandSettingId: brandSetting.id,
+          },
+        })
+
+    idsByKey.set(item.key, record.id)
+  }
+
+  return idsByKey
+}
+
+function mapDbRuleToCommissionRule(rule: {
+  id: string
+  ownerUserId: string
+  valueType: 'AMOUNT' | 'PERCENT'
+  value: { toNumber(): number } | null
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+  ownerUser: { fullName: string; role: string }
+  catalogItem: { brand: string; model: string; version: string; year: string | null }
+}): CommissionRule {
+  const catalogKey = [rule.catalogItem.brand, rule.catalogItem.model, rule.catalogItem.version, rule.catalogItem.year || ''].join('::').toLowerCase()
+  const userRole = rule.ownerUser.role === 'DIRECTOR' ? 'DIRECTOR' : 'MANAGER'
+
+  return {
+    id: buildRuleId(rule.ownerUserId, catalogKey),
+    userId: rule.ownerUserId,
+    userName: rule.ownerUser.fullName,
+    userRole,
+    catalogKey,
+    brand: rule.catalogItem.brand,
+    model: rule.catalogItem.model,
+    version: rule.catalogItem.version,
+    year: rule.catalogItem.year,
+    valueType: rule.valueType,
+    value: rule.value ? rule.value.toNumber() : null,
+    isArchived: !rule.isActive,
+    createdAt: rule.createdAt.toISOString(),
+    updatedAt: rule.updatedAt.toISOString(),
+  }
+}
+
+async function syncCommissionRulesInDb(systemActor = 'System') {
+  if (!db) {
+    return buildSeedStore()
+  }
+
+  const [pricingSheet, users] = await Promise.all([
+    getActivePricingSheet(),
+    listManagedUsers(),
+  ])
+
+  const catalog = buildDetailedPricingCatalog(pricingSheet)
+  const eligibleUsers: CommissionOwner[] = users
+    .filter(isCommissionOwner)
+    .map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      role: user.role,
+    }))
+
+  await ensureUsersInDb(users)
+  const catalogIds = await syncCatalogItemsToDb(catalog)
+
+  const existingRules = await db.salesCommissionRule.findMany({
+    include: {
+      ownerUser: true,
+      catalogItem: true,
+    },
+  })
+
+  const existingById = new Map(
+    existingRules.map((rule) => {
+      const catalogKey = [rule.catalogItem.brand, rule.catalogItem.model, rule.catalogItem.version, rule.catalogItem.year || ''].join('::').toLowerCase()
+      return [buildRuleId(rule.ownerUserId, catalogKey), rule] as const
+    })
+  )
+  const activeRuleIds = new Set<string>()
+
+  for (const user of eligibleUsers) {
+    for (const item of catalog) {
+      const ruleId = buildRuleId(user.id, item.key)
+      const existing = existingById.get(ruleId)
+      const catalogItemId = catalogIds.get(item.key)
+
+      if (!catalogItemId) {
+        continue
+      }
+
+      activeRuleIds.add(ruleId)
+
+      if (existing) {
+        if (!existing.isActive) {
+          await db.salesCommissionRule.update({
+            where: { id: existing.id },
+            data: { isActive: true },
+          })
+        }
+
+        continue
+      }
+
+      await db.salesCommissionRule.create({
+        data: {
+          ownerUserId: user.id,
+          catalogItemId,
+          valueType: 'AMOUNT',
+          value: null,
+          isActive: true,
+        },
+      })
+    }
+  }
+
+  for (const rule of existingRules) {
+    const catalogKey = [rule.catalogItem.brand, rule.catalogItem.model, rule.catalogItem.version, rule.catalogItem.year || ''].join('::').toLowerCase()
+    const shouldBeActive = activeRuleIds.has(buildRuleId(rule.ownerUserId, catalogKey))
+
+    if (rule.isActive !== shouldBeActive) {
+      await db.salesCommissionRule.update({
+        where: { id: rule.id },
+        data: { isActive: shouldBeActive },
+      })
+    }
+  }
+
+  const syncedRules = await db.salesCommissionRule.findMany({
+    include: {
+      ownerUser: true,
+      catalogItem: true,
+    },
+    orderBy: [
+      { ownerUserId: 'asc' },
+      { catalogItemId: 'asc' },
+    ],
+  })
+
+  return {
+    rules: syncedRules.map((rule) => mapDbRuleToCommissionRule(rule)),
+    updatedAt: new Date().toISOString(),
+    updatedBy: systemActor,
+  } satisfies CommissionStore
+}
+
 export async function syncCommissionRules(systemActor = 'System') {
+  if (isDbCommissionStorageEnabled()) {
+    return syncCommissionRulesInDb(systemActor)
+  }
+
   const [store, pricingSheet, users] = await Promise.all([
     readStore(),
     getActivePricingSheet(),
     listManagedUsers(),
   ])
 
-  const catalog = buildPricingCatalog(pricingSheet)
+  const catalog = buildDetailedPricingCatalog(pricingSheet)
   const eligibleUsers: CommissionOwner[] = users
     .filter(isCommissionOwner)
     .map((user) => ({
@@ -257,6 +500,53 @@ export async function saveCommissionRules(
 
   if (!canEditRule(session, input.targetUserId)) {
     return { ok: false as const, error: 'Nie możesz edytować prowizji tego użytkownika.' }
+  }
+
+  if (isDbCommissionStorageEnabled() && db) {
+    const store = await syncCommissionRules(session.fullName)
+    const rulesById = new Map(store.rules.map((rule) => [rule.id, rule]))
+
+    for (const payload of input.rules) {
+      const rule = rulesById.get(payload.id)
+
+      if (!rule || rule.userId !== input.targetUserId || rule.isArchived) {
+        return { ok: false as const, error: 'Jedna z pozycji prowizyjnych jest nieaktualna. Odśwież widok i spróbuj ponownie.' }
+      }
+
+      if (payload.value !== null && payload.value < 0) {
+        return { ok: false as const, error: 'Prowizja nie może być wartością ujemną.' }
+      }
+
+      if (payload.valueType === 'PERCENT' && payload.value !== null && payload.value > 100) {
+        return { ok: false as const, error: 'Prowizja procentowa nie może być większa niż 100%.' }
+      }
+
+      const dbRule = await db.salesCommissionRule.findFirst({
+        where: {
+          ownerUserId: rule.userId,
+          catalogItem: {
+            brand: rule.brand,
+            model: rule.model,
+            version: rule.version,
+            year: rule.year,
+          },
+        },
+      })
+
+      if (!dbRule) {
+        return { ok: false as const, error: 'Nie znaleziono pozycji prowizyjnej do zapisu.' }
+      }
+
+      await db.salesCommissionRule.update({
+        where: { id: dbRule.id },
+        data: {
+          valueType: payload.valueType,
+          value: payload.value,
+        },
+      })
+    }
+
+    return { ok: true as const }
   }
 
   const store = await syncCommissionRules(session.fullName)
