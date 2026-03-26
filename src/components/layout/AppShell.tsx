@@ -230,10 +230,12 @@ export function AppShell({
               <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-[16px] border border-[#ebe5d8] bg-white text-[#4d4d4d] shadow-[0_10px_30px_rgba(31,31,31,0.04)] transition hover:border-[rgba(201,161,59,0.28)] hover:text-[#8f6b18]">
                 <Bell className="h-4 w-4" />
               </button>
-              <Link href="/logout" className="inline-flex h-9 items-center justify-center gap-2 rounded-[16px] border border-[#ebe5d8] bg-white px-3 text-[13px] font-medium text-[#4d4d4d] shadow-[0_10px_30px_rgba(31,31,31,0.04)] transition hover:border-[rgba(201,161,59,0.28)] hover:text-[#8f6b18]">
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Wyloguj</span>
-              </Link>
+              <form action="/logout" method="post">
+                <button type="submit" className="inline-flex h-9 items-center justify-center gap-2 rounded-[16px] border border-[#ebe5d8] bg-white px-3 text-[13px] font-medium text-[#4d4d4d] shadow-[0_10px_30px_rgba(31,31,31,0.04)] transition hover:border-[rgba(201,161,59,0.28)] hover:text-[#8f6b18]">
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Wyloguj</span>
+                </button>
+              </form>
 
               {isThemeOpen ? (
                 <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-[320px] rounded-[22px] border border-[#e8e1d4] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(250,247,241,0.98)_100%)] p-3 shadow-[0_22px_48px_rgba(31,31,31,0.12)] backdrop-blur-xl">
