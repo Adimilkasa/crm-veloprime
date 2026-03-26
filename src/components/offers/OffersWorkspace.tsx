@@ -176,7 +176,7 @@ function getStatusLabel(status: OfferStatus) {
 }
 
 function SectionEyebrow({ children }: { children: string }) {
-  return <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8c6715]">{children}</div>
+  return <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8c6715]">{children}</div>
 }
 
 function SectionTitle({ title, description }: { title: string; description?: string }) {
@@ -198,230 +198,43 @@ function EditorPanel({
   eyebrow: string
   title: string
   description?: string
-  tone?: 'default' | 'warm' | 'cool'
+  tone?: 'default' | 'warm' | 'cool' | 'sage' | 'lavender'
   children: React.ReactNode
 }) {
   return (
     <section className={cx(
-      'rounded-[22px] border p-3.5 lg:p-4',
+      'rounded-[22px] border p-3.5',
       tone === 'default' && 'border-[#ece4d7] bg-[#fffdfa]',
       tone === 'warm' && 'border-[#e5d5b3] bg-[linear-gradient(180deg,#fffdf7_0%,#faf5ea_100%)]',
       tone === 'cool' && 'border-[#dbe5f0] bg-[linear-gradient(180deg,#ffffff_0%,#f7fafd_100%)]',
+      tone === 'sage' && 'border-[#d7e8dd] bg-[linear-gradient(180deg,#fbfefc_0%,#eef7f1_100%)]',
+      tone === 'lavender' && 'border-[#e4dbfb] bg-[linear-gradient(180deg,#fcfbff_0%,#f3efff_100%)]',
     )}>
       <SectionEyebrow>{eyebrow}</SectionEyebrow>
       <SectionTitle title={title} description={description} />
-      <div className="mt-3 grid gap-3.5">{children}</div>
+      <div className="mt-3 grid gap-3">{children}</div>
     </section>
   )
 }
 
-function ModeButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-[14px] px-4 text-sm transition',
-        active
-          ? 'bg-[#c9a13b] text-white shadow-[0_16px_32px_rgba(201,161,59,0.24)] hover:bg-[#b8932f]'
-          : 'border border-[#e5dfd1] bg-white text-[#4d4d4d] hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]',
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-function MiniStat({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'accent' | 'success' }) {
+function MiniStat({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'accent' | 'success' | 'info' | 'lavender' }) {
   return (
     <div className={cx(
-      'rounded-[18px] border p-4',
-      tone === 'default' && 'border-[#e8e1d4] bg-white',
-      tone === 'accent' && 'border-[#efe0ba] bg-[#fffaf0]',
-      tone === 'success' && 'border-[#d9ece4] bg-[#f4fbf8]',
+      'min-h-[104px] rounded-[20px] border p-4',
+      tone === 'default' && 'border-[#e8e1d4] bg-[rgba(255,255,255,0.82)]',
+      tone === 'accent' && 'border-[#ead6a4] bg-[linear-gradient(180deg,rgba(255,248,229,0.96)_0%,rgba(252,241,213,0.82)_100%)]',
+      tone === 'success' && 'border-[#cee2d6] bg-[linear-gradient(180deg,rgba(245,251,247,0.96)_0%,rgba(231,243,236,0.82)_100%)]',
+      tone === 'info' && 'border-[#cfddf0] bg-[linear-gradient(180deg,rgba(248,251,255,0.96)_0%,rgba(230,239,250,0.84)_100%)]',
+      tone === 'lavender' && 'border-[#dfd4f3] bg-[linear-gradient(180deg,rgba(249,246,255,0.96)_0%,rgba(239,232,251,0.84)_100%)]',
     )}>
-      <div className="text-[11px] uppercase tracking-[0.16em] text-[#8a826f]">{label}</div>
-      <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{value}</div>
+      <div className="text-[11px] uppercase tracking-[0.14em] text-[#6f6859]">{label}</div>
+      <div className="mt-3 text-[21px] font-semibold leading-7 text-[#1f1f1f]">{value}</div>
     </div>
   )
 }
 
-function PreviewSummaryCard({ offer }: { offer: ManagedOffer }) {
-  return (
-    <section className="rounded-[24px] border border-[#d9ccb3] bg-[linear-gradient(180deg,#fffdf8_0%,#f7f1e6_100%)] p-5 shadow-[0_18px_42px_rgba(31,31,31,0.06)]">
-      <SectionEyebrow>Panel wynikowy</SectionEyebrow>
-      <div className="mt-1 flex items-start justify-between gap-3">
-        <div>
-          <div className="text-xl font-semibold text-[#1f1f1f]">{offer.title || 'Nowa oferta'}</div>
-          <div className="mt-1 text-sm text-[#6b6b6b]">{offer.customerName || 'Klient do uzupełnienia'} • {offer.modelName ?? 'Model do uzupełnienia'}</div>
-        </div>
-        <span className={cx('inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]', getStatusTone(offer.status))}>
-          {getStatusLabel(offer.status)}
-        </span>
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <MiniStat label="Cena końcowa brutto" value={formatMoney(offer.totalGross)} tone="accent" />
-        <MiniStat label="Cena końcowa netto" value={formatMoney(offer.totalNet)} />
-        <MiniStat label="Rabat klienta" value={formatMoney(offer.discountValue)} />
-        <MiniStat label="Finansowanie" value={offer.financingVariant ?? 'Brak'} tone="success" />
-      </div>
-    </section>
-  )
-}
-
-function PdfPreviewCard({ offer }: { offer: ManagedOffer }) {
-  return (
-    <section className="rounded-[24px] border border-[#e1d6c4] bg-white p-4 shadow-[0_14px_30px_rgba(31,31,31,0.04)]">
-      <SectionEyebrow>Podgląd PDF</SectionEyebrow>
-      <div className="mt-1 text-sm text-[#6b6b6b]">To jest podgląd treści dokumentu, który trafi do klienta.</div>
-      <div className="mt-4 rounded-[20px] border border-[#e8e1d4] bg-[linear-gradient(180deg,#ffffff,#faf8f3)] p-4">
-        <div className="text-[11px] uppercase tracking-[0.16em] text-[#8a826f]">Dokument handlowy</div>
-        <div className="mt-2 text-[22px] font-semibold text-[#1f1f1f]">{offer.title || 'Nowa oferta'}</div>
-        <div className="mt-4 grid gap-2 text-sm text-[#555555]">
-          <div>Klient: {offer.customerName}</div>
-          <div>Kontakt: {offer.customerEmail ?? offer.customerPhone ?? 'Do uzupełnienia'}</div>
-          <div>Model: {offer.modelName ?? 'Do uzupełnienia'}</div>
-          <div>Kolor: {offer.calculation?.selectedColorName ?? offer.selectedColorName ?? 'Bazowy / do ustalenia'}</div>
-          <div>Wariant: {offer.financingVariant ?? 'Do ustalenia'}</div>
-          <div>Okres finansowania: {offer.financingTermMonths ? `${offer.financingTermMonths} mies.` : 'Brak'}</div>
-          <div>Typ klienta: {offer.customerType === 'BUSINESS' ? 'Firma' : 'Klient prywatny'}</div>
-          <div>Ważna do: {formatDate(offer.validUntil)}</div>
-        </div>
-        <div className="mt-4 rounded-[16px] border border-[#eee6d9] bg-[#fcfbf8] p-4 text-sm leading-6 text-[#555555]">
-          {offer.notes ?? 'Dodaj uwagi do oferty, aby przygotować treść dokumentu dla klienta.'}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function VersionsCard({ offer }: { offer: ManagedOffer }) {
-  return (
-    <section className="rounded-[24px] border border-[#e1d6c4] bg-white p-4 shadow-[0_14px_30px_rgba(31,31,31,0.04)]">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <SectionEyebrow>Historia wersji</SectionEyebrow>
-          <div className="mt-1 text-sm text-[#6b6b6b]">Snapshoty gotowe pod kolejne PDF-y dla klienta.</div>
-        </div>
-        <div className="rounded-full border border-[#e7dfd0] bg-[#fcfbf8] px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#7a7262]">
-          {offer.versions.length} wersji
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3">
-        {offer.versions.length > 0 ? offer.versions.map((version) => (
-          <article key={version.id} className="rounded-[18px] border border-[#e8e1d4] bg-[#fcfbf8] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-[#1f1f1f]">Wersja {version.versionNumber}</div>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-[#8a826f]">{formatDate(version.createdAt)}</div>
-            </div>
-            <div className="mt-2 text-sm leading-6 text-[#555555]">{version.summary}</div>
-            {version.pdfUrl ? (
-              <div className="mt-3">
-                <Link href={version.pdfUrl} target="_blank" className="inline-flex items-center gap-2 text-sm font-medium text-[#8f6b18] transition hover:text-[#1f1f1f]">
-                  <ExternalLink className="h-4 w-4" />
-                  <span>Otwórz tę wersję i zapisz PDF</span>
-                </Link>
-              </div>
-            ) : null}
-          </article>
-        )) : (
-          <div className="rounded-[18px] border border-dashed border-[#e7dfd0] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#8a826f]">
-            Brak zapisanych wersji. Kliknij „Wygeneruj ofertę PDF”, aby utworzyć pierwszą wersję do pobrania.
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function CalculationCard({ offer }: { offer: ManagedOffer }) {
-  if (!offer.calculation) {
-    return (
-      <section className="rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Kalkulacja marży</div>
-        <div className="mt-4 rounded-[24px] border border-dashed border-[#e7dfd0] bg-[#fcfbf8] px-4 py-12 text-center text-sm text-[#8a826f]">
-          Wybierz konfigurację z polityki cenowej, aby system policzył pulę, udział dyrektora, managera i prowizję handlowca.
-        </div>
-      </section>
-    )
-  }
-
-  const calc = offer.calculation
-
-  return (
-    <section className="rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Kalkulacja marży</div>
-          <div className="mt-1 text-sm text-[#6b6b6b]">{calc.catalogLabel}</div>
-        </div>
-        <div className="rounded-full border border-[#e7dfd0] bg-[#fcfbf8] px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#7a7262]">
-          {calc.customerType === 'BUSINESS' ? 'Firma / netto' : 'Klient prywatny / brutto'}
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <div className="rounded-[22px] border border-[#e8e1d4] bg-[#fcfbf8] p-4">
-          <div className="text-xs uppercase tracking-[0.16em] text-[#8a826f]">Cena katalogowa</div>
-          <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{formatMoney(calc.customerType === 'BUSINESS' ? calc.listPriceNet : calc.listPriceGross)}</div>
-        </div>
-        <div className="rounded-[22px] border border-[#e8e1d4] bg-[#fcfbf8] p-4">
-          <div className="text-xs uppercase tracking-[0.16em] text-[#8a826f]">Cena bazowa</div>
-          <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{formatMoney(calc.customerType === 'BUSINESS' ? calc.basePriceNet : calc.basePriceGross)}</div>
-        </div>
-        <div className="rounded-[22px] border border-[#efe0ba] bg-[#fffaf0] p-4">
-          <div className="text-xs uppercase tracking-[0.16em] text-[#9d7b27]">Pula całkowita</div>
-          <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{formatMoney(calc.customerType === 'BUSINESS' ? calc.marginPoolNet : calc.marginPoolGross)}</div>
-        </div>
-        <div className="rounded-[22px] border border-[#d9ece4] bg-[#f4fbf8] p-4">
-          <div className="text-xs uppercase tracking-[0.16em] text-[#3f7d64]">Dostępna pula oferty</div>
-          <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{formatMoney(calc.availableDiscount)}</div>
-        </div>
-      </div>
-
-      <div className="mt-3 rounded-[22px] border border-[#dbe7f6] bg-[#f8fbff] p-4">
-        <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-[#4a90e2]">
-          <span>Lakier</span>
-          <span>{calc.selectedColorName ?? calc.baseColorName ?? 'Brak palety'}</span>
-        </div>
-        <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">
-          {formatMoney(calc.customerType === 'BUSINESS' ? calc.colorSurchargeNet : calc.colorSurchargeGross)}
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 rounded-[24px] border border-[#eee6d9] bg-[#fcfbf8] p-4 text-sm text-[#555555]">
-        <div className="flex items-center justify-between gap-3">
-          <span>Dyrektor {calc.directorName ? `(${calc.directorName})` : ''}</span>
-          <span>{formatMoney(calc.directorShare)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span>Manager {calc.managerName ? `(${calc.managerName})` : ''}</span>
-          <span>{formatMoney(calc.managerShare)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span>Rabat klienta</span>
-          <span>{formatMoney(calc.appliedDiscount)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3 border-t border-[#e7dfd0] pt-3 font-semibold text-[#1f1f1f]">
-          <span>Pozostaje w puli</span>
-          <span>{formatMoney(calc.salespersonCommission)}</span>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function FinancingPreviewCard({
+function ResultsPanel({
+  offer,
   customerType,
   finalPriceGross,
   finalPriceNet,
@@ -429,6 +242,7 @@ function FinancingPreviewCard({
   inputValue,
   buyoutPercent,
 }: {
+  offer: ManagedOffer
   customerType: OfferCustomerType
   finalPriceGross: number | null
   finalPriceNet: number | null
@@ -446,54 +260,99 @@ function FinancingPreviewCard({
     buyoutPercent,
   })
 
+  const rateLabel = !termMonths || inputValue === null || buyoutPercent === null
+    ? 'Brak danych'
+    : financing && financing.ok
+      ? formatMoney(financing.summary.estimatedInstallment)
+      : 'Błąd wyliczenia'
+
+  const colorCharge = offer.calculation
+    ? formatMoney(offer.customerType === 'BUSINESS' ? offer.calculation.colorSurchargeNet : offer.calculation.colorSurchargeGross)
+    : 'Do ustalenia'
+
   return (
-    <section className="rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
-      <div className="flex items-center justify-between gap-3">
+    <section className="sticky top-24 rounded-[28px] border border-[#d6ddec] bg-[linear-gradient(180deg,rgba(252,253,255,0.98)_0%,rgba(238,244,251,0.94)_100%)] p-4 shadow-[0_20px_42px_rgba(31,31,31,0.06)] backdrop-blur-sm">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Podgląd finansowania</div>
-          <div className="mt-1 text-sm text-[#6b6b6b]">Podgląd liczy się od aktualnej ceny oferty widocznej po prawej stronie.</div>
+          <SectionEyebrow>Panel wynikowy</SectionEyebrow>
+          <h3 className="mt-1 text-[20px] font-semibold text-[#1f1f1f]">Sekcja wynikowa oferty</h3>
+          <div className="mt-1 text-sm leading-5 text-[#5d6673]">Najważniejsze informacje o ofercie i finansowaniu w jednym, spokojnym widoku.</div>
         </div>
-        <div className="rounded-full border border-[#e7dfd0] bg-[#fcfbf8] px-3 py-1 text-xs uppercase tracking-[0.16em] text-[#7a7262]">
-          {customerType === 'BUSINESS' ? 'Podstawa netto' : 'Podstawa brutto'}
-        </div>
+        <span className={cx('inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]', getStatusTone(offer.status))}>
+          {getStatusLabel(offer.status)}
+        </span>
       </div>
 
-      {!termMonths || inputValue === null || buyoutPercent === null ? (
-        <div className="mt-4 rounded-[22px] border border-dashed border-[#e7dfd0] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#8a826f]">
-          Uzupełnij okres, wpłatę własną i wykup, aby zobaczyć szacowaną ratę.
+      <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-[#677181]">
+        <span className="rounded-full border border-[#d6dfed] bg-[rgba(255,255,255,0.7)] px-3 py-1">{offer.number}</span>
+        <span className="rounded-full border border-[#d6dfed] bg-[rgba(255,255,255,0.7)] px-3 py-1">{offer.customerName || 'Klient do uzupełnienia'}</span>
+        <span className="rounded-full border border-[#d6dfed] bg-[rgba(255,255,255,0.7)] px-3 py-1">{offer.modelName ?? 'Model do uzupełnienia'}</span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <MiniStat label="Cena końcowa brutto" value={formatMoney(offer.totalGross)} tone="accent" />
+        <MiniStat label="Cena końcowa netto" value={formatMoney(offer.totalNet)} tone="success" />
+        <MiniStat label="Szacowana rata" value={rateLabel} tone="lavender" />
+        <MiniStat label="Lakier" value={colorCharge} tone="info" />
+      </div>
+
+      <div className="mt-4 rounded-[24px] border border-[#ccdaef] bg-[rgba(255,255,255,0.62)] p-4">
+        <div className="flex items-center justify-between gap-3 border-b border-[#dbe5f2] pb-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4d77b6]">Finansowanie</div>
+          <div className="text-[11px] uppercase tracking-[0.14em] text-[#73849f]">Scenariusz klienta</div>
         </div>
-      ) : financing && !financing.ok ? (
-        <div className="mt-4 rounded-[22px] border border-[#f1d4d2] bg-[#fff5f4] px-4 py-4 text-sm text-[#a64b45]">
-          {financing.error}
+
+        {financing && !financing.ok ? (
+          <div className="mt-3 rounded-[18px] border border-[#f1d4d2] bg-[#fff5f4] px-4 py-3 text-sm text-[#a64b45]">
+            {financing.error}
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="min-h-[92px] rounded-[18px] border border-[#ddd3f2] bg-[rgba(244,239,255,0.78)] px-3.5 py-3">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-[#7d6aa7]">Wariant</div>
+              <div className="mt-2 text-sm font-semibold leading-5 text-[#1f1f1f]">{offer.financingVariant ?? 'Brak'}</div>
+            </div>
+            <div className="min-h-[92px] rounded-[18px] border border-[#ddd3f2] bg-[rgba(244,239,255,0.78)] px-3.5 py-3">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-[#7d6aa7]">Okres</div>
+              <div className="mt-2 text-sm font-semibold leading-5 text-[#1f1f1f]">{termMonths ? `${termMonths} mies.` : 'Brak'}</div>
+            </div>
+            <div className="min-h-[92px] rounded-[18px] border border-[#ddd3f2] bg-[rgba(244,239,255,0.78)] px-3.5 py-3">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-[#7d6aa7]">Wpłata własna</div>
+              <div className="mt-2 text-sm font-semibold leading-5 text-[#1f1f1f]">{inputValue !== null ? formatMoney(inputValue) : 'Brak'}</div>
+            </div>
+            <div className="min-h-[92px] rounded-[18px] border border-[#ddd3f2] bg-[rgba(244,239,255,0.78)] px-3.5 py-3">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-[#7d6aa7]">Wykup</div>
+              <div className="mt-2 text-sm font-semibold leading-5 text-[#1f1f1f]">{buyoutPercent !== null ? formatPercentValue(buyoutPercent) : 'Brak'}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 rounded-[24px] border border-[#d4e6da] bg-[rgba(255,255,255,0.6)] p-4">
+        <div className="flex items-center justify-between gap-3 border-b border-[#ddebe1] pb-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#3f7d64]">Konfiguracja oferty</div>
+          <div className="text-[11px] uppercase tracking-[0.14em] text-[#6f8777]">Parametry bazowe</div>
         </div>
-      ) : financing && financing.ok ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-[22px] border border-[#d9ece4] bg-[#f4fbf8] p-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-[#3f7d64]">Szacowana rata</div>
-            <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{formatMoney(financing.summary.estimatedInstallment)}</div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="min-h-[92px] rounded-[18px] border border-[#d7e8dd] bg-[rgba(245,251,247,0.72)] px-3.5 py-3">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-[#66826f]">Typ klienta</div>
+            <div className="mt-2 text-sm font-semibold leading-5 text-[#1f1f1f]">{offer.customerType === 'BUSINESS' ? 'Firma' : 'Klient prywatny'}</div>
           </div>
-          <div className="rounded-[22px] border border-[#e8e1d4] bg-[#fcfbf8] p-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-[#8a826f]">Okres</div>
-            <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{financing.summary.termMonths} mies.</div>
-          </div>
-          <div className="rounded-[22px] border border-[#e8e1d4] bg-[#fcfbf8] p-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-[#8a826f]">Wpłata własna</div>
-            <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{formatMoney(financing.summary.downPaymentAmount)}</div>
-            <div className="mt-1 text-sm text-[#6b6b6b]">{formatPercentValue(financing.summary.downPaymentPercent)}</div>
-          </div>
-          <div className="rounded-[22px] border border-[#e8e1d4] bg-[#fcfbf8] p-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-[#8a826f]">Wykup</div>
-            <div className="mt-2 text-lg font-semibold text-[#1f1f1f]">{formatMoney(financing.summary.buyoutAmount)}</div>
-            <div className="mt-1 text-sm text-[#6b6b6b]">{formatPercentValue(financing.summary.buyoutPercent)}</div>
+          <div className="min-h-[92px] rounded-[18px] border border-[#d7e8dd] bg-[rgba(245,251,247,0.72)] px-3.5 py-3">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-[#66826f]">Rabat klienta</div>
+            <div className="mt-2 text-sm font-semibold leading-5 text-[#1f1f1f]">{formatMoney(offer.discountValue)}</div>
           </div>
         </div>
-      ) : (
-        <div className="mt-4 rounded-[22px] border border-dashed border-[#e7dfd0] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#8a826f]">
-          Nie można policzyć finansowania dla bieżącej oferty.
-        </div>
-      )}
+      </div>
     </section>
   )
+}
+
+function buildOfferTitle(option: OfferPricingOption | null, customerName: string) {
+  const modelLabel = option ? `${option.brand} ${option.model} ${option.version}` : 'Nowa oferta PDF'
+  const normalizedCustomerName = customerName.trim()
+
+  return normalizedCustomerName ? `${modelLabel} • ${normalizedCustomerName}` : modelLabel
 }
 
 export function OffersWorkspace({
@@ -540,7 +399,6 @@ export function OffersWorkspace({
   const [editorFinancingTermMonths, setEditorFinancingTermMonths] = useState<string>(offers[0]?.financingTermMonths ? String(offers[0].financingTermMonths) : '')
   const [editorFinancingInputValue, setEditorFinancingInputValue] = useState<string>(offers[0]?.financingInputValue !== null && offers[0]?.financingInputValue !== undefined ? String(offers[0].financingInputValue) : '')
   const [editorFinancingBuyoutPercent, setEditorFinancingBuyoutPercent] = useState<string>(offers[0]?.financingBuyoutPercent !== null && offers[0]?.financingBuyoutPercent !== undefined ? String(offers[0].financingBuyoutPercent) : '')
-  const [editorTitle, setEditorTitle] = useState(offers[0]?.title ?? '')
   const [editorCustomerName, setEditorCustomerName] = useState(offers[0]?.customerName ?? '')
   const [editorCustomerEmail, setEditorCustomerEmail] = useState(offers[0]?.customerEmail ?? '')
   const [editorCustomerPhone, setEditorCustomerPhone] = useState(offers[0]?.customerPhone ?? '')
@@ -623,7 +481,6 @@ export function OffersWorkspace({
     setEditorFinancingTermMonths(selectedOffer?.financingTermMonths ? String(selectedOffer.financingTermMonths) : '')
     setEditorFinancingInputValue(selectedOffer?.financingInputValue !== null && selectedOffer?.financingInputValue !== undefined ? String(selectedOffer.financingInputValue) : '')
     setEditorFinancingBuyoutPercent(selectedOffer?.financingBuyoutPercent !== null && selectedOffer?.financingBuyoutPercent !== undefined ? String(selectedOffer.financingBuyoutPercent) : '')
-    setEditorTitle(selectedOffer?.title ?? '')
     setEditorCustomerName(selectedOffer?.customerName ?? '')
     setEditorCustomerEmail(selectedOffer?.customerEmail ?? '')
     setEditorCustomerPhone(selectedOffer?.customerPhone ?? '')
@@ -633,7 +490,7 @@ export function OffersWorkspace({
     setEditorFinancingVariant(selectedOffer?.financingVariant ?? '')
     setEditorNotes(selectedOffer?.notes ?? '')
     setAssignLeadId(selectedOffer?.leadId ?? initialLeadId ?? '')
-  }, [selectedOffer?.id, selectedOffer?.pricingCatalogKey, selectedOffer?.selectedColorName, selectedOffer?.customerType, selectedOffer?.financingTermMonths, selectedOffer?.financingInputValue, selectedOffer?.financingBuyoutPercent, selectedOffer?.title, selectedOffer?.customerName, selectedOffer?.customerEmail, selectedOffer?.customerPhone, selectedOffer?.validUntil, selectedOffer?.discountValue, selectedOffer?.financingVariant, selectedOffer?.notes])
+  }, [selectedOffer?.id, selectedOffer?.pricingCatalogKey, selectedOffer?.selectedColorName, selectedOffer?.customerType, selectedOffer?.financingTermMonths, selectedOffer?.financingInputValue, selectedOffer?.financingBuyoutPercent, selectedOffer?.customerName, selectedOffer?.customerEmail, selectedOffer?.customerPhone, selectedOffer?.validUntil, selectedOffer?.discountValue, selectedOffer?.financingVariant, selectedOffer?.notes])
 
   useEffect(() => {
     if (!getFinancingVariantOptions(editorCustomerType).includes(editorFinancingVariant)) {
@@ -652,7 +509,7 @@ export function OffersWorkspace({
   function buildEditorFormData(offerId: string) {
     const formData = new FormData()
     formData.set('offerId', offerId)
-    formData.set('title', editorTitle)
+    formData.set('title', buildOfferTitle(selectedEditorPricingOption, editorCustomerName || selectedOffer?.customerName || ''))
     formData.set('status', selectedOffer?.status ?? 'DRAFT')
     formData.set('customerName', editorCustomerName)
     formData.set('customerEmail', editorCustomerEmail)
@@ -699,13 +556,11 @@ export function OffersWorkspace({
     ? `Dla ${liveFinancingTermMonths} mies. maksymalny wykup to ${editorBuyoutLimit}%.`
     : null
   const configurationStepNumber = offerFlowMode === 'FREE' ? 2 : 1
-  const financingStepNumber = offerFlowMode === 'FREE' ? 3 : 2
-  const notesStepNumber = offerFlowMode === 'FREE' ? 4 : 3
-  const previewStepNumber = offerFlowMode === 'FREE' ? 5 : 4
+  const resultsStepNumber = offerFlowMode === 'FREE' ? 3 : 2
   const previewOffer: ManagedOffer | null = selectedOffer
     ? {
         ...selectedOffer,
-        title: editorTitle,
+        title: buildOfferTitle(selectedEditorPricingOption, editorCustomerName || selectedOffer.customerName),
         customerName: editorCustomerName.trim() || selectedOffer.customerName,
         customerEmail: editorCustomerEmail.trim() || null,
         customerPhone: editorCustomerPhone.trim() || null,
@@ -882,7 +737,7 @@ export function OffersWorkspace({
   }
 
   return (
-    <main className="grid gap-4">
+    <main className="grid gap-3.5">
       <section className="overflow-hidden rounded-[22px] border border-[#e8e2d3] bg-[linear-gradient(135deg,#ffffff_0%,#fbf8f1_52%,#f7f3e8_100%)] px-4 py-2.5 shadow-[0_10px_22px_rgba(31,31,31,0.04)] lg:px-5 lg:py-2.5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
@@ -948,7 +803,7 @@ export function OffersWorkspace({
         ) : null}
       </section>
 
-      <section className="grid gap-4">
+      <section className="grid gap-3.5">
         {isCreateOpen ? (
           <section className="rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
             <div className="flex items-start justify-between gap-4 border-b border-[#eee6d9] pb-4">
@@ -993,94 +848,82 @@ export function OffersWorkspace({
         ) : null}
 
         {selectedOffer ? (
-          <div className="grid gap-4">
-            {offerFlowMode === 'FREE' ? (
-              <section className="rounded-[22px] border border-[#e5d5b3] bg-[linear-gradient(180deg,#fffdf7_0%,#faf5ea_100%)] p-3.5 shadow-[0_14px_30px_rgba(31,31,31,0.04)] lg:p-4">
-                <div>
-                  <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#8c6715]">Sekcja 1 · Klient</div>
-                  <div className="mt-1 text-[13px] leading-5 text-[#5f5a4f]">Dla nowej oferty od razu wpisujesz dane klienta. Tryb klienta systemowego obsługujesz górnym przyciskiem, nie tutaj.</div>
-                </div>
+          <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_390px]">
+            <div className="grid gap-3.5">
+              {offerFlowMode === 'FREE' ? (
+                <section className="rounded-[22px] border border-[#e5d5b3] bg-[linear-gradient(180deg,#fffdf7_0%,#faf5ea_100%)] p-3.5 shadow-[0_14px_30px_rgba(31,31,31,0.04)]">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#8c6715]">Sekcja 1 · Klient</div>
+                    <div className="mt-1 text-[13px] leading-5 text-[#5f5a4f]">Wpisz podstawowe dane klienta dla nowej oferty.</div>
+                  </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a7262]">Imię i nazwisko</span>
-                    <input name="customerName" value={editorCustomerName} onChange={(event) => setEditorCustomerName(event.target.value)} className="h-10 rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Imię i nazwisko" />
-                  </label>
-                  <label className="grid gap-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a7262]">Miejscowość</span>
-                    <input name="customerRegion" value={editorCustomerRegion} onChange={(event) => setEditorCustomerRegion(event.target.value)} className="h-10 rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Miejscowość" />
-                  </label>
-                </div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a7262]">Email</span>
-                    <input name="customerEmail" value={editorCustomerEmail} onChange={(event) => setEditorCustomerEmail(event.target.value)} className="h-10 rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Email" />
-                  </label>
-                  <label className="grid gap-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a7262]">Telefon</span>
-                    <input name="customerPhone" value={editorCustomerPhone} onChange={(event) => setEditorCustomerPhone(event.target.value)} className="h-10 rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Telefon" />
-                  </label>
-                </div>
+                  <div className="mt-4 grid gap-3 xl:grid-cols-4">
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a7262]">Imię i nazwisko</span>
+                      <input name="customerName" value={editorCustomerName} onChange={(event) => setEditorCustomerName(event.target.value)} className="h-10 rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Imię i nazwisko" />
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a7262]">Miejscowość</span>
+                      <input name="customerRegion" value={editorCustomerRegion} onChange={(event) => setEditorCustomerRegion(event.target.value)} className="h-10 rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Miejscowość" />
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a7262]">Email</span>
+                      <input name="customerEmail" value={editorCustomerEmail} onChange={(event) => setEditorCustomerEmail(event.target.value)} className="h-10 rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Email" />
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a7262]">Telefon</span>
+                      <input name="customerPhone" value={editorCustomerPhone} onChange={(event) => setEditorCustomerPhone(event.target.value)} className="h-10 rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Telefon" />
+                    </label>
+                  </div>
 
-                {leadBindingFeedback ? (
-                  <div className="mt-4 rounded-[18px] border border-[#e8dbc3] bg-white/80 px-4 py-3 text-sm text-[#555555]">{leadBindingFeedback}</div>
-                ) : null}
-              </section>
-            ) : offerFlowMode === 'SYSTEM' ? (
-              <section className="rounded-[20px] border border-[#e8e1d4] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-2.5 shadow-[0_10px_24px_rgba(31,31,31,0.03)]">
-                <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6d7682]">
-                  <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">Klient systemowy</span>
-                  <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">{selectedOffer.customerName}</span>
-                  {selectedOffer.modelName ? <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">{selectedOffer.modelName}</span> : null}
-                </div>
-                <div className="mt-2 text-sm text-[#555555]">Przechodzisz od razu do konfiguracji oferty i generowania PDF, bez ponownego wpisywania danych klienta.</div>
-              </section>
-            ) : null}
+                  {leadBindingFeedback ? (
+                    <div className="mt-4 rounded-[18px] border border-[#e8dbc3] bg-white/80 px-4 py-3 text-sm text-[#555555]">{leadBindingFeedback}</div>
+                  ) : null}
+                </section>
+              ) : offerFlowMode === 'SYSTEM' ? (
+                <section className="rounded-[20px] border border-[#dbe5f0] bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] px-4 py-2.5 shadow-[0_10px_24px_rgba(31,31,31,0.03)]">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6d7682]">
+                    <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">Sekcja 1 · Klient systemowy</span>
+                    <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">{selectedOffer.customerName}</span>
+                    {selectedOffer.modelName ? <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">{selectedOffer.modelName}</span> : null}
+                  </div>
+                  <div className="mt-2 text-sm text-[#555555]">Dane klienta są już powiązane z leadem, więc przechodzisz od razu do konfiguracji oferty.</div>
+                </section>
+              ) : null}
 
-            <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,0.95fr)_360px]">
               <form action={handleUpdateOffer} className="grid self-start gap-3.5 rounded-[24px] border border-[#e8e1d4] bg-white p-3.5 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-4">
                 <input type="hidden" name="offerId" value={selectedOffer.id} />
                 <input type="hidden" name="status" value={selectedOffer.status} />
 
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-[16px] border border-[#eee6d9] bg-[#fcfbf8] px-4 py-2.5">
-                    <div className="text-[11px] uppercase tracking-[0.16em] text-[#8a826f]">Tryb pracy</div>
-                    <div className="mt-1 text-sm font-semibold text-[#1f1f1f]">{offerFlowMode === 'SYSTEM' ? 'Klient z systemu' : 'Nowa oferta'}</div>
-                  </div>
-                  <div className="rounded-[16px] border border-[#eee6d9] bg-[#fcfbf8] px-4 py-2.5">
-                    <div className="text-[11px] uppercase tracking-[0.16em] text-[#8a826f]">Opiekun</div>
-                    <div className="mt-1 text-sm font-semibold text-[#1f1f1f]">{selectedOffer.ownerName}</div>
-                  </div>
-                  <div className="rounded-[16px] border border-[#eee6d9] bg-[#fcfbf8] px-4 py-2.5">
-                    <div className="text-[11px] uppercase tracking-[0.16em] text-[#8a826f]">Status roboczy</div>
-                    <div className="mt-1 text-sm font-semibold text-[#1f1f1f]">{getStatusLabel(selectedOffer.status)}</div>
-                  </div>
-                </div>
-
                 <EditorPanel
                   eyebrow={`Sekcja ${configurationStepNumber} · Konfiguracja oferty`}
-                  title="Ustawienia handlowe"
-                  description="Tu budujesz samą ofertę: tytuł, konfigurację auta, kolor i poziom rabatu."
-                  tone="warm"
+                  title="Wybór modelu i warunków"
+                  description="Model samochodu, typ klienta, kolor, rabat i finansowanie w jednym miejscu."
+                  tone="sage"
                 >
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-end">
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-[#1f1f1f]">Tytuł oferty</span>
-                      <input name="title" value={editorTitle} onChange={(event) => setEditorTitle(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" />
-                    </label>
+                  <div className="grid gap-4 xl:grid-cols-[220px_280px] xl:items-end">
                     <label className="grid gap-1.5">
                       <span className="text-sm font-medium text-[#1f1f1f]">Typ klienta</span>
-                      <select name="customerType" value={editorCustomerType} onChange={(event) => setEditorCustomerType(event.target.value as OfferCustomerType)} className="h-10 w-full rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]">
+                      <select name="customerType" value={editorCustomerType} onChange={(event) => setEditorCustomerType(event.target.value as OfferCustomerType)} className="h-10 w-full rounded-[16px] border border-[#d8e6dd] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#88b19c]">
                         <option value="PRIVATE">Klient prywatny</option>
                         <option value="BUSINESS">Firma</option>
+                      </select>
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-sm font-medium text-[#1f1f1f]">Wariant finansowania</span>
+                      <select name="financingVariant" value={editorFinancingVariant} onChange={(event) => setEditorFinancingVariant(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#d8e6dd] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#88b19c]">
+                        <option value="">Brak</option>
+                        {getFinancingVariantOptions(editorCustomerType).map((variant) => (
+                          <option key={variant} value={variant}>{variant}</option>
+                        ))}
                       </select>
                     </label>
                   </div>
 
                   <label className="grid gap-1.5">
-                    <span className="text-sm font-medium text-[#1f1f1f]">Konfiguracja z polityki cenowej</span>
-                    <select name="pricingCatalogKey" value={editorPricingCatalogKey} onChange={(event) => handleEditorPricingChange(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]">
-                      <option value="">Wybierz konfigurację</option>
+                    <span className="text-sm font-medium text-[#1f1f1f]">Wybierz model samochodu</span>
+                    <select name="pricingCatalogKey" value={editorPricingCatalogKey} onChange={(event) => handleEditorPricingChange(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#d8e6dd] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#88b19c]">
+                      <option value="">Wybierz model</option>
                       {pricingOptions.map((option) => (
                         <option key={option.key} value={option.key}>{option.label}</option>
                       ))}
@@ -1092,7 +935,7 @@ export function OffersWorkspace({
                       <span className="text-sm font-medium text-[#1f1f1f]">Kolor</span>
                       <div className="relative">
                         <Palette className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9d7b27]" />
-                        <select name="selectedColorName" value={editorSelectedColorName} onChange={(event) => setEditorSelectedColorName(event.target.value)} disabled={!selectedEditorPalette} className="h-10 w-full rounded-[16px] border border-[#e8dbc3] bg-white pl-10 pr-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)] disabled:cursor-not-allowed disabled:opacity-60">
+                        <select name="selectedColorName" value={editorSelectedColorName} onChange={(event) => setEditorSelectedColorName(event.target.value)} disabled={!selectedEditorPalette} className="h-10 w-full rounded-[16px] border border-[#d8e6dd] bg-white pl-10 pr-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#88b19c] disabled:cursor-not-allowed disabled:opacity-60">
                           {!selectedEditorPalette ? <option value="">Najpierw wybierz konfigurację</option> : null}
                           {selectedEditorPalette?.colors.map((color) => (
                             <option key={color.name} value={color.name}>
@@ -1105,81 +948,53 @@ export function OffersWorkspace({
 
                     <label className="grid gap-1.5">
                       <span className="text-sm font-medium text-[#1f1f1f]">Rabat klienta</span>
-                      <input type="number" step="0.01" name="discountValue" value={editorDiscountValue} onChange={(event) => setEditorDiscountValue(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#e8dbc3] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="np. 3000 PLN" />
+                      <input type="number" step="0.01" name="discountValue" value={editorDiscountValue} onChange={(event) => setEditorDiscountValue(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#d8e6dd] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#88b19c]" placeholder="np. 3000 PLN" />
                       <div className="text-xs leading-5 text-[#8a826f]">Pole przyjmuje kwotę rabatu w PLN, bez trybu procentowego.</div>
                       {editorPoolAmount !== null ? (
-                        <div className="rounded-[14px] border border-[#eadfc8] bg-white/80 px-3 py-2 text-xs leading-5 text-[#6b6b6b]">Dostępna pula: {formatMoney(editorPoolAmount)}. Po rabacie zostaje: {formatMoney(editorRemainingPoolAmount)}.</div>
+                        <div className="rounded-[14px] border border-[#dce8e0] bg-white/80 px-3 py-2 text-xs leading-5 text-[#5f6d63]">Dostępna pula rabatowa: {formatMoney(editorPoolAmount)}. Po rabacie zostaje: {formatMoney(editorRemainingPoolAmount)}.</div>
                       ) : null}
                     </label>
                   </div>
-                </EditorPanel>
 
-                <EditorPanel
-                  eyebrow={`Sekcja ${financingStepNumber} · Finansowanie i warunki`}
-                  title="Parametry finansowe"
-                  description="Ta sekcja wpływa na symulację raty po prawej stronie i termin ważności dokumentu."
-                  tone="cool"
-                >
-                  <div className="grid gap-4 xl:grid-cols-[220px_220px_minmax(0,1fr)] xl:items-end">
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-[#1f1f1f]">Ważna do</span>
-                      <input type="date" name="validUntil" value={editorValidUntil} onChange={(event) => setEditorValidUntil(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#dbe5f0] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#9db8db]" />
-                    </label>
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-[#1f1f1f]">Wariant finansowania</span>
-                      <select name="financingVariant" value={editorFinancingVariant} onChange={(event) => setEditorFinancingVariant(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#dbe5f0] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#9db8db]">
-                        <option value="">Brak</option>
-                        {getFinancingVariantOptions(editorCustomerType).map((variant) => (
-                          <option key={variant} value={variant}>{variant}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="rounded-[16px] border border-[#dbe5f0] bg-white px-4 py-2.5 text-sm leading-6 text-[#5f6772]">
-                      {selectedOffer.leadId
-                        ? 'Oferta jest spięta z klientem z systemu, więc dane kontaktowe pozostają po stronie przypisanego leada.'
-                        : 'To wolna oferta, więc dane klienta pochodzą z formularza powyżej i mogą zostać zapisane przy generowaniu PDF.'}
+                  <div className="rounded-[18px] border border-[#dbe7f6] bg-[linear-gradient(180deg,#fbfdff_0%,#f3f8fe_100%)] p-3.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4a90e2]">Finansowanie klienta</div>
+                    <div className="mt-1 text-xs leading-5 text-[#61738f]">Te pola wpływają na ratę w panelu wynikowym. Jeśli oferta ma być bez finansowania, zostaw je puste.</div>
+
+                    <div className="mt-3 grid gap-3 md:grid-cols-3">
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6b7d99]">Okres</span>
+                        <select name="financingTermMonths" value={editorFinancingTermMonths} onChange={(event) => setEditorFinancingTermMonths(event.target.value)} className="h-10 w-full rounded-[14px] border border-[#d8e3f2] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#7ea6da]">
+                          <option value="">Brak</option>
+                          <option value="24">24 mies.</option>
+                          <option value="36">36 mies.</option>
+                          <option value="48">48 mies.</option>
+                          <option value="60">60 mies.</option>
+                          <option value="71">71 mies.</option>
+                        </select>
+                      </label>
+
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6b7d99]">Wpłata własna</span>
+                        <input type="number" step="0.01" name="financingInputValue" value={editorFinancingInputValue} onChange={(event) => setEditorFinancingInputValue(event.target.value)} className="h-10 w-full rounded-[14px] border border-[#d8e3f2] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#7ea6da]" placeholder="np. 20000" />
+                      </label>
+
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6b7d99]">Wykup (%)</span>
+                        <input type="number" step="0.01" name="financingBuyoutPercent" value={editorFinancingBuyoutPercent} onChange={(event) => setEditorFinancingBuyoutPercent(event.target.value)} className="h-10 w-full rounded-[14px] border border-[#d8e3f2] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#7ea6da]" placeholder="np. 20" />
+                      </label>
                     </div>
-                  </div>
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-[#1f1f1f]">Okres finansowania</span>
-                      <select name="financingTermMonths" value={editorFinancingTermMonths} onChange={(event) => setEditorFinancingTermMonths(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#dbe5f0] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#9db8db]">
-                        <option value="">Brak</option>
-                        <option value="24">24 mies.</option>
-                        <option value="36">36 mies.</option>
-                        <option value="48">48 mies.</option>
-                        <option value="60">60 mies.</option>
-                        <option value="71">71 mies.</option>
-                      </select>
-                    </label>
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-[#1f1f1f]">Wpłata własna</span>
-                      <input type="number" step="0.01" name="financingInputValue" value={editorFinancingInputValue} onChange={(event) => setEditorFinancingInputValue(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#dbe5f0] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#9db8db]" placeholder="np. 20000" />
-                      <div className="text-xs leading-5 text-[#7a8491]">Pole przyjmuje wyłącznie kwotę w PLN.</div>
-                    </label>
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-[#1f1f1f]">Wykup (%)</span>
-                      <input type="number" step="0.01" name="financingBuyoutPercent" value={editorFinancingBuyoutPercent} onChange={(event) => setEditorFinancingBuyoutPercent(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#dbe5f0] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#9db8db]" placeholder="np. 20" />
-                      {editorBuyoutLimit !== null ? (
-                        <div className={cx('text-xs leading-5', editorBuyoutError ? 'text-[#a64b45]' : 'text-[#7a8491]')}>
-                          Maksymalny wykup dla {liveFinancingTermMonths} mies. wynosi {editorBuyoutLimit}%.
-                        </div>
-                      ) : null}
-                      {editorBuyoutError ? <div className="text-xs text-[#a64b45]">{editorBuyoutError}</div> : null}
-                    </label>
+                    {editorBuyoutLimit !== null || editorBuyoutError ? (
+                      <div className={cx(
+                        'mt-3 rounded-[14px] border px-3 py-2 text-xs leading-5',
+                        editorBuyoutError
+                          ? 'border-[#f1d4d2] bg-[#fff5f4] text-[#a64b45]'
+                          : 'border-[#dbe7f6] bg-white/80 text-[#61738f]'
+                      )}>
+                        {editorBuyoutError ?? `Maksymalny wykup dla ${liveFinancingTermMonths} mies. wynosi ${editorBuyoutLimit}%.`}
+                      </div>
+                    ) : null}
                   </div>
-                </EditorPanel>
-
-                <EditorPanel
-                  eyebrow={`Sekcja ${notesStepNumber} · Uwagi do dokumentu`}
-                  title="Treść i ustalenia"
-                  description="Dodaj warunki handlowe, doposażenie albo ustalenia, które mają wejść do dokumentu PDF."
-                >
-                  <label className="grid gap-1.5">
-                    <span className="text-sm font-medium text-[#1f1f1f]">Notatki do oferty</span>
-                    <textarea name="notes" rows={5} value={editorNotes} onChange={(event) => setEditorNotes(event.target.value)} className="w-full rounded-[16px] border border-[#e8e1d4] bg-white px-4 py-3 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Co ma się znaleźć w ofercie, jakie ustalenia ma zawierać dokument, jakie dodatki i warunki?" />
-                  </label>
                 </EditorPanel>
 
                 {editorFeedback ? (
@@ -1190,26 +1005,19 @@ export function OffersWorkspace({
                   Zapisz dane oferty
                 </button>
               </form>
+            </div>
 
-              <div className="grid self-start gap-4">
-                <section className="sticky top-24 rounded-[28px] border border-[#d9ccb3] bg-[linear-gradient(180deg,#fdfaf4_0%,#f3ebdd_100%)] p-4 shadow-[0_20px_44px_rgba(31,31,31,0.06)]">
-                  <div className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Sekcja {previewStepNumber} · Podgląd i wynik</div>
-                  <div className="grid gap-4">
-                    <PreviewSummaryCard offer={previewOffer ?? selectedOffer} />
-                    <CalculationCard offer={previewOffer ?? selectedOffer} />
-                    <FinancingPreviewCard
-                      customerType={editorCustomerType}
-                      finalPriceGross={previewOffer?.calculation?.finalPriceGross ?? previewOffer?.totalGross ?? selectedOffer.calculation?.finalPriceGross ?? selectedOffer.totalGross}
-                      finalPriceNet={previewOffer?.calculation?.finalPriceNet ?? previewOffer?.totalNet ?? selectedOffer.calculation?.finalPriceNet ?? selectedOffer.totalNet}
-                      termMonths={liveFinancingTermMonths !== null && !Number.isNaN(liveFinancingTermMonths) ? liveFinancingTermMonths : null}
-                      inputValue={liveFinancingInputValue !== null && !Number.isNaN(liveFinancingInputValue) ? liveFinancingInputValue : null}
-                      buyoutPercent={liveFinancingBuyoutPercent !== null && !Number.isNaN(liveFinancingBuyoutPercent) ? liveFinancingBuyoutPercent : null}
-                    />
-                    <PdfPreviewCard offer={previewOffer ?? selectedOffer} />
-                    <VersionsCard offer={selectedOffer} />
-                  </div>
-                </section>
-              </div>
+            <div className="grid self-start gap-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8f7397]">Sekcja {resultsStepNumber} · Wynik i finansowanie</div>
+              <ResultsPanel
+                offer={previewOffer ?? selectedOffer}
+                customerType={editorCustomerType}
+                finalPriceGross={previewOffer?.calculation?.finalPriceGross ?? previewOffer?.totalGross ?? selectedOffer.calculation?.finalPriceGross ?? selectedOffer.totalGross}
+                finalPriceNet={previewOffer?.calculation?.finalPriceNet ?? previewOffer?.totalNet ?? selectedOffer.calculation?.finalPriceNet ?? selectedOffer.totalNet}
+                termMonths={liveFinancingTermMonths !== null && !Number.isNaN(liveFinancingTermMonths) ? liveFinancingTermMonths : null}
+                inputValue={liveFinancingInputValue !== null && !Number.isNaN(liveFinancingInputValue) ? liveFinancingInputValue : null}
+                buyoutPercent={liveFinancingBuyoutPercent !== null && !Number.isNaN(liveFinancingBuyoutPercent) ? liveFinancingBuyoutPercent : null}
+              />
             </div>
           </div>
         ) : (

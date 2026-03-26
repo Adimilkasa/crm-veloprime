@@ -57,8 +57,16 @@ export function calculateOfferFinancing(input: {
   downPaymentInputValue: number | null
   buyoutPercent: number | null
 }) {
-  if (!input.termMonths || !input.downPaymentInputValue || !input.buyoutPercent) {
+  if (
+    input.termMonths === null
+    || input.downPaymentInputValue === null
+    || input.buyoutPercent === null
+  ) {
     return null
+  }
+
+  if (input.downPaymentInputValue < 0) {
+    return { ok: false as const, error: 'Wpłata własna nie może być ujemna.' }
   }
 
   const buyoutLimit = getBuyoutLimit(input.termMonths)

@@ -57,3 +57,701 @@ a {
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
 }
+
+.pdf-export-mode {
+  background: #ffffff !important;
+}
+
+.pdf-export-mode body {
+  background: #ffffff !important;
+}
+
+.pdf-export-mode #offer-pdf-document,
+.pdf-export-mode #offer-pdf-document * {
+  box-sizing: border-box;
+}
+
+.pdf-document-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pdf-page {
+  position: relative;
+  min-height: 1122px;
+  padding: 40px 36px;
+  overflow: hidden;
+}
+
+.pdf-page-cover {
+  background: linear-gradient(135deg, #ffffff 0%, #fbf8f1 52%, #f7f3e8 100%);
+}
+
+.pdf-cover-glow {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 150px;
+  background: radial-gradient(circle at top left, rgba(201, 161, 59, 0.18), transparent 45%);
+}
+
+.pdf-header-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  align-items: start;
+  gap: 24px;
+}
+
+.pdf-brand-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.pdf-logo {
+  flex: 0 0 auto;
+}
+
+.pdf-cover-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 28px;
+  align-items: stretch;
+  margin-top: 20px;
+}
+
+.pdf-cover-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-price-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pdf-hero-card {
+  min-height: 360px;
+}
+
+.pdf-hero-image {
+  width: 100%;
+  height: 100%;
+}
+
+.pdf-section-heading h2,
+.pdf-section-heading p,
+.pdf-cover-copy h1,
+.pdf-cover-copy p,
+.pdf-info-card,
+.pdf-chip {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.pdf-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pdf-financing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pdf-gallery-section + .pdf-gallery-section {
+  margin-top: 32px;
+}
+
+.pdf-gallery-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pdf-gallery-card {
+  aspect-ratio: 4 / 3;
+}
+
+.pdf-gallery-image {
+  width: 100%;
+  height: 100%;
+}
+
+.pdf-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  line-height: 1.2;
+}
+
+.pdf-screen-only {
+  display: inline-flex;
+}
+
+.pdf-export-mode #offer-pdf-document {
+  width: 190mm;
+  max-width: 190mm;
+  margin: 0 auto;
+  color: #17191c;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-document-shell {
+  gap: 0;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-page {
+  min-height: 279mm;
+  padding: 12mm 11mm;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  page-break-after: always;
+  break-after: page;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-header-row {
+  grid-template-columns: minmax(0, 1fr) 62mm;
+  gap: 5mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-cover-body {
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  gap: 5mm;
+  margin-top: 4mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-logo {
+  height: 30mm !important;
+  max-width: 44mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-price-grid,
+.pdf-export-mode #offer-pdf-document .pdf-financing-grid {
+  gap: 3mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-summary-grid {
+  gap: 3mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-gallery-row {
+  gap: 3mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-gallery-card,
+.pdf-export-mode #offer-pdf-document .pdf-info-card,
+.pdf-export-mode #offer-pdf-document .pdf-hero-card {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-screen-only {
+  display: none !important;
+}
+
+.pdf-a4-document-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pdf-a4-document-shell--studio {
+  gap: 32px;
+}
+
+.pdf-a4-page {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 12mm;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid #e8e2d3;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(31, 31, 31, 0.08);
+}
+
+.pdf-a4-cover-glow {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 42mm;
+  background: radial-gradient(circle at top left, rgba(201, 161, 59, 0.18), transparent 45%);
+}
+
+.pdf-a4-header-row {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62mm;
+  gap: 5mm;
+  align-items: start;
+}
+
+.pdf-a4-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 4mm;
+}
+
+.pdf-a4-brand-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 30mm;
+}
+
+.pdf-a4-logo {
+  width: auto;
+  height: 34mm;
+  max-width: 50mm;
+  object-fit: contain;
+}
+
+.pdf-a4-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #9d7b27;
+}
+
+.pdf-a4-subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #5f5a4f;
+}
+
+.pdf-a4-meta-box {
+  border: 1px solid #ece6d9;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #5f5a4f;
+  box-shadow: 0 12px 28px rgba(31, 31, 31, 0.04);
+}
+
+.pdf-a4-cover-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+  gap: 5mm;
+  align-items: start;
+  margin-top: 2mm;
+}
+
+.pdf-a4-cover-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-a4-hero-title {
+  margin-top: 12px;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  color: #17191c;
+}
+
+.pdf-a4-hero-description,
+.pdf-a4-description,
+.pdf-a4-info-card,
+.pdf-a4-chip,
+.pdf-a4-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.pdf-a4-hero-description {
+  margin-top: 12px;
+  max-width: 34rem;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #58616a;
+}
+
+.pdf-a4-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.pdf-a4-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  border: 1px solid #e7dfd0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+}
+
+.pdf-a4-price-card {
+  border-radius: 22px;
+  min-height: 92px;
+  padding: 16px 20px;
+}
+
+.pdf-a4-price-card--gross {
+  border: 1px solid #ead6a4;
+  background: linear-gradient(180deg, #fff7e2 0%, #f8ebc8 100%);
+}
+
+.pdf-a4-price-card--net {
+  border: 1px solid #cee2d6;
+  background: linear-gradient(180deg, #f5fbf7 0%, #e7f3ec 100%);
+}
+
+.pdf-a4-card-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.pdf-a4-card-label--gold {
+  color: #9d7b27;
+  font-weight: 600;
+}
+
+.pdf-a4-card-label--green {
+  color: #3f7d64;
+  font-weight: 600;
+}
+
+.pdf-a4-card-label--violet {
+  color: #7d6aa7;
+  font-weight: 600;
+}
+
+.pdf-a4-price-value {
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #17191c;
+}
+
+.pdf-a4-cover-stacked-grid {
+  display: none;
+}
+
+.pdf-a4-hero-stage {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 118mm;
+}
+
+.pdf-a4-hero-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pdf-a4-cover-prices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.pdf-a4-cover-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pdf-a4-hero-image--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  font-size: 14px;
+  line-height: 1.7;
+  text-align: center;
+  color: #786c58;
+}
+
+.pdf-a4-section-heading + .pdf-a4-gallery-grid,
+.pdf-a4-section-heading + .pdf-a4-spec-card {
+  margin-top: 14px;
+}
+
+.pdf-a4-title {
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #17191c;
+}
+
+.pdf-a4-description {
+  margin-top: 8px;
+  max-width: 42rem;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #5b646d;
+}
+
+.pdf-a4-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.pdf-a4-summary-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.pdf-a4-info-card {
+  border: 1px solid #ece5d7;
+  border-radius: 24px;
+  background: #fcfbf8;
+  padding: 20px;
+}
+
+.pdf-a4-info-card--green {
+  border-color: #d7e8dd;
+  background: linear-gradient(180deg, #fbfefc 0%, #eef7f1 100%);
+}
+
+.pdf-a4-info-card--summary {
+  background: linear-gradient(180deg, #ffffff 0%, #fcfbf8 100%);
+  box-shadow: 0 14px 30px rgba(31, 31, 31, 0.04);
+}
+
+.pdf-a4-info-card--cover {
+  background: linear-gradient(180deg, #ffffff 0%, #fcfbf8 100%);
+  box-shadow: 0 14px 30px rgba(31, 31, 31, 0.04);
+}
+
+.pdf-a4-info-card--summary-wide {
+  padding: 24px;
+}
+
+.pdf-a4-info-card--violet {
+  border-color: #d8c9f1;
+  background: linear-gradient(180deg, #f9f6ff 0%, #ebe3fb 100%);
+}
+
+.pdf-a4-info-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #37404a;
+}
+
+.pdf-a4-info-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pdf-a4-info-list > div span:first-child {
+  font-weight: 600;
+  color: #171d23;
+}
+
+.pdf-a4-info-list--tight > div span:first-child {
+  font-weight: 400;
+  color: #37404a;
+}
+
+.pdf-a4-info-card--summary-wide .pdf-a4-info-list,
+.pdf-a4-info-card--summary-wide .pdf-a4-summary-footer {
+  max-width: 720px;
+}
+
+.pdf-a4-summary-footer {
+  margin-top: 12px;
+  border-top: 1px solid #ece5d7;
+  padding-top: 12px;
+}
+
+.pdf-a4-summary-footer > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pdf-a4-summary-footer > div + div {
+  margin-top: 8px;
+}
+
+.pdf-a4-financing-block {
+  margin-top: 30px;
+}
+
+.pdf-a4-financing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.pdf-a4-financing-value {
+  margin-top: 12px;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: #171d23;
+}
+
+.pdf-a4-financing-meta {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #5b646d;
+}
+
+.pdf-a4-disclaimer,
+.pdf-a4-notes-box,
+.pdf-a4-spec-box {
+  margin-top: 16px;
+}
+
+.pdf-a4-disclaimer {
+  border: 1px solid #efe3c2;
+  border-radius: 20px;
+  background: #fff7e7;
+  padding: 16px 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #62522f;
+}
+
+.pdf-a4-notes-box {
+  border: 1px solid #ece5d7;
+  border-radius: 20px;
+  background: #fcfbf8;
+  padding: 16px 20px;
+}
+
+.pdf-a4-notes-box p {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #37404a;
+}
+
+.pdf-a4-gallery-section + .pdf-a4-gallery-section {
+  margin-top: 18px;
+}
+
+.pdf-a4-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pdf-a4-gallery-card {
+  aspect-ratio: 4 / 2.55;
+  overflow: hidden;
+  border: 1px solid #e6dfd1;
+  border-radius: 22px;
+  background: #fcfbf8;
+  box-shadow: 0 14px 30px rgba(31, 31, 31, 0.04);
+}
+
+.pdf-a4-gallery-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pdf-export-mode #offer-pdf-document {
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 auto;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-document-shell {
+  gap: 0;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-page {
+  width: 190mm;
+  min-height: 279mm;
+  padding: 12mm 11mm;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  page-break-after: always;
+  break-after: page;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-info-card,
+.pdf-export-mode #offer-pdf-document .pdf-a4-gallery-card,
+.pdf-export-mode #offer-pdf-document .pdf-a4-hero-stage {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-cover-layout {
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  gap: 4mm;
+  margin-top: 1.5mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-cover-prices,
+.pdf-export-mode #offer-pdf-document .pdf-a4-cover-bottom-grid,
+.pdf-export-mode #offer-pdf-document .pdf-a4-financing-grid,
+.pdf-export-mode #offer-pdf-document .pdf-a4-summary-grid {
+  gap: 3mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-cover-prices {
+  margin-top: 2.5mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-cover-bottom-grid {
+  margin-top: 3mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-gallery-section + .pdf-a4-gallery-section {
+  margin-top: 4mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-gallery-grid {
+  gap: 2.5mm;
+  margin-top: 2.5mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-gallery-card {
+  aspect-ratio: 4 / 2.35;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-screen-only {
+  display: none !important;
+}
