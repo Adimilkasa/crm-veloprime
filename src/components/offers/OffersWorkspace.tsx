@@ -391,6 +391,8 @@ export function OffersWorkspace({
   const [createFeedback, setCreateFeedback] = useState<string | null>(null)
   const [editorFeedback, setEditorFeedback] = useState<string | null>(null)
   const [leadBindingFeedback, setLeadBindingFeedback] = useState<string | null>(null)
+  const [isGeneratingVersion, setIsGeneratingVersion] = useState(false)
+  const [isOpeningPreview, setIsOpeningPreview] = useState(false)
   const [createSelectedLeadId, setCreateSelectedLeadId] = useState(initialLeadId ?? '')
   const [createLeadSearchQuery, setCreateLeadSearchQuery] = useState('')
   const [editorPricingCatalogKey, setEditorPricingCatalogKey] = useState(offers[0]?.pricingCatalogKey ?? '')
@@ -456,6 +458,18 @@ export function OffersWorkspace({
       return
     }
   }, [selectedOffer])
+
+  useEffect(() => {
+    if (!isOpeningPreview) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      setIsOpeningPreview(false)
+    }, 8000)
+
+    return () => window.clearTimeout(timeout)
+  }, [isOpeningPreview])
 
   useEffect(() => {
     if (!initialLeadId || hasHandledInitialLeadRef.current) {
@@ -660,72 +674,93 @@ export function OffersWorkspace({
   }
 
   async function handleCreateVersion(formData: FormData) {
+    if (isGeneratingVersion) {
+      return
+    }
+
+    setIsGeneratingVersion(true)
     setEditorFeedback(null)
     setLeadBindingFeedback(null)
+    setIsOpeningPreview(false)
 
-    if (!selectedOffer) {
-      setEditorFeedback('Nie wybrano aktywnej oferty.')
-      return
-    }
+    try {
+      setEditorFeedback('Trwa zapisywanie konfiguracji i przygotowanie dokumentu PDF. To może potrwać kilka sekund.')
 
-    const updateResult = await updateOfferAction(buildEditorFormData(selectedOffer.id))
-
-    if (!updateResult.ok) {
-      setEditorFeedback(updateResult.error || 'Nie udało się zapisać aktualnych danych oferty przed wygenerowaniem PDF.')
-      return
-    }
-
-    if (!selectedOffer.leadId && offerFlowMode === 'SYSTEM' && assignLeadId) {
-      const assignFormData = new FormData()
-      assignFormData.set('offerId', selectedOffer.id)
-      assignFormData.set('leadId', assignLeadId)
-      const assignResult = await assignOfferLeadAction(assignFormData)
-
-      if (!assignResult.ok) {
-        setEditorFeedback(assignResult.error || 'Nie udało się przypisać istniejącego klienta do oferty.')
+      if (!selectedOffer) {
+        setEditorFeedback('Nie wybrano aktywnej oferty.')
         return
       }
 
-      setLeadBindingFeedback('Istniejący lead został przypisany do oferty przed wygenerowaniem PDF.')
-    }
+      const updateResult = await updateOfferAction(buildEditorFormData(selectedOffer.id))
 
-    if (!selectedOffer?.leadId && offerFlowMode === 'FREE') {
-      const hasCustomerData = Boolean(editorCustomerName.trim() || editorCustomerEmail.trim() || editorCustomerPhone.trim())
+      if (!updateResult.ok) {
+        setEditorFeedback(updateResult.error || 'Nie udało się zapisać aktualnych danych oferty przed wygenerowaniem PDF.')
+        return
+      }
 
-      if (!assignLeadId && hasCustomerData) {
-        const leadFormData = new FormData()
-        leadFormData.set('offerId', selectedOffer.id)
-        leadFormData.set('fullName', editorCustomerName.trim() || selectedOffer.customerName)
-        leadFormData.set('email', editorCustomerEmail.trim() || selectedOffer.customerEmail || '')
-        leadFormData.set('phone', editorCustomerPhone.trim() || selectedOffer.customerPhone || '')
-        leadFormData.set('region', editorCustomerRegion.trim())
+      if (!selectedOffer.leadId && offerFlowMode === 'SYSTEM' && assignLeadId) {
+        const assignFormData = new FormData()
+        assignFormData.set('offerId', selectedOffer.id)
+        assignFormData.set('leadId', assignLeadId)
+        const assignResult = await assignOfferLeadAction(assignFormData)
 
-        const leadResult = await createOfferLeadAction(leadFormData)
-
-        if (!leadResult.ok) {
-          setEditorFeedback(leadResult.error || 'Nie udało się automatycznie utworzyć leada dla tej oferty.')
+        if (!assignResult.ok) {
+          setEditorFeedback(assignResult.error || 'Nie udało się przypisać istniejącego klienta do oferty.')
           return
         }
 
-        setLeadBindingFeedback('Lead został utworzony automatycznie z danych oferty i przypisany przed zapisem dokumentu.')
+        setLeadBindingFeedback('Istniejący lead został przypisany do oferty przed wygenerowaniem PDF.')
       }
-    }
 
-    const result = await createOfferVersionAction(formData)
+      if (!selectedOffer?.leadId && offerFlowMode === 'FREE') {
+        const hasCustomerData = Boolean(editorCustomerName.trim() || editorCustomerEmail.trim() || editorCustomerPhone.trim())
 
-    if (!result.ok) {
-      setEditorFeedback(result.error || 'Nie udało się zapisać wersji oferty.')
-      return
-    }
+        if (!assignLeadId && hasCustomerData) {
+          const leadFormData = new FormData()
+          leadFormData.set('offerId', selectedOffer.id)
+          leadFormData.set('fullName', editorCustomerName.trim() || selectedOffer.customerName)
+          leadFormData.set('email', editorCustomerEmail.trim() || selectedOffer.customerEmail || '')
+          leadFormData.set('phone', editorCustomerPhone.trim() || selectedOffer.customerPhone || '')
+          leadFormData.set('region', editorCustomerRegion.trim())
 
-    if (result.pdfUrl) {
-      window.location.assign(result.pdfUrl)
-      return
-    } else {
+          const leadResult = await createOfferLeadAction(leadFormData)
+
+          if (!leadResult.ok) {
+            setEditorFeedback(leadResult.error || 'Nie udało się automatycznie utworzyć leada dla tej oferty.')
+            return
+          }
+
+          setLeadBindingFeedback('Lead został utworzony automatycznie z danych oferty i przypisany przed zapisem dokumentu.')
+        }
+      }
+
+      const result = await createOfferVersionAction(formData)
+
+      if (!result.ok) {
+        setEditorFeedback(result.error || 'Nie udało się zapisać wersji oferty.')
+        return
+      }
+
+      if (result.pdfUrl) {
+        setEditorFeedback('Dokument jest gotowy. Otwieram podgląd PDF...')
+        window.location.assign(result.pdfUrl)
+        return
+      }
+
       setEditorFeedback('Wersja dokumentu została zapisana.')
+      router.refresh()
+    } finally {
+      setIsGeneratingVersion(false)
+    }
+  }
+
+  function handleOpenPreview() {
+    if (isGeneratingVersion || isOpeningPreview) {
+      return
     }
 
-    router.refresh()
+    setEditorFeedback('Otwieram podgląd dokumentu. Jeżeli serwer kończy przygotowanie danych, przejście może potrwać kilka sekund.')
+    setIsOpeningPreview(true)
   }
 
   function handleEditorPricingChange(nextKey: string) {
@@ -790,13 +825,32 @@ export function OffersWorkspace({
 
             <form action={handleCreateVersion} className="flex flex-wrap gap-3 xl:justify-end">
               <input type="hidden" name="offerId" value={selectedOffer.id} />
-              <Link href={`/offers/${selectedOffer.id}/pdf`} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-4 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
+              <Link
+                href={`/offers/${selectedOffer.id}/pdf`}
+                onClick={handleOpenPreview}
+                aria-disabled={isGeneratingVersion || isOpeningPreview}
+                className={cx(
+                  'inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border bg-white px-4 text-sm font-medium transition',
+                  isGeneratingVersion || isOpeningPreview
+                    ? 'cursor-wait border-[#e7dfd0] text-[#9a9384]'
+                    : 'border-[#e5dfd1] text-[#4d4d4d] hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]'
+                )}
+              >
                 <ExternalLink className="h-4 w-4" />
-                <span>Otwórz podgląd dokumentu</span>
+                <span>{isOpeningPreview ? 'Otwieranie podglądu...' : 'Otwórz podgląd dokumentu'}</span>
               </Link>
-              <button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-medium text-white transition hover:bg-[#b8932f]">
+              <button
+                type="submit"
+                disabled={isGeneratingVersion || isOpeningPreview}
+                className={cx(
+                  'inline-flex h-10 items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-medium text-white transition',
+                  isGeneratingVersion || isOpeningPreview
+                    ? 'cursor-wait bg-[#d7c28b]'
+                    : 'bg-[#c9a13b] hover:bg-[#b8932f]'
+                )}
+              >
                 <FileDown className="h-4 w-4" />
-                <span>Wygeneruj ofertę PDF</span>
+                <span>{isGeneratingVersion ? 'Przygotowuję PDF...' : 'Wygeneruj ofertę PDF'}</span>
               </button>
             </form>
           </div>
@@ -999,6 +1053,14 @@ export function OffersWorkspace({
 
                 {editorFeedback ? (
                   <div className="rounded-[18px] border border-[#e8e1d4] bg-[#fcfbf8] px-4 py-3 text-sm text-[#555555]">{editorFeedback}</div>
+                ) : null}
+
+                {isGeneratingVersion || isOpeningPreview ? (
+                  <div className="rounded-[18px] border border-[#efe0ba] bg-[#fffaf0] px-4 py-3 text-sm text-[#7c6840]">
+                    {isGeneratingVersion
+                      ? 'System zapisuje dane oferty i przygotowuje dokument. Nie klikaj ponownie, aż zakończy się otwieranie PDF.'
+                      : 'System otwiera podgląd dokumentu. Przy pierwszym wejściu serwer może potrzebować kilku sekund.'}
+                  </div>
                 ) : null}
 
                 <button type="submit" className="inline-flex h-10 items-center justify-center rounded-[14px] bg-[#c9a13b] px-4 text-sm font-medium text-white transition hover:bg-[#b8932f]">
