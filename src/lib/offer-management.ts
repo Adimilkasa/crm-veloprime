@@ -424,6 +424,78 @@ async function resolveOfferPricing(input: {
   return { ok: true as const, catalogItem, calculation, selectedColorName: resolvedColorName, colorPalette }
 }
 
+function buildOfferCalculation(
+  offer: ManagedOffer,
+  references: {
+    catalogByKey: Map<string, DetailedPricingCatalogItem>
+    paletteByKey: Map<string, ModelColorPalette>
+    users: ManagedUser[]
+    commissionRules: Awaited<ReturnType<typeof listActiveCommissionRules>>
+  }
+) {
+  if (!offer.pricingCatalogKey) {
+    return null
+  }
+
+  const catalogItem = references.catalogByKey.get(offer.pricingCatalogKey)
+  const colorPalette = catalogItem
+    ? references.paletteByKey.get(`${catalogItem.brand.toLowerCase()}::${catalogItem.model.toLowerCase()}`) ?? null
+    : null
+
+  if (!catalogItem) {
+    return null
+  }
+
+  return calculateOfferSummary({
+    catalogItem,
+    ownerId: offer.ownerId,
+    users: references.users,
+    commissionRules: references.commissionRules,
+    customerType: offer.customerType,
+    discountValue: offer.discountValue,
+    colorPalette,
+    selectedColorName: offer.selectedColorName,
+  })
+}
+
+async function getManagedOffer(session: AuthSession, offerId: string) {
+  if (isPrismaOfferStorageEnabled() && db) {
+    const record = await db.offer.findUnique({
+      where: { id: offerId },
+      include: {
+        customer: true,
+        owner: true,
+        salesCatalogItem: true,
+        financing: true,
+        versions: true,
+      },
+    })
+
+    if (!record) {
+      return null
+    }
+
+    const mapped = mapDbOfferToManagedOffer(record)
+
+    if (!canViewOffer(session, mapped)) {
+      return null
+    }
+
+    const leads = await listManagedLeads(session)
+    const matchedLead = matchLeadForOffer(leads, mapped)
+
+    return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
+  }
+
+  const offer = (await getStore()).find((entry) => entry.id === offerId) ?? null
+
+  if (!offer || !canViewOffer(session, offer)) {
+    return null
+  }
+
+  return offer
+}
+
 export async function listManagedOffers(session: AuthSession) {
   const leads = await listManagedLeads(session)
 
@@ -471,30 +543,48 @@ export async function listManagedOffersWithCalculation(session: AuthSession) {
 
   return offers.map((offer) => ({
     ...offer,
-    calculation: offer.pricingCatalogKey
-      ? (() => {
-          const catalogItem = catalogByKey.get(offer.pricingCatalogKey)
-          const colorPalette = catalogItem ? paletteByKey.get(`${catalogItem.brand.toLowerCase()}::${catalogItem.model.toLowerCase()}`) ?? null : null
-          return catalogItem
-            ? calculateOfferSummary({
-                catalogItem,
-                ownerId: offer.ownerId,
-                users,
-                commissionRules,
-                customerType: offer.customerType,
-                discountValue: offer.discountValue,
-                colorPalette,
-                selectedColorName: offer.selectedColorName,
-              })
-            : null
-        })()
-      : null,
+    calculation: buildOfferCalculation(offer, {
+      catalogByKey,
+      paletteByKey,
+      users,
+      commissionRules,
+    }),
   })) satisfies ManagedOfferWithCalculation[]
 }
 
 export async function getManagedOfferWithCalculation(session: AuthSession, offerId: string) {
-  const offers = await listManagedOffersWithCalculation(session)
-  return offers.find((offer) => offer.id === offerId) ?? null
+  const offer = await getManagedOffer(session, offerId)
+
+  if (!offer) {
+    return null
+  }
+
+  if (!offer.pricingCatalogKey) {
+    return {
+      ...offer,
+      calculation: null,
+    } satisfies ManagedOfferWithCalculation
+  }
+
+  const [pricingSheet, commissionRules, users, colorPalettes] = await Promise.all([
+    getActivePricingSheet(),
+    listActiveCommissionRules(),
+    listManagedUsers(),
+    listColorPalettes(),
+  ])
+
+  const catalogByKey = new Map(buildDetailedPricingCatalog(pricingSheet).map((item) => [item.key, item]))
+  const paletteByKey = new Map(colorPalettes.map((palette) => [palette.paletteKey, palette]))
+
+  return {
+    ...offer,
+    calculation: buildOfferCalculation(offer, {
+      catalogByKey,
+      paletteByKey,
+      users,
+      commissionRules,
+    }),
+  } satisfies ManagedOfferWithCalculation
 }
 
 export async function getOfferDocumentSnapshot(session: AuthSession, offerId: string, versionId?: string | null) {

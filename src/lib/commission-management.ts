@@ -241,6 +241,67 @@ function mapDbRuleToCommissionRule(rule: {
   }
 }
 
+function buildStoreFromRules(rules: CommissionRule[], updatedBy: string | null = null): CommissionStore {
+  const updatedAt = rules.reduce<string | null>((latest, rule) => {
+    if (!latest) {
+      return rule.updatedAt
+    }
+
+    return new Date(rule.updatedAt).getTime() > new Date(latest).getTime() ? rule.updatedAt : latest
+  }, null)
+
+  return {
+    rules,
+    updatedAt,
+    updatedBy,
+  }
+}
+
+async function readDbStore() {
+  if (!db) {
+    return buildSeedStore()
+  }
+
+  const rules = await db.salesCommissionRule.findMany({
+    include: {
+      ownerUser: true,
+      catalogItem: true,
+    },
+    orderBy: [
+      { ownerUserId: 'asc' },
+      { catalogItemId: 'asc' },
+    ],
+  })
+
+  return buildStoreFromRules(rules.map((rule) => mapDbRuleToCommissionRule(rule)))
+}
+
+async function getCommissionStore(options?: {
+  bootstrapIfEmpty?: boolean
+  systemActor?: string
+}) {
+  const bootstrapIfEmpty = options?.bootstrapIfEmpty ?? false
+  const systemActor = options?.systemActor ?? 'System'
+
+  if (isDbCommissionStorageEnabled()) {
+    const store = await readDbStore()
+
+    if (bootstrapIfEmpty && store.rules.length === 0) {
+      return syncCommissionRulesInDb(systemActor)
+    }
+
+    return store
+  }
+
+  const store = await readStore()
+
+  if (bootstrapIfEmpty && store.rules.length === 0) {
+    return syncCommissionRules(systemActor)
+  }
+
+  return store
+}
+
 async function syncCommissionRulesInDb(systemActor = 'System') {
   if (!db) {
     return buildSeedStore()
@@ -584,6 +645,6 @@ export async function saveCommissionRules(
 }
 
 export async function listActiveCommissionRules() {
-  const store = await syncCommissionRules('System')
+  const store = await getCommissionStore({ bootstrapIfEmpty: true, systemActor: 'System' })
   return store.rules.filter((rule) => !rule.isArchived)
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/auth'
+import { syncCommissionRules } from '@/lib/commission-management'
 import type { UserRoleKey } from '@/lib/rbac'
 import { createManagedUser, toggleManagedUserStatus } from '@/lib/user-management'
 
@@ -22,7 +23,7 @@ async function requireAdmin() {
 }
 
 export async function createUserAction(formData: FormData) {
-  await requireAdmin()
+  const session = await requireAdmin()
 
   const result = await createManagedUser({
     fullName: String(formData.get('fullName') || ''),
@@ -37,12 +38,14 @@ export async function createUserAction(formData: FormData) {
     redirect(`/users?error=${encodeURIComponent(result.error)}`)
   }
 
+  await syncCommissionRules(session.fullName)
+
   revalidatePath('/users')
   redirect('/users?success=created')
 }
 
 export async function toggleUserStatusAction(formData: FormData) {
-  await requireAdmin()
+  const session = await requireAdmin()
 
   const userId = String(formData.get('userId') || '')
   const result = await toggleManagedUserStatus(userId)
@@ -50,6 +53,8 @@ export async function toggleUserStatusAction(formData: FormData) {
   if (!result.ok) {
     redirect(`/users?error=${encodeURIComponent(result.error)}`)
   }
+
+  await syncCommissionRules(session.fullName)
 
   revalidatePath('/users')
   redirect('/users?success=toggled')
