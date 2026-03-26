@@ -3,9 +3,7 @@ import { redirect } from 'next/navigation'
 import { assignOfferLeadAction, createOfferAction, createOfferLeadAction, createOfferVersionAction, updateOfferAction } from '@/app/(app)/offers/actions'
 import { OffersWorkspace } from '@/components/offers/OffersWorkspace'
 import { getSession } from '@/lib/auth'
-import { listActiveCommissionRules } from '@/lib/commission-management'
-import { listManagedOffersWithCalculation, listOfferColorPalettes, listOfferLeadOptions, listOfferPricingOptions, offerStatusOptions } from '@/lib/offer-management'
-import { listManagedUsers } from '@/lib/user-management'
+import { listManagedOffers, listOfferLeadOptions, listOfferPricingOptions, offerStatusOptions } from '@/lib/offer-management'
 
 export default async function OffersPage({
   searchParams,
@@ -20,13 +18,10 @@ export default async function OffersPage({
 
   const { leadId } = await searchParams
 
-  const [offers, leadOptions, pricingOptions, colorPalettes, salesUsers, commissionRules] = await Promise.all([
-    listManagedOffersWithCalculation(session),
+  const [offers, leadOptions, pricingOptions] = await Promise.all([
+    listManagedOffers(session),
     listOfferLeadOptions(session),
     listOfferPricingOptions(),
-    listOfferColorPalettes(),
-    listManagedUsers(),
-    listActiveCommissionRules(),
   ])
 
   return (
@@ -35,9 +30,6 @@ export default async function OffersPage({
       leadOptions={leadOptions}
       initialLeadId={leadId ?? null}
       pricingOptions={pricingOptions}
-      colorPalettes={colorPalettes}
-      salesUsers={salesUsers.map((user) => ({ id: user.id, fullName: user.fullName, role: user.role, reportsToUserId: user.reportsToUserId }))}
-      commissionRules={commissionRules.map((rule) => ({ userId: rule.userId, catalogKey: rule.catalogKey, valueType: rule.valueType, value: rule.value, isArchived: rule.isArchived }))}
       statusOptions={offerStatusOptions}
       createOfferAction={createOfferAction}
       assignOfferLeadAction={assignOfferLeadAction}

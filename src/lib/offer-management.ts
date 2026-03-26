@@ -4,7 +4,7 @@ import { OfferColorKind, Prisma } from '@prisma/client'
 
 import type { AuthSession } from '@/lib/auth'
 import { getDemoUsers } from '@/lib/auth'
-import { findColorPalette, listColorPalettes, type ModelColorPalette } from '@/lib/color-management'
+import type { ModelColorPalette } from '@/lib/color-management'
 import { listActiveCommissionRules } from '@/lib/commission-management'
 import { db, hasDatabaseUrl } from '@/lib/db'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
@@ -401,10 +401,8 @@ async function resolveOfferPricing(input: {
     return { ok: false as const, error: 'Wybrana konfiguracja cenowa nie istnieje w zapisanej polityce cenowej.' }
   }
 
-  const colorPalette = await findColorPalette(catalogItem.brand, catalogItem.model)
-  const resolvedColorName = input.selectedColorName?.trim()
-    ? colorPalette?.colors.find((color) => color.name === input.selectedColorName?.trim())?.name ?? null
-    : colorPalette?.colors.find((color) => color.isBase)?.name ?? colorPalette?.baseColorName ?? null
+  const colorPalette = null
+  const resolvedColorName = null
 
   const calculation = calculateOfferSummary({
     catalogItem,
@@ -530,16 +528,15 @@ export async function listManagedOffers(session: AuthSession) {
 }
 
 export async function listManagedOffersWithCalculation(session: AuthSession) {
-  const [offers, pricingSheet, commissionRules, users, colorPalettes] = await Promise.all([
+  const [offers, pricingSheet, commissionRules, users] = await Promise.all([
     listManagedOffers(session),
     getActivePricingSheet(),
     listActiveCommissionRules(),
     listManagedUsers(),
-    listColorPalettes(),
   ])
 
   const catalogByKey = new Map(buildDetailedPricingCatalog(pricingSheet).map((item) => [item.key, item]))
-  const paletteByKey = new Map(colorPalettes.map((palette) => [palette.paletteKey, palette]))
+  const paletteByKey = new Map<string, ModelColorPalette>()
 
   return offers.map((offer) => ({
     ...offer,
@@ -566,15 +563,14 @@ export async function getManagedOfferWithCalculation(session: AuthSession, offer
     } satisfies ManagedOfferWithCalculation
   }
 
-  const [pricingSheet, commissionRules, users, colorPalettes] = await Promise.all([
+  const [pricingSheet, commissionRules, users] = await Promise.all([
     getActivePricingSheet(),
     listActiveCommissionRules(),
     listManagedUsers(),
-    listColorPalettes(),
   ])
 
   const catalogByKey = new Map(buildDetailedPricingCatalog(pricingSheet).map((item) => [item.key, item]))
-  const paletteByKey = new Map(colorPalettes.map((palette) => [palette.paletteKey, palette]))
+  const paletteByKey = new Map<string, ModelColorPalette>()
 
   return {
     ...offer,
@@ -644,10 +640,6 @@ export async function listOfferPricingOptions() {
     marginPoolGross: item.marginPoolGross,
     marginPoolNet: item.marginPoolNet,
   })) satisfies OfferPricingOption[]
-}
-
-export async function listOfferColorPalettes() {
-  return listColorPalettes()
 }
 
 export async function createManagedOffer(

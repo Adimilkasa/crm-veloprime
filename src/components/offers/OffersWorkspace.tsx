@@ -3,9 +3,9 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ExternalLink, FileDown, FilePlus2, Palette, Search, X } from 'lucide-react'
+import { ExternalLink, FileDown, FilePlus2, Search, X } from 'lucide-react'
 
-import { calculateOfferSummary, type OfferCalculationSummary, type SharedCommissionRule, type SharedManagedUser } from '@/lib/offer-calculations-shared'
+import type { OfferCalculationSummary } from '@/lib/offer-calculations-shared'
 import { calculateOfferFinancing, getBuyoutLimit } from '@/lib/offer-financing-shared'
 
 function cx(...values: Array<string | false | null | undefined>) {
@@ -49,7 +49,7 @@ type ManagedOffer = {
   }>
   createdAt: string
   updatedAt: string
-  calculation: OfferCalculationSummary | null
+  calculation?: OfferCalculationSummary | null
 }
 
 type OfferLeadOption = {
@@ -75,26 +75,6 @@ type OfferPricingOption = {
   basePriceNet: number | null
   marginPoolGross: number | null
   marginPoolNet: number | null
-}
-
-type OfferColorPalette = {
-  paletteKey: string
-  brand: string
-  model: string
-  baseColorName: string
-  optionalColorSurchargeGross: number | null
-  optionalColorSurchargeNet: number | null
-  colors: Array<{
-    name: string
-    isBase: boolean
-    surchargeGross: number | null
-    surchargeNet: number | null
-    sortOrder: number
-  }>
-}
-
-function buildPaletteKey(brand: string, model: string) {
-  return `${brand.trim().toLowerCase()}::${model.trim().toLowerCase()}`
 }
 
 const FINANCING_VARIANT_OPTIONS: Record<OfferCustomerType, string[]> = {
@@ -268,7 +248,7 @@ function ResultsPanel({
 
   const colorCharge = offer.calculation
     ? formatMoney(offer.customerType === 'BUSINESS' ? offer.calculation.colorSurchargeNet : offer.calculation.colorSurchargeGross)
-    : 'Do ustalenia'
+    : 'Wyłączony'
 
   return (
     <section className="sticky top-24 rounded-[28px] border border-[#d6ddec] bg-[linear-gradient(180deg,rgba(252,253,255,0.98)_0%,rgba(238,244,251,0.94)_100%)] p-4 shadow-[0_20px_42px_rgba(31,31,31,0.06)] backdrop-blur-sm">
@@ -293,7 +273,7 @@ function ResultsPanel({
         <MiniStat label="Cena końcowa brutto" value={formatMoney(offer.totalGross)} tone="accent" />
         <MiniStat label="Cena końcowa netto" value={formatMoney(offer.totalNet)} tone="success" />
         <MiniStat label="Szacowana rata" value={rateLabel} tone="lavender" />
-        <MiniStat label="Lakier" value={colorCharge} tone="info" />
+        <MiniStat label="Kolory" value={colorCharge} tone="info" />
       </div>
 
       <div className="mt-4 rounded-[24px] border border-[#ccdaef] bg-[rgba(255,255,255,0.62)] p-4">
@@ -360,9 +340,6 @@ export function OffersWorkspace({
   leadOptions,
   initialLeadId,
   pricingOptions,
-  colorPalettes,
-  salesUsers,
-  commissionRules,
   statusOptions,
   createOfferAction,
   assignOfferLeadAction,
@@ -374,9 +351,6 @@ export function OffersWorkspace({
   leadOptions: OfferLeadOption[]
   initialLeadId: string | null
   pricingOptions: OfferPricingOption[]
-  colorPalettes: OfferColorPalette[]
-  salesUsers: SharedManagedUser[]
-  commissionRules: SharedCommissionRule[]
   statusOptions: Array<{ value: OfferStatus; label: string }>
   createOfferAction: (formData: FormData) => Promise<{ ok: boolean; error?: string; offerId?: string }>
   assignOfferLeadAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
@@ -396,7 +370,6 @@ export function OffersWorkspace({
   const [createSelectedLeadId, setCreateSelectedLeadId] = useState(initialLeadId ?? '')
   const [createLeadSearchQuery, setCreateLeadSearchQuery] = useState('')
   const [editorPricingCatalogKey, setEditorPricingCatalogKey] = useState(offers[0]?.pricingCatalogKey ?? '')
-  const [editorSelectedColorName, setEditorSelectedColorName] = useState(offers[0]?.selectedColorName ?? '')
   const [editorCustomerType, setEditorCustomerType] = useState<OfferCustomerType>(offers[0]?.customerType ?? 'PRIVATE')
   const [editorFinancingTermMonths, setEditorFinancingTermMonths] = useState<string>(offers[0]?.financingTermMonths ? String(offers[0].financingTermMonths) : '')
   const [editorFinancingInputValue, setEditorFinancingInputValue] = useState<string>(offers[0]?.financingInputValue !== null && offers[0]?.financingInputValue !== undefined ? String(offers[0].financingInputValue) : '')
@@ -414,16 +387,9 @@ export function OffersWorkspace({
   const hasHandledInitialLeadRef = useRef(false)
 
   const pricingOptionsByKey = useMemo(() => new Map(pricingOptions.map((option) => [option.key, option])), [pricingOptions])
-  const colorPalettesByKey = useMemo(() => new Map(colorPalettes.map((palette) => [palette.paletteKey, palette])), [colorPalettes])
 
   const selectedOffer = offers.find((offer) => offer.id === selectedOfferId) ?? null
   const offerFlowMode: 'SYSTEM' | 'FREE' = selectedOffer?.leadId ? 'SYSTEM' : startMode === 'SYSTEM' ? 'SYSTEM' : 'FREE'
-  const selectedEditorPalette = editorPricingCatalogKey
-    ? (() => {
-        const option = pricingOptionsByKey.get(editorPricingCatalogKey)
-        return option ? colorPalettesByKey.get(buildPaletteKey(option.brand, option.model)) ?? null : null
-      })()
-    : null
   const filteredCreateLeadOptions = useMemo(() => {
     const normalizedQuery = createLeadSearchQuery.trim().toLowerCase()
 
@@ -490,7 +456,6 @@ export function OffersWorkspace({
 
   useEffect(() => {
     setEditorPricingCatalogKey(selectedOffer?.pricingCatalogKey ?? '')
-    setEditorSelectedColorName(selectedOffer?.selectedColorName ?? '')
     setEditorCustomerType(selectedOffer?.customerType ?? 'PRIVATE')
     setEditorFinancingTermMonths(selectedOffer?.financingTermMonths ? String(selectedOffer.financingTermMonths) : '')
     setEditorFinancingInputValue(selectedOffer?.financingInputValue !== null && selectedOffer?.financingInputValue !== undefined ? String(selectedOffer.financingInputValue) : '')
@@ -504,7 +469,7 @@ export function OffersWorkspace({
     setEditorFinancingVariant(selectedOffer?.financingVariant ?? '')
     setEditorNotes(selectedOffer?.notes ?? '')
     setAssignLeadId(selectedOffer?.leadId ?? initialLeadId ?? '')
-  }, [selectedOffer?.id, selectedOffer?.pricingCatalogKey, selectedOffer?.selectedColorName, selectedOffer?.customerType, selectedOffer?.financingTermMonths, selectedOffer?.financingInputValue, selectedOffer?.financingBuyoutPercent, selectedOffer?.customerName, selectedOffer?.customerEmail, selectedOffer?.customerPhone, selectedOffer?.validUntil, selectedOffer?.discountValue, selectedOffer?.financingVariant, selectedOffer?.notes])
+  }, [selectedOffer?.id, selectedOffer?.pricingCatalogKey, selectedOffer?.customerType, selectedOffer?.financingTermMonths, selectedOffer?.financingInputValue, selectedOffer?.financingBuyoutPercent, selectedOffer?.customerName, selectedOffer?.customerEmail, selectedOffer?.customerPhone, selectedOffer?.validUntil, selectedOffer?.discountValue, selectedOffer?.financingVariant, selectedOffer?.notes])
 
   useEffect(() => {
     if (!getFinancingVariantOptions(editorCustomerType).includes(editorFinancingVariant)) {
@@ -530,7 +495,7 @@ export function OffersWorkspace({
     formData.set('customerPhone', editorCustomerPhone)
     formData.set('customerRegion', editorCustomerRegion)
     formData.set('pricingCatalogKey', editorPricingCatalogKey)
-    formData.set('selectedColorName', editorSelectedColorName)
+    formData.set('selectedColorName', '')
     formData.set('customerType', editorCustomerType)
     formData.set('discountValue', editorDiscountValue)
     formData.set('financingVariant', editorFinancingVariant)
@@ -545,26 +510,7 @@ export function OffersWorkspace({
   const liveFinancingTermMonths = editorFinancingTermMonths.trim() ? Number(editorFinancingTermMonths) : null
   const liveFinancingInputValue = editorFinancingInputValue.trim() ? Number(editorFinancingInputValue) : null
   const liveFinancingBuyoutPercent = editorFinancingBuyoutPercent.trim() ? Number(editorFinancingBuyoutPercent) : null
-  const liveDiscountValue = editorDiscountValue.trim() ? Number(editorDiscountValue) : null
   const selectedEditorPricingOption = editorPricingCatalogKey ? pricingOptionsByKey.get(editorPricingCatalogKey) ?? null : null
-  const liveCalculation = useMemo(() => {
-    if (!selectedOffer || !selectedEditorPricingOption) {
-      return null
-    }
-
-    return calculateOfferSummary({
-      catalogItem: selectedEditorPricingOption,
-      ownerId: selectedOffer.ownerId,
-      users: salesUsers,
-      commissionRules,
-      customerType: editorCustomerType,
-      discountValue: liveDiscountValue !== null && !Number.isNaN(liveDiscountValue) ? liveDiscountValue : null,
-      colorPalette: selectedEditorPalette,
-      selectedColorName: editorSelectedColorName,
-    })
-  }, [commissionRules, editorCustomerType, editorSelectedColorName, liveDiscountValue, salesUsers, selectedEditorPalette, selectedEditorPricingOption, selectedOffer])
-  const editorPoolAmount = getOfferPoolAmount(liveCalculation)
-  const editorRemainingPoolAmount = editorPoolAmount !== null && liveCalculation ? editorPoolAmount - liveCalculation.appliedDiscount : null
   const editorBuyoutLimit = getBuyoutLimit(liveFinancingTermMonths)
   const editorBuyoutError = editorBuyoutLimit !== null && liveFinancingBuyoutPercent !== null && liveFinancingBuyoutPercent > editorBuyoutLimit
     ? `Dla ${liveFinancingTermMonths} mies. maksymalny wykup to ${editorBuyoutLimit}%.`
@@ -579,9 +525,9 @@ export function OffersWorkspace({
         customerEmail: editorCustomerEmail.trim() || null,
         customerPhone: editorCustomerPhone.trim() || null,
         modelName: selectedEditorPricingOption ? `${selectedEditorPricingOption.brand} ${selectedEditorPricingOption.model} ${selectedEditorPricingOption.version}` : selectedOffer.modelName,
-        selectedColorName: editorSelectedColorName || selectedOffer.selectedColorName,
+        selectedColorName: null,
         customerType: editorCustomerType,
-        discountValue: liveDiscountValue !== null && !Number.isNaN(liveDiscountValue) ? liveDiscountValue : null,
+        discountValue: editorDiscountValue.trim() ? Number(editorDiscountValue) : null,
         validUntil: editorValidUntil || null,
         financingVariant: editorFinancingVariant || null,
         financingTermMonths: liveFinancingTermMonths !== null && !Number.isNaN(liveFinancingTermMonths) ? liveFinancingTermMonths : null,
@@ -589,9 +535,9 @@ export function OffersWorkspace({
         financingInputValue: liveFinancingInputValue !== null && !Number.isNaN(liveFinancingInputValue) ? liveFinancingInputValue : null,
         financingBuyoutPercent: liveFinancingBuyoutPercent !== null && !Number.isNaN(liveFinancingBuyoutPercent) ? liveFinancingBuyoutPercent : null,
         notes: editorNotes || null,
-        totalGross: liveCalculation?.finalPriceGross ?? selectedOffer.totalGross,
-        totalNet: liveCalculation?.finalPriceNet ?? selectedOffer.totalNet,
-        calculation: liveCalculation ?? selectedOffer.calculation,
+        totalGross: selectedOffer.totalGross,
+        totalNet: selectedOffer.totalNet,
+        calculation: selectedOffer.calculation ?? null,
       }
     : null
 
@@ -765,10 +711,6 @@ export function OffersWorkspace({
 
   function handleEditorPricingChange(nextKey: string) {
     setEditorPricingCatalogKey(nextKey)
-
-    const option = pricingOptionsByKey.get(nextKey)
-    const palette = option ? colorPalettesByKey.get(buildPaletteKey(option.brand, option.model)) ?? null : null
-    setEditorSelectedColorName(palette?.baseColorName ?? '')
   }
 
   return (
@@ -986,27 +928,9 @@ export function OffersWorkspace({
 
                   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(240px,320px)]">
                     <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-[#1f1f1f]">Kolor</span>
-                      <div className="relative">
-                        <Palette className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9d7b27]" />
-                        <select name="selectedColorName" value={editorSelectedColorName} onChange={(event) => setEditorSelectedColorName(event.target.value)} disabled={!selectedEditorPalette} className="h-10 w-full rounded-[16px] border border-[#d8e6dd] bg-white pl-10 pr-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#88b19c] disabled:cursor-not-allowed disabled:opacity-60">
-                          {!selectedEditorPalette ? <option value="">Najpierw wybierz konfigurację</option> : null}
-                          {selectedEditorPalette?.colors.map((color) => (
-                            <option key={color.name} value={color.name}>
-                              {color.name}{color.isBase ? ' / bazowy' : color.surchargeGross ? ` / +${formatMoney(color.surchargeGross)}` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </label>
-
-                    <label className="grid gap-1.5">
                       <span className="text-sm font-medium text-[#1f1f1f]">Rabat klienta</span>
                       <input type="number" step="0.01" name="discountValue" value={editorDiscountValue} onChange={(event) => setEditorDiscountValue(event.target.value)} className="h-10 w-full rounded-[16px] border border-[#d8e6dd] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[#88b19c]" placeholder="np. 3000 PLN" />
-                      <div className="text-xs leading-5 text-[#8a826f]">Pole przyjmuje kwotę rabatu w PLN, bez trybu procentowego.</div>
-                      {editorPoolAmount !== null ? (
-                        <div className="rounded-[14px] border border-[#dce8e0] bg-white/80 px-3 py-2 text-xs leading-5 text-[#5f6d63]">Dostępna pula rabatowa: {formatMoney(editorPoolAmount)}. Po rabacie zostaje: {formatMoney(editorRemainingPoolAmount)}.</div>
-                      ) : null}
+                      <div className="text-xs leading-5 text-[#8a826f]">Pole przyjmuje kwotę rabatu w PLN. Kolory zostały wyłączone w tym module, a nowe kwoty zostaną przeliczone po zapisaniu oferty.</div>
                     </label>
                   </div>
 
