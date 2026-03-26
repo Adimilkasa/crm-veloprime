@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { getDemoUsers, getSession } from '@/lib/auth'
-import { loginAction } from '@/app/login/actions'
 
 export default async function LoginPage({
   searchParams,
@@ -58,7 +57,7 @@ export default async function LoginPage({
         </section>
 
         <section className="rounded-[32px] border border-[#e8e2d3] bg-white p-8 shadow-[0_24px_70px_rgba(31,31,31,0.06)] lg:p-10">
-          <form action={loginAction} className="space-y-5">
+          <form action="/api/auth/login" method="post" className="space-y-5">
             <label className="block">
               <span className="text-sm font-medium text-[#2f2a22]">Email</span>
               <input name="email" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="handlowiec@veloprime.pl" defaultValue="handlowiec@veloprime.pl" />

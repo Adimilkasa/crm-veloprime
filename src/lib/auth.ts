@@ -58,6 +58,16 @@ function getSecret() {
   return new TextEncoder().encode(process.env.AUTH_SECRET || 'crm-veloprime-dev-secret-change-me')
 }
 
+function getSessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 12,
+  }
+}
+
 export function getCookieName() {
   return SESSION_COOKIE
 }
@@ -71,8 +81,8 @@ export function validateDemoCredentials(email: string, password: string) {
   return demoUsers.find((user) => user.email === normalizedEmail && user.password === password) ?? null
 }
 
-export async function createSession(session: AuthSession) {
-  const token = await new SignJWT({
+export async function createSessionToken(session: AuthSession) {
+  return new SignJWT({
     email: session.email,
     fullName: session.fullName,
     role: session.role,
@@ -82,15 +92,17 @@ export async function createSession(session: AuthSession) {
     .setIssuedAt()
     .setExpirationTime('12h')
     .sign(getSecret())
+}
+
+export function getSessionCookieSettings() {
+  return getSessionCookieOptions()
+}
+
+export async function createSession(session: AuthSession) {
+  const token = await createSessionToken(session)
 
   const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 12,
-  })
+  cookieStore.set(SESSION_COOKIE, token, getSessionCookieOptions())
 }
 
 export async function clearSession() {
