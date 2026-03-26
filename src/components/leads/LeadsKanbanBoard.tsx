@@ -341,7 +341,7 @@ function LeadDetailsScreen({
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-3">
                           <div className="text-xs uppercase tracking-[0.14em] text-[#8a826f]">Wersje: {offer.versionCount}</div>
-                          <Link href={offer.pdfHref} target="_blank" className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-3 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
+                          <Link href={offer.pdfHref} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-3 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
                             <FileText className="h-4 w-4" />
                             <span>PDF</span>
                           </Link>

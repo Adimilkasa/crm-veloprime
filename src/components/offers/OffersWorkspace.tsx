@@ -719,8 +719,8 @@ export function OffersWorkspace({
     }
 
     if (result.pdfUrl) {
-      window.open(result.pdfUrl, '_blank', 'noopener,noreferrer')
-      setEditorFeedback('Wersja dokumentu została zapisana i otwarta w nowej karcie. Użyj przycisku "Drukuj / zapisz jako PDF", aby pobrać plik.')
+      window.location.assign(result.pdfUrl)
+      return
     } else {
       setEditorFeedback('Wersja dokumentu została zapisana.')
     }
@@ -790,7 +790,7 @@ export function OffersWorkspace({
 
             <form action={handleCreateVersion} className="flex flex-wrap gap-3 xl:justify-end">
               <input type="hidden" name="offerId" value={selectedOffer.id} />
-              <Link href={`/offers/${selectedOffer.id}/pdf`} target="_blank" className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-4 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
+              <Link href={`/offers/${selectedOffer.id}/pdf`} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-4 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
                 <ExternalLink className="h-4 w-4" />
                 <span>Otwórz podgląd dokumentu</span>
               </Link>
