@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getDemoUsers } from '@/lib/auth'
+import { createAuthUser, listAuthUsers, resetAuthUserPassword, toggleAuthUserStatus } from '@/lib/auth'
 import type { UserRoleKey } from '@/lib/rbac'
 
 export type ManagedUser = {
@@ -20,28 +20,10 @@ type CreateManagedUserInput = {
   fullName: string
   email: string
   role: UserRoleKey
+  password?: string
   region?: string
   teamName?: string
   reportsToUserId?: string
-}
-
-const globalForUsers = globalThis as unknown as {
-  crmUsers?: ManagedUser[]
-}
-
-function buildSeedUsers(): ManagedUser[] {
-  return getDemoUsers().map((user) => ({
-    id: user.sub,
-    fullName: user.fullName,
-    email: user.email,
-    role: user.role,
-    isActive: true,
-    region: null,
-    teamName: null,
-    reportsToUserId: user.reportsToUserId ?? null,
-    createdAt: new Date().toISOString(),
-    source: 'seed',
-  }))
 }
 
 function isSupervisorAllowed(role: UserRoleKey, supervisorRole: UserRoleKey) {
@@ -61,16 +43,21 @@ function normalizeSupervisorId(value?: string) {
   return normalized ? normalized : null
 }
 
-function getStore() {
-  if (!globalForUsers.crmUsers) {
-    globalForUsers.crmUsers = buildSeedUsers()
-  }
-
-  return globalForUsers.crmUsers
-}
-
 export async function listManagedUsers() {
-  return [...getStore()].sort((left, right) => left.fullName.localeCompare(right.fullName, 'pl'))
+  return [...(await listAuthUsers())]
+    .map((user) => ({
+      id: user.sub,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      region: user.region,
+      teamName: user.teamName,
+      reportsToUserId: user.reportsToUserId ?? null,
+      createdAt: user.createdAt,
+      source: user.source,
+    }))
+    .sort((left, right) => left.fullName.localeCompare(right.fullName, 'pl'))
 }
 
 export async function listPotentialSupervisors(role: UserRoleKey) {
@@ -82,9 +69,9 @@ export async function listPotentialSupervisors(role: UserRoleKey) {
 }
 
 export async function createManagedUser(input: CreateManagedUserInput) {
-  const users = getStore()
   const normalizedEmail = input.email.trim().toLowerCase()
   const reportsToUserId = normalizeSupervisorId(input.reportsToUserId)
+  const users = await listManagedUsers()
 
   if (!input.fullName.trim()) {
     return { ok: false as const, error: 'Podaj imię i nazwisko użytkownika.' }
@@ -118,32 +105,67 @@ export async function createManagedUser(input: CreateManagedUserInput) {
     }
   }
 
-  const nextUser: ManagedUser = {
-    id: `custom-${crypto.randomUUID()}`,
-    fullName: input.fullName.trim(),
+  const result = await createAuthUser({
+    fullName: input.fullName,
     email: normalizedEmail,
     role: input.role,
-    isActive: true,
-    region: input.region?.trim() || null,
-    teamName: input.teamName?.trim() || null,
+    password: input.password,
+    region: input.region,
+    teamName: input.teamName,
     reportsToUserId,
-    createdAt: new Date().toISOString(),
-    source: 'custom',
+  })
+
+  return {
+    ok: true as const,
+    user: {
+      id: result.user.sub,
+      fullName: result.user.fullName,
+      email: result.user.email,
+      role: result.user.role,
+      isActive: result.user.isActive,
+      region: result.user.region,
+      teamName: result.user.teamName,
+      reportsToUserId: result.user.reportsToUserId ?? null,
+      createdAt: result.user.createdAt,
+      source: result.user.source,
+    },
+    temporaryPassword: result.temporaryPassword,
   }
-
-  users.push(nextUser)
-
-  return { ok: true as const, user: nextUser }
 }
 
 export async function toggleManagedUserStatus(userId: string) {
-  const users = getStore()
-  const user = users.find((entry) => entry.id === userId)
+  const user = await toggleAuthUserStatus(userId)
 
   if (!user) {
     return { ok: false as const, error: 'Nie znaleziono użytkownika.' }
   }
 
-  user.isActive = !user.isActive
-  return { ok: true as const, user }
+  return {
+    ok: true as const,
+    user: {
+      id: user.sub,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      region: user.region,
+      teamName: user.teamName,
+      reportsToUserId: user.reportsToUserId ?? null,
+      createdAt: user.createdAt,
+      source: user.source,
+    },
+  }
+}
+
+export async function resetManagedUserPassword(userId: string, newPassword?: string) {
+  const result = await resetAuthUserPassword({ userId, newPassword })
+
+  if (!result.ok) {
+    return result
+  }
+
+  return {
+    ok: true as const,
+    temporaryPassword: result.temporaryPassword,
+  }
 }

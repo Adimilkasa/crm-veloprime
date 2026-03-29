@@ -1,0 +1,28 @@
+{
+  "versions": [
+    {
+      "artifactType": "DATA",
+      "version": "v1",
+      "publishedAt": null,
+      "publishedBy": null,
+      "summary": null,
+      "priority": "CRITICAL"
+    },
+    {
+      "artifactType": "ASSETS",
+      "version": "v1",
+      "publishedAt": null,
+      "publishedBy": null,
+      "summary": null,
+      "priority": "STANDARD"
+    },
+    {
+      "artifactType": "APPLICATION",
+      "version": "v1",
+      "publishedAt": null,
+      "publishedBy": null,
+      "summary": null,
+      "priority": "STANDARD"
+    }
+  ]
+}

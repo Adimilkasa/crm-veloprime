@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { getDemoUsers, getSession } from '@/lib/auth'
+import { hasDatabaseUrl } from '@/lib/db'
 
 export default async function LoginPage({
   searchParams,
@@ -15,6 +16,7 @@ export default async function LoginPage({
 
   const { error } = await searchParams
   const demoUsers = getDemoUsers()
+  const usesDatabaseAuth = hasDatabaseUrl()
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(201,161,59,0.14),transparent_28%),linear-gradient(180deg,#fafaf9_0%,#f7f6f4_100%)]">
@@ -28,7 +30,9 @@ export default async function LoginPage({
             Panel sprzedażowy dla zespołu VeloPrime.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-7 text-[#5f5a4f]">
-            To jest pierwszy działający etap logowania. Uwierzytelnianie działa na demo kontach z rolami, a w następnym kroku podepniemy je do bazy użytkowników.
+            {usesDatabaseAuth
+              ? 'Logowanie korzysta z kont użytkowników zapisanych w bazie. Konta startowe mogą zostać później przejęte przez administratora i mieć zmienione hasła.'
+              : 'Logowanie działa w trybie awaryjnym bez bazy danych. Dostępne są konta startowe do testów lokalnych.'}
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -43,13 +47,19 @@ export default async function LoginPage({
           </div>
 
           <div className="mt-8 rounded-[24px] border border-[#ece6d9] bg-white/90 p-5 shadow-[0_16px_34px_rgba(31,31,31,0.04)]">
-            <div className="text-sm font-semibold text-[#1f1f1f]">Konta demo do testów</div>
+            <div className="text-sm font-semibold text-[#1f1f1f]">
+              {usesDatabaseAuth ? 'Konta startowe systemu' : 'Konta demo do testów'}
+            </div>
             <div className="mt-4 grid gap-3">
               {demoUsers.map((user) => (
                 <div key={user.email} className="rounded-2xl border border-[#ece6d9] bg-[#fcfbf8] px-4 py-3 text-sm text-[#666666]">
                   <div className="font-medium text-[#1f1f1f]">{user.fullName}</div>
                   <div className="mt-1">{user.email}</div>
-                  <div className="mt-1 text-[#8f6b18]">Hasło: {user.role === 'ADMIN' ? 'Admin123!' : user.role === 'DIRECTOR' ? 'Director123!' : user.role === 'MANAGER' ? 'Manager123!' : 'Sales123!'}</div>
+                  <div className="mt-1 text-[#8f6b18]">
+                    {usesDatabaseAuth
+                      ? 'Hasło początkowe z wdrożenia lub ostatniego resetu administracyjnego.'
+                      : `Hasło: ${user.role === 'ADMIN' ? 'Admin123!' : user.role === 'DIRECTOR' ? 'Director123!' : user.role === 'MANAGER' ? 'Manager123!' : 'Sales123!'}`}
+                  </div>
                 </div>
               ))}
             </div>
@@ -77,7 +87,9 @@ export default async function LoginPage({
             </button>
 
             <div className="mt-6 rounded-[24px] border border-[#ece6d9] bg-[#fcfbf8] p-5 text-sm leading-6 text-[#6b6b6b]">
-              Logowanie korzysta z demo kont. Kolejny etap to podpięcie użytkowników z bazy i prawdziwych uprawnień.
+              {usesDatabaseAuth
+                ? 'Uprawnienia i hasła są obsługiwane przez centralną bazę użytkowników. Bez bazy aplikacja przełącza się na tryb awaryjny z kontami startowymi.'
+                : 'Tryb bez bazy służy tylko do lokalnego developmentu. Produkcyjnie logowanie powinno działać na użytkownikach zapisanych w bazie.'}
             </div>
           </form>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ClipboardPaste, Database, Eraser, Plus, Save, TableProperties, Trash2 } from 'lucide-react'
 
@@ -57,6 +57,38 @@ export function PricingWorkspace({
   savePricingSheetAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
   clearPricingSheetAction: () => Promise<{ ok: boolean; error?: string }>
 }) {
+  const editorKey = JSON.stringify({
+    headers: sheet.headers,
+    rows: sheet.rows,
+    updatedAt: sheet.updatedAt,
+    updatedBy: sheet.updatedBy,
+  })
+
+  return (
+    <PricingWorkspaceEditor
+      key={editorKey}
+      roleLabel={roleLabel}
+      sheet={sheet}
+      importPricingSheetAction={importPricingSheetAction}
+      savePricingSheetAction={savePricingSheetAction}
+      clearPricingSheetAction={clearPricingSheetAction}
+    />
+  )
+}
+
+function PricingWorkspaceEditor({
+  roleLabel,
+  sheet,
+  importPricingSheetAction,
+  savePricingSheetAction,
+  clearPricingSheetAction,
+}: {
+  roleLabel: string
+  sheet: PricingSheet
+  importPricingSheetAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
+  savePricingSheetAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
+  clearPricingSheetAction: () => Promise<{ ok: boolean; error?: string }>
+}) {
   const router = useRouter()
   const importFormRef = useRef<HTMLFormElement>(null)
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
@@ -74,24 +106,6 @@ export function PricingWorkspace({
         })
       : [new Array(Math.max(sheet.headers.length, 2)).fill('')]
   )
-
-  useEffect(() => {
-    const nextHeaders = sheet.headers.length > 0 ? sheet.headers : ['Kolumna 1', 'Kolumna 2']
-    setHeaders(nextHeaders)
-    setRows(
-      sheet.rows.length > 0
-        ? sheet.rows.map((row) => {
-            const nextRow = [...row]
-
-            while (nextRow.length < nextHeaders.length) {
-              nextRow.push('')
-            }
-
-            return nextRow.slice(0, nextHeaders.length)
-          })
-        : [new Array(nextHeaders.length).fill('')]
-    )
-  }, [sheet.headers, sheet.rows])
 
   const stats = useMemo(() => ({
     columns: headers.length,

@@ -119,6 +119,7 @@ function GallerySection({
       <div className="pdf-a4-gallery-grid">
         {images.slice(0, 3).map((imageUrl, index) => (
           <figure key={imageUrl} className="pdf-a4-gallery-card">
+            {/* eslint-disable-next-line @next/next/no-img-element -- html2pdf wymaga prostego img w klonowanym dokumencie */}
             <img src={imageUrl} alt={`${title} ${index + 1}`} className="pdf-a4-gallery-image" />
           </figure>
         ))}
@@ -154,6 +155,7 @@ export function OfferPdfA4Document({
         <div className="pdf-a4-cover-glow" />
         <div className="pdf-a4-header-row">
           <div className="pdf-a4-brand-row">
+            {/* eslint-disable-next-line @next/next/no-img-element -- html2pdf wymaga prostego img w klonowanym dokumencie */}
             <img src={assets.logoUrl} alt="VeloPrime" className="pdf-a4-logo" />
             <div className="pdf-a4-brand-copy">
               <div className="pdf-a4-eyebrow">VeloPrime</div>
@@ -185,6 +187,7 @@ export function OfferPdfA4Document({
 
           <div className="pdf-a4-hero-stage">
             {heroImage ? (
+              /* eslint-disable-next-line @next/next/no-img-element -- html2pdf wymaga prostego img w klonowanym dokumencie */
               <img src={heroImage} alt={payload.customer.modelName ?? 'Oferta samochodu'} className="pdf-a4-hero-image" />
             ) : (
               <div className="pdf-a4-hero-image pdf-a4-hero-image--placeholder">

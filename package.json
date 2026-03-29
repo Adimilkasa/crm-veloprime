@@ -7,7 +7,9 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "node prisma/seed.mjs"
+    "db:seed": "node prisma/seed.mjs",
+    "smoke:accounts": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-account-flows.ps1",
+    "smoke:lead-offer-pdf": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-lead-offer-pdf.ps1"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",

@@ -1,0 +1,46 @@
+name: veloprime_hybrid_app
+description: Lokalny klient hybrydowy CRM VeloPrime dla Windows i Android.
+publish_to: none
+version: 0.1.2+1
+
+environment:
+  sdk: ^3.4.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  intl: ^0.20.2
+  shared_preferences: ^2.5.3
+  url_launcher: ^6.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  msix: ^3.16.13
+
+msix_config:
+  display_name: VeloPrime CRM
+  publisher_display_name: VeloPrime
+  identity_name: pl.veloprime.crm
+  msix_version: 0.1.2.0
+  logo_path: assets/branding/logo.png
+  trim_logo: false
+  capabilities: internetClient
+  architecture: x64
+  store: false
+  build_windows: true
+  app_installer:
+    publish_folder_path: build\msix\publish
+    hours_between_update_checks: 0
+    automatic_background_task: true
+    update_blocks_activation: true
+    show_prompt: true
+    force_update_from_any_version: false
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/logo.png
+    - assets/backgrounds/

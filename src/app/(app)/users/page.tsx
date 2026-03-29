@@ -15,7 +15,7 @@ function formatDate(value: string) {
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string }>
+  searchParams: Promise<{ error?: string; success?: string; tempPassword?: string }>
 }) {
   const session = await getSession()
 
@@ -28,7 +28,7 @@ export default async function UsersPage({
   }
 
   const users = await listManagedUsers()
-  const { error, success } = await searchParams
+  const { error, success, tempPassword } = await searchParams
   const usersById = new Map(users.map((user) => [user.id, user]))
   const supervisorOptions = users.filter((user) => user.isActive && (user.role === 'DIRECTOR' || user.role === 'MANAGER'))
 
@@ -71,6 +71,11 @@ export default async function UsersPage({
             <label className="block">
               <span className="text-sm font-medium text-[#2f2a22]">Email</span>
               <input name="email" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="jan@veloprime.pl" />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium text-[#2f2a22]">Hasło startowe</span>
+              <input name="password" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="Pozostaw puste, aby wygenerować tymczasowe" />
             </label>
 
             <label className="block">
@@ -122,6 +127,11 @@ export default async function UsersPage({
           {success ? (
             <div className="mt-4 rounded-2xl border border-[#d8ead8] bg-[#f4fbf4] px-4 py-3 text-sm text-[#3f7a4c]">
               {success === 'created' ? 'Nowe konto zostało dodane.' : 'Status użytkownika został zmieniony.'}
+            </div>
+          ) : null}
+          {tempPassword ? (
+            <div className="mt-4 rounded-2xl border border-[#efe1b5] bg-[#fff9ea] px-4 py-3 text-sm text-[#7c6118]">
+              Tymczasowe hasło dla nowego konta: <strong>{tempPassword}</strong>
             </div>
           ) : null}
         </article>

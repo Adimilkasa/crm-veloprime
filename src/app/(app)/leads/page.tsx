@@ -3,16 +3,13 @@ import { redirect } from 'next/navigation'
 import {
   addLeadCommentAction,
   addLeadInformationAction,
-  assignLeadSalespersonAction,
   createLeadAction,
-  createLeadStageAction,
   moveLeadStageAction,
 } from '@/app/(app)/leads/actions'
 import { LeadsWorkspace } from '@/components/leads/LeadsWorkspace'
 import { getSession } from '@/lib/auth'
-import { listManagedLeads, listManagedLeadStages } from '@/lib/lead-management'
+import { listAssignableLeadOwners, listManagedLeads, listManagedLeadStages } from '@/lib/lead-management'
 import { listManagedOffers } from '@/lib/offer-management'
-import { listManagedUsers } from '@/lib/user-management'
 
 export default async function LeadsPage({
   searchParams,
@@ -25,10 +22,10 @@ export default async function LeadsPage({
     redirect('/login')
   }
 
-  const [leads, stages, users, offers, { error, success }] = await Promise.all([
+  const [leads, stages, ownerOptions, offers, { error, success }] = await Promise.all([
     listManagedLeads(session),
     listManagedLeadStages(),
-    listManagedUsers(),
+    listAssignableLeadOwners(session),
     listManagedOffers(session),
     searchParams,
   ])
@@ -68,9 +65,7 @@ export default async function LeadsPage({
     return accumulator
   }, {})
 
-  const activeSalesUsers = users.filter((user) => user.isActive && user.role === 'SALES')
   const canAssign = session.role === 'ADMIN' || session.role === 'DIRECTOR' || session.role === 'MANAGER'
-  const canManageStages = canAssign
   const activePipeline = leads.filter((lead) => {
     const stage = stages.find((entry) => entry.id === lead.stageId)
     return stage?.kind === 'OPEN'
@@ -79,7 +74,12 @@ export default async function LeadsPage({
     const stage = stages.find((entry) => entry.id === lead.stageId)
     return stage?.kind === 'WON'
   }).length
+  const holdLeads = leads.filter((lead) => {
+    const stage = stages.find((entry) => entry.id === lead.stageId)
+    return stage?.kind === 'HOLD'
+  }).length
   const firstStageId = stages.find((stage) => stage.kind === 'OPEN')?.id ?? stages[0]?.id ?? ''
+  const preferredOwnerId = ownerOptions.find((user) => user.id === session.sub)?.id ?? ownerOptions[0]?.id ?? ''
 
   return (
     <>
@@ -90,11 +90,7 @@ export default async function LeadsPage({
         <div className="rounded-[18px] border border-[#d9ece4] bg-[#f4fbf8] px-4 py-3 text-sm text-[#3f7d64] shadow-[0_12px_30px_rgba(31,31,31,0.03)]">
           {success === 'created'
             ? 'Lead został dodany do pipeline.'
-            : success === 'assigned'
-              ? 'Przypisanie handlowca zostało zapisane.'
-              : success === 'stage-created'
-                ? 'Nowy etap pipeline został dodany.'
-                : 'Lead został przesunięty do nowego etapu.'}
+            : 'Lead został przesunięty do nowego etapu.'}
         </div>
       ) : null}
 
@@ -102,20 +98,19 @@ export default async function LeadsPage({
         leads={leads}
         leadOffersByLeadId={leadOffersByLeadId}
         stages={stages}
-        salesUsers={activeSalesUsers}
+        salesUsers={ownerOptions}
         canAssign={canAssign}
-        canManageStages={canManageStages}
         firstStageId={firstStageId}
+        preferredOwnerId={preferredOwnerId}
         stats={{
           visible: leads.length,
           active: activePipeline,
           won: wonLeads,
+          hold: holdLeads,
           stageCount: stages.length,
         }}
         createLeadAction={createLeadAction}
-        createLeadStageAction={createLeadStageAction}
         moveLeadStageAction={moveLeadStageAction}
-        assignLeadSalespersonAction={assignLeadSalespersonAction}
         addLeadInformationAction={addLeadInformationAction}
         addLeadCommentAction={addLeadCommentAction}
       />

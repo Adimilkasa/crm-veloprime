@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const formData = await request.formData()
   const email = String(formData.get('email') || '')
   const password = String(formData.get('password') || '')
-  const user = validateDemoCredentials(email, password)
+  const user = await validateDemoCredentials(email, password)
   const loginUrl = new URL('/login', request.url)
 
   if (!user) {

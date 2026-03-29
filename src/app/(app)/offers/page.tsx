@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { assignOfferLeadAction, createOfferAction, createOfferLeadAction, createOfferVersionAction, updateOfferAction } from '@/app/(app)/offers/actions'
+import { assignOfferLeadAction, createOfferAction, createOfferVersionAction, updateOfferAction } from '@/app/(app)/offers/actions'
 import { OffersWorkspace } from '@/components/offers/OffersWorkspace'
 import { getSession } from '@/lib/auth'
 import { listManagedOffers, listOfferLeadOptions, listOfferPricingOptions, offerStatusOptions } from '@/lib/offer-management'
@@ -33,7 +33,6 @@ export default async function OffersPage({
       statusOptions={offerStatusOptions}
       createOfferAction={createOfferAction}
       assignOfferLeadAction={assignOfferLeadAction}
-      createOfferLeadAction={createOfferLeadAction}
       updateOfferAction={updateOfferAction}
       createOfferVersionAction={createOfferVersionAction}
     />

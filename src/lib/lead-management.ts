@@ -1,9 +1,13 @@
 import 'server-only'
 
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+
 import type { AuthSession } from '@/lib/auth'
+import { db, hasDatabaseUrl } from '@/lib/db'
 import { listManagedUsers } from '@/lib/user-management'
 
-export type LeadStageKind = 'OPEN' | 'WON' | 'LOST'
+export type LeadStageKind = 'OPEN' | 'WON' | 'LOST' | 'HOLD'
 
 export type LeadStage = {
   id: string
@@ -12,6 +16,16 @@ export type LeadStage = {
   order: number
   kind: LeadStageKind
 }
+
+type LeadPipelineStageKey =
+  | 'NEW_LEAD'
+  | 'FIRST_CONTACT'
+  | 'FOLLOW_UP'
+  | 'MEETING_SCHEDULED'
+  | 'OFFER_SHARED'
+  | 'WON'
+  | 'LOST'
+  | 'ON_HOLD'
 
 export type LeadDetailEntryKind = 'INFO' | 'COMMENT'
 
@@ -49,7 +63,6 @@ type CreateManagedLeadInput = {
   fullName: string
   email?: string
   phone?: string
-  interestedModel?: string
   region?: string
   message?: string
   stageId?: string
@@ -63,9 +76,82 @@ type CreateLeadStageInput = {
   afterStageId?: string
 }
 
-const globalForLeads = globalThis as unknown as {
-  crmLeadStages?: LeadStage[]
-  crmLeads?: ManagedLead[]
+type DeleteLeadStageInput = {
+  stageId: string
+  fallbackStageId?: string
+}
+
+type ManagedUser = Awaited<ReturnType<typeof listManagedUsers>>[number]
+
+type PersistedLeadRecord = {
+  id: string
+  source: string
+  fullName: string
+  email: string | null
+  phone: string | null
+  interestedModel: string | null
+  region: string | null
+  stageKey: LeadPipelineStageKey
+  message: string | null
+  managerId: string | null
+  managerName: string | null
+  salespersonId: string | null
+  salespersonName: string | null
+  nextActionAt: string | null
+  details: LeadDetailEntry[]
+  createdAt: string
+  updatedAt: string
+}
+
+type PersistedLeadStore = {
+  leads: PersistedLeadRecord[]
+}
+
+const LEAD_DATA_DIR = path.join(process.cwd(), 'data')
+const LEAD_STORE_PATH = path.join(LEAD_DATA_DIR, 'leads.json')
+
+let inMemoryLeadStore: PersistedLeadStore | null = null
+
+const FIXED_STAGES: Array<LeadStage & { stageKey: LeadPipelineStageKey }> = [
+  { id: 'stage-new-lead', stageKey: 'NEW_LEAD', name: 'Nowy lead', color: '#5AA9E6', order: 0, kind: 'OPEN' },
+  { id: 'stage-first-contact', stageKey: 'FIRST_CONTACT', name: 'Pierwszy kontakt', color: '#46B89A', order: 1, kind: 'OPEN' },
+  { id: 'stage-follow-up', stageKey: 'FOLLOW_UP', name: 'Ponowny kontakt', color: '#3FB6C6', order: 2, kind: 'OPEN' },
+  { id: 'stage-meeting-scheduled', stageKey: 'MEETING_SCHEDULED', name: 'Umowione spotkanie', color: '#C68D34', order: 3, kind: 'OPEN' },
+  { id: 'stage-offer-shared', stageKey: 'OFFER_SHARED', name: 'Oferta przekazana', color: '#D4A84F', order: 4, kind: 'OPEN' },
+  { id: 'stage-won', stageKey: 'WON', name: 'Wygrane', color: '#2F9B63', order: 5, kind: 'WON' },
+  { id: 'stage-lost', stageKey: 'LOST', name: 'Stracone', color: '#C56A5A', order: 6, kind: 'LOST' },
+  { id: 'stage-on-hold', stageKey: 'ON_HOLD', name: 'Wstrzymane', color: '#7A7F8E', order: 7, kind: 'HOLD' },
+]
+
+const STAGE_BY_ID = new Map(FIXED_STAGES.map((stage) => [stage.id, stage]))
+const STAGE_BY_KEY = new Map(FIXED_STAGES.map((stage) => [stage.stageKey, stage]))
+
+let forceFileLeadStorage = false
+
+function isPrismaLeadStorageEnabled() {
+  return !forceFileLeadStorage && hasDatabaseUrl() && Boolean(db)
+}
+
+function isPrismaSchemaMismatch(error: unknown) {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: string }).code === 'P2022'
+}
+
+function splitFullName(fullName: string) {
+  const normalized = fullName.trim().replace(/\s+/g, ' ')
+  const [firstName, ...lastNameParts] = normalized.split(' ')
+
+  return {
+    firstName: firstName || null,
+    lastName: lastNameParts.join(' ').trim() || null,
+  }
+}
+
+function joinFullName(firstName?: string | null, lastName?: string | null) {
+  const value = [firstName?.trim(), lastName?.trim()].filter(Boolean).join(' ').trim()
+  return value || 'Klient bez nazwy'
 }
 
 function normalizeDetailEntry(entry: Partial<LeadDetailEntry>): LeadDetailEntry {
@@ -79,72 +165,270 @@ function normalizeDetailEntry(entry: Partial<LeadDetailEntry>): LeadDetailEntry 
   }
 }
 
-function normalizeManagedLead(lead: ManagedLead): ManagedLead {
+function buildActivityEntry(input: {
+  kind: LeadDetailEntryKind
+  label: string
+  value: string
+  authorName: string | null
+  createdAt?: string
+}) {
+  return normalizeDetailEntry({
+    id: `lead-detail-${crypto.randomUUID()}`,
+    kind: input.kind,
+    label: input.label,
+    value: input.value,
+    authorName: input.authorName,
+    createdAt: input.createdAt,
+  })
+}
+
+function mapStageKeyToId(stageKey?: string | null) {
+  return STAGE_BY_KEY.get((stageKey ?? 'NEW_LEAD') as LeadPipelineStageKey)?.id ?? FIXED_STAGES[0].id
+}
+
+function mapPersistedLead(record: PersistedLeadRecord): ManagedLead {
   return {
-    ...lead,
-    details: Array.isArray(lead.details) ? lead.details.map((entry) => normalizeDetailEntry(entry)) : [],
+    id: record.id,
+    source: record.source,
+    fullName: record.fullName,
+    email: record.email,
+    phone: record.phone,
+    interestedModel: record.interestedModel,
+    region: record.region,
+    stageId: mapStageKeyToId(record.stageKey),
+    message: record.message,
+    managerId: record.managerId,
+    managerName: record.managerName,
+    salespersonId: record.salespersonId,
+    salespersonName: record.salespersonName,
+    nextActionAt: record.nextActionAt,
+    details: Array.isArray(record.details) ? record.details.map((entry) => normalizeDetailEntry(entry)) : [],
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
   }
 }
 
-function buildSeedStages(): LeadStage[] {
-  return [
-    { id: 'stage-new', name: 'Nowy lead', color: '#5aa9e6', order: 0, kind: 'OPEN' },
-    { id: 'stage-contact', name: 'Pierwszy kontakt', color: '#44c4a1', order: 1, kind: 'OPEN' },
-    { id: 'stage-test-drive', name: 'Jazda probna', color: '#2ec4b6', order: 2, kind: 'OPEN' },
-    { id: 'stage-offer', name: 'Oferta', color: '#d8b45a', order: 3, kind: 'OPEN' },
-    { id: 'stage-negotiation', name: 'Negocjacje', color: '#f59e0b', order: 4, kind: 'OPEN' },
-    { id: 'stage-won', name: 'Wygrany', color: '#22c55e', order: 5, kind: 'WON' },
-    { id: 'stage-lost', name: 'Utracony', color: '#ef4444', order: 6, kind: 'LOST' },
-  ]
+function mapDbLead(record: {
+  id: string
+  source: string
+  firstName: string | null
+  lastName: string | null
+  email: string | null
+  phone: string | null
+  message: string | null
+  interestedModel: string | null
+  region: string | null
+  pipelineStage: LeadPipelineStageKey
+  managerId: string | null
+  manager?: { fullName: string } | null
+  salespersonId: string | null
+  salesperson?: { fullName: string } | null
+  nextActionAt: Date | null
+  details: Array<{
+    id: string
+    kind: 'INFO' | 'COMMENT'
+    label: string
+    value: string
+    createdAt: Date
+    authorUser?: { fullName: string } | null
+  }>
+  createdAt: Date
+  updatedAt: Date
+}): ManagedLead {
+  return {
+    id: record.id,
+    source: record.source,
+    fullName: joinFullName(record.firstName, record.lastName),
+    email: record.email,
+    phone: record.phone,
+    interestedModel: record.interestedModel,
+    region: record.region,
+    stageId: mapStageKeyToId(record.pipelineStage),
+    message: record.message,
+    managerId: record.managerId,
+    managerName: record.manager?.fullName ?? null,
+    salespersonId: record.salespersonId,
+    salespersonName: record.salesperson?.fullName ?? null,
+    nextActionAt: record.nextActionAt?.toISOString() ?? null,
+    details: record.details.map((entry) => ({
+      id: entry.id,
+      kind: entry.kind,
+      label: entry.label,
+      value: entry.value,
+      authorName: entry.authorUser?.fullName ?? null,
+      createdAt: entry.createdAt.toISOString(),
+    })),
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
 }
 
-async function getStageStore() {
-  if (!globalForLeads.crmLeadStages) {
-    globalForLeads.crmLeadStages = buildSeedStages()
+function buildUserMaps(users: ManagedUser[]) {
+  const byId = new Map(users.map((user) => [user.id, user]))
+  const children = new Map<string, ManagedUser[]>()
+
+  for (const user of users) {
+    const parentId = user.reportsToUserId ?? null
+    if (!parentId) {
+      continue
+    }
+
+    const bucket = children.get(parentId) ?? []
+    bucket.push(user)
+    children.set(parentId, bucket)
   }
 
-  return globalForLeads.crmLeadStages
+  return { byId, children }
 }
 
-export async function listManagedLeadStages() {
-  const stages = await getStageStore()
-  return [...stages].sort((left, right) => left.order - right.order)
-}
-
-async function resolveStage(stageId?: string) {
-  const stages = await getStageStore()
-
-  if (stageId) {
-    return stages.find((stage) => stage.id === stageId) ?? null
+function getVisibleOwnerIds(session: AuthSession, users: ManagedUser[]) {
+  if (session.role === 'ADMIN') {
+    return new Set(users.map((user) => user.id))
   }
 
-  return [...stages].sort((left, right) => left.order - right.order).find((stage) => stage.kind === 'OPEN') ?? stages[0] ?? null
+  const { children } = buildUserMaps(users)
+  const visible = new Set<string>([session.sub])
+  const queue = [session.sub]
+
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    const descendants = children.get(current) ?? []
+
+    for (const descendant of descendants) {
+      if (visible.has(descendant.id)) {
+        continue
+      }
+
+      visible.add(descendant.id)
+      queue.push(descendant.id)
+    }
+  }
+
+  return visible
 }
 
-function isLeadership(role: AuthSession['role']) {
-  return role === 'ADMIN' || role === 'DIRECTOR' || role === 'MANAGER'
-}
-
-function canViewLead(session: AuthSession, lead: ManagedLead) {
-  if (session.role === 'ADMIN' || session.role === 'DIRECTOR') {
+function canViewLead(session: AuthSession, lead: ManagedLead, users: ManagedUser[]) {
+  if (session.role === 'ADMIN') {
     return true
   }
 
-  if (session.role === 'MANAGER') {
-    return lead.managerId === session.sub || lead.salespersonId === session.sub
-  }
-
-  return lead.salespersonId === session.sub
+  const visibleOwnerIds = getVisibleOwnerIds(session, users)
+  return Boolean(lead.salespersonId && visibleOwnerIds.has(lead.salespersonId))
 }
 
-async function buildSeedLeads(): Promise<ManagedLead[]> {
-  const users = await listManagedUsers()
-  const manager = users.find((user) => user.role === 'MANAGER' && user.isActive)
-  const sales = users.find((user) => user.role === 'SALES' && user.isActive)
-  const stages = await listManagedLeadStages()
-  const newStage = stages.find((stage) => stage.id === 'stage-new') ?? stages[0]
-  const contactStage = stages.find((stage) => stage.id === 'stage-contact') ?? stages[1] ?? stages[0]
-  const negotiationStage = stages.find((stage) => stage.id === 'stage-negotiation') ?? stages[2] ?? stages[0]
+function getAssignableLeadOwners(session: AuthSession, users: ManagedUser[]) {
+  const visibleOwnerIds = getVisibleOwnerIds(session, users)
+
+  if (session.role === 'SALES') {
+    return users.filter((user) => user.id === session.sub && user.isActive)
+  }
+
+  return users
+    .filter((user) => user.isActive && visibleOwnerIds.has(user.id))
+    .sort((left, right) => left.fullName.localeCompare(right.fullName, 'pl'))
+}
+
+function getDirectSupervisor(userId: string | null | undefined, usersById: Map<string, ManagedUser>) {
+  if (!userId) {
+    return null
+  }
+
+  const owner = usersById.get(userId)
+  if (!owner?.reportsToUserId) {
+    return null
+  }
+
+  return usersById.get(owner.reportsToUserId) ?? null
+}
+
+function getOwnerForCreation(session: AuthSession, inputOwnerId: string | undefined, users: ManagedUser[]) {
+  const assignable = getAssignableLeadOwners(session, users)
+  const requestedOwnerId = inputOwnerId?.trim() || session.sub
+  return assignable.find((user) => user.id === requestedOwnerId) ?? null
+}
+
+async function ensureStoreFile() {
+  try {
+    await mkdir(LEAD_DATA_DIR, { recursive: true })
+    await readFile(LEAD_STORE_PATH, 'utf8')
+  } catch {
+    const seedStore = { leads: [] } satisfies PersistedLeadStore
+    inMemoryLeadStore = seedStore
+
+    try {
+      await writeFile(LEAD_STORE_PATH, JSON.stringify(seedStore, null, 2), 'utf8')
+    } catch {
+      // Serverless environments may not allow writes to the application filesystem.
+    }
+  }
+}
+
+async function readStore() {
+  await ensureStoreFile()
+
+  try {
+    const raw = await readFile(LEAD_STORE_PATH, 'utf8')
+    const parsed = JSON.parse(raw) as Partial<PersistedLeadStore>
+
+    return {
+      leads: Array.isArray(parsed.leads)
+        ? parsed.leads.filter(Boolean).map((entry) => {
+            const record = entry as Partial<PersistedLeadRecord>
+            return {
+              id: record.id ?? `lead-${crypto.randomUUID()}`,
+              source: record.source?.trim() || 'Manual',
+              fullName: record.fullName?.trim() || 'Klient bez nazwy',
+              email: record.email?.trim() || null,
+              phone: record.phone?.trim() || null,
+              interestedModel: record.interestedModel?.trim() || null,
+              region: record.region?.trim() || null,
+              stageKey: STAGE_BY_KEY.has((record.stageKey ?? '') as LeadPipelineStageKey)
+                ? (record.stageKey as LeadPipelineStageKey)
+                : FIXED_STAGES[0].stageKey,
+              message: record.message?.trim() || null,
+              managerId: record.managerId?.trim() || null,
+              managerName: record.managerName?.trim() || null,
+              salespersonId: record.salespersonId?.trim() || null,
+              salespersonName: record.salespersonName?.trim() || null,
+              nextActionAt: record.nextActionAt ?? null,
+              details: Array.isArray(record.details) ? record.details.map((detail) => normalizeDetailEntry(detail)) : [],
+              createdAt: record.createdAt ?? new Date().toISOString(),
+              updatedAt: record.updatedAt ?? new Date().toISOString(),
+            } satisfies PersistedLeadRecord
+          })
+        : [],
+    } satisfies PersistedLeadStore
+  } catch {
+    if (!inMemoryLeadStore) {
+      inMemoryLeadStore = { leads: [] } satisfies PersistedLeadStore
+    }
+
+    return inMemoryLeadStore
+  }
+}
+
+async function writeStore(store: PersistedLeadStore) {
+  inMemoryLeadStore = store
+
+  try {
+    await ensureStoreFile()
+    await writeFile(LEAD_STORE_PATH, JSON.stringify(store, null, 2), 'utf8')
+  } catch {
+    // Ignore filesystem write failures in serverless hosting.
+  }
+}
+
+async function buildSeedLeads(users: ManagedUser[]) {
+  const owner = users.find((user) => user.isActive && user.role === 'SALES')
+    ?? users.find((user) => user.isActive && user.role === 'MANAGER')
+    ?? users.find((user) => user.isActive && user.role === 'DIRECTOR')
+    ?? users.find((user) => user.isActive && user.role === 'ADMIN')
+    ?? null
+  const supervisor = owner?.reportsToUserId ? users.find((user) => user.id === owner.reportsToUserId) ?? null : null
+
+  if (!owner) {
+    return [] satisfies PersistedLeadRecord[]
+  }
 
   return [
     {
@@ -155,33 +439,31 @@ async function buildSeedLeads(): Promise<ManagedLead[]> {
       phone: '+48 501 225 881',
       interestedModel: 'BYD Seal 6 DM-i',
       region: 'Warszawa',
-      stageId: newStage.id,
+      stageKey: 'NEW_LEAD',
       message: 'Prosi o leasing 36 miesięcy dla firmy.',
-      managerId: manager?.id ?? null,
-      managerName: manager?.fullName ?? null,
-      salespersonId: sales?.id ?? null,
-      salespersonName: sales?.fullName ?? null,
+      managerId: supervisor?.id ?? null,
+      managerName: supervisor?.fullName ?? null,
+      salespersonId: owner.id,
+      salespersonName: owner.fullName,
       nextActionAt: new Date('2026-03-24T09:00:00.000Z').toISOString(),
       details: [
-        {
-          id: 'lead-seed-1-info-1',
+        buildActivityEntry({
           kind: 'INFO',
-          label: 'Data wydania samochodu',
-          value: '02.04.2026',
+          label: 'Lead utworzony',
+          value: 'Lead został wprowadzony do pipeline i oczekuje na pierwszy kontakt.',
           authorName: 'Administrator VeloPrime',
-          createdAt: new Date('2026-03-21T10:15:00.000Z').toISOString(),
-        },
-        {
-          id: 'lead-seed-1-comment-1',
+          createdAt: new Date('2026-03-21T08:10:00.000Z').toISOString(),
+        }),
+        buildActivityEntry({
           kind: 'COMMENT',
           label: 'Komentarz',
           value: 'Klient chce potwierdzić harmonogram leasingu przed finalną decyzją.',
-          authorName: 'Manager Regionu',
+          authorName: owner.fullName,
           createdAt: new Date('2026-03-21T11:00:00.000Z').toISOString(),
-        },
+        }),
       ],
       createdAt: new Date('2026-03-21T08:10:00.000Z').toISOString(),
-      updatedAt: new Date('2026-03-21T08:10:00.000Z').toISOString(),
+      updatedAt: new Date('2026-03-21T11:00:00.000Z').toISOString(),
     },
     {
       id: 'lead-seed-2',
@@ -191,14 +473,22 @@ async function buildSeedLeads(): Promise<ManagedLead[]> {
       phone: '+48 604 112 337',
       interestedModel: 'BYD Seal U',
       region: 'Krakow',
-      stageId: contactStage.id,
+      stageKey: 'FIRST_CONTACT',
       message: 'Chce jazdę próbną w przyszłym tygodniu.',
-      managerId: manager?.id ?? null,
-      managerName: manager?.fullName ?? null,
-      salespersonId: sales?.id ?? null,
-      salespersonName: sales?.fullName ?? null,
+      managerId: supervisor?.id ?? null,
+      managerName: supervisor?.fullName ?? null,
+      salespersonId: owner.id,
+      salespersonName: owner.fullName,
       nextActionAt: new Date('2026-03-25T13:30:00.000Z').toISOString(),
-      details: [],
+      details: [
+        buildActivityEntry({
+          kind: 'INFO',
+          label: 'Zmiana etapu',
+          value: 'Lead został przesunięty do etapu Pierwszy kontakt.',
+          authorName: owner.fullName,
+          createdAt: new Date('2026-03-21T09:45:00.000Z').toISOString(),
+        }),
+      ],
       createdAt: new Date('2026-03-20T12:30:00.000Z').toISOString(),
       updatedAt: new Date('2026-03-21T09:45:00.000Z').toISOString(),
     },
@@ -210,86 +500,128 @@ async function buildSeedLeads(): Promise<ManagedLead[]> {
       phone: '+48 602 778 190',
       interestedModel: 'BYD Dolphin Surf',
       region: 'Poznan',
-      stageId: negotiationStage.id,
+      stageKey: 'OFFER_SHARED',
       message: 'Negocjuje pakiet serwisowy i termin odbioru.',
-      managerId: manager?.id ?? null,
-      managerName: manager?.fullName ?? null,
-      salespersonId: sales?.id ?? null,
-      salespersonName: sales?.fullName ?? null,
+      managerId: supervisor?.id ?? null,
+      managerName: supervisor?.fullName ?? null,
+      salespersonId: owner.id,
+      salespersonName: owner.fullName,
       nextActionAt: new Date('2026-03-23T15:00:00.000Z').toISOString(),
-      details: [],
+      details: [
+        buildActivityEntry({
+          kind: 'INFO',
+          label: 'Zmiana etapu',
+          value: 'Lead został przesunięty do etapu Oferta przekazana.',
+          authorName: owner.fullName,
+          createdAt: new Date('2026-03-21T11:20:00.000Z').toISOString(),
+        }),
+      ],
       createdAt: new Date('2026-03-18T15:15:00.000Z').toISOString(),
       updatedAt: new Date('2026-03-21T11:20:00.000Z').toISOString(),
     },
-  ]
+  ] satisfies PersistedLeadRecord[]
 }
 
-async function getStore() {
-  if (!globalForLeads.crmLeads) {
-    globalForLeads.crmLeads = await buildSeedLeads()
+async function getFileStore(users: ManagedUser[]) {
+  const store = await readStore()
+
+  if (store.leads.length > 0) {
+    return store
   }
 
-  globalForLeads.crmLeads = globalForLeads.crmLeads.map((lead) => normalizeManagedLead(lead))
-
-  return globalForLeads.crmLeads
+  const seeded = { leads: await buildSeedLeads(users) } satisfies PersistedLeadStore
+  await writeStore(seeded)
+  return seeded
 }
 
-async function resolveSalesperson(salespersonId?: string) {
-  if (!salespersonId) {
-    return null
+async function listDbLeads() {
+  if (!db) {
+    return []
   }
 
+  return db.lead.findMany({
+    include: {
+      manager: true,
+      salesperson: true,
+      details: {
+        include: { authorUser: true },
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+    orderBy: { updatedAt: 'desc' },
+  })
+}
+
+async function getManagedLeadByIdInternal(leadId: string, session: AuthSession) {
+  const leads = await listManagedLeads(session)
+  return leads.find((entry) => entry.id === leadId) ?? null
+}
+
+export async function listManagedLeadStages() {
+  return FIXED_STAGES.map((stage) => ({
+    id: stage.id,
+    name: stage.name,
+    color: stage.color,
+    order: stage.order,
+    kind: stage.kind,
+  }))
+}
+
+export async function listAssignableLeadOwners(session: AuthSession) {
   const users = await listManagedUsers()
-  return users.find((user) => user.id === salespersonId && user.isActive) ?? null
+
+  return getAssignableLeadOwners(session, users).map((user) => ({
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+  }))
+}
+
+async function resolveStage(stageId?: string) {
+  if (stageId) {
+    return STAGE_BY_ID.get(stageId) ?? null
+  }
+
+  return FIXED_STAGES.find((stage) => stage.kind === 'OPEN') ?? FIXED_STAGES[0] ?? null
 }
 
 export async function listManagedLeads(session: AuthSession) {
-  const leads = await getStore()
+  const users = await listManagedUsers()
 
-  return [...leads]
-    .filter((lead) => canViewLead(session, lead))
+  if (isPrismaLeadStorageEnabled() && db) {
+    try {
+      const leads = await listDbLeads()
+
+      return leads
+        .map((lead) => mapDbLead(lead))
+        .filter((lead) => canViewLead(session, lead, users))
+        .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
+    } catch (error) {
+      if (!isPrismaSchemaMismatch(error)) {
+        throw error
+      }
+
+      forceFileLeadStorage = true
+    }
+  }
+
+  const store = await getFileStore(users)
+  return store.leads
+    .map((lead) => mapPersistedLead(lead))
+    .filter((lead) => canViewLead(session, lead, users))
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
 }
 
-export async function createManagedLeadStage(session: AuthSession, input: CreateLeadStageInput) {
-  if (!isLeadership(session.role)) {
-    return { ok: false as const, error: 'Tylko kadra zarządzająca może tworzyć etapy.' }
-  }
+export async function createManagedLeadStage(_session: AuthSession, _input: CreateLeadStageInput) {
+  void _session
+  void _input
+  return { ok: false as const, error: 'Etapy pipeline są sztywne i nie można ich dodawać.' }
+}
 
-  const name = input.name.trim()
-
-  if (!name) {
-    return { ok: false as const, error: 'Podaj nazwę etapu.' }
-  }
-
-  const stages = await getStageStore()
-
-  if (stages.some((stage) => stage.name.toLowerCase() === name.toLowerCase())) {
-    return { ok: false as const, error: 'Etap o takiej nazwie już istnieje.' }
-  }
-
-  const afterStage = input.afterStageId
-    ? stages.find((stage) => stage.id === input.afterStageId) ?? null
-    : null
-  const insertionOrder = afterStage ? afterStage.order + 1 : stages.length
-
-  stages.forEach((stage) => {
-    if (stage.order >= insertionOrder) {
-      stage.order += 1
-    }
-  })
-
-  const nextStage: LeadStage = {
-    id: `stage-${crypto.randomUUID()}`,
-    name,
-    color: input.color.trim() || '#5aa9e6',
-    kind: input.kind,
-    order: insertionOrder,
-  }
-
-  stages.push(nextStage)
-
-  return { ok: true as const, stage: nextStage }
+export async function deleteManagedLeadStage(_session: AuthSession, _input: DeleteLeadStageInput) {
+  void _session
+  void _input
+  return { ok: false as const, error: 'Etapy pipeline są sztywne i nie można ich usuwać.' }
 }
 
 export async function createManagedLead(session: AuthSession, input: CreateManagedLeadInput) {
@@ -306,84 +638,173 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
     return { ok: false as const, error: 'Podaj email lub telefon kontaktowy.' }
   }
 
-  const stage = await resolveStage(input.stageId)
+  const [stage, users] = await Promise.all([resolveStage(input.stageId), listManagedUsers()])
 
   if (!stage) {
     return { ok: false as const, error: 'Nie udało się ustawić etapu startowego.' }
   }
 
-  let salespersonId: string | null = null
-  let salespersonName: string | null = null
-  let managerId: string | null = null
-  let managerName: string | null = null
+  const owner = getOwnerForCreation(session, input.salespersonId, users)
 
-  if (session.role === 'SALES') {
-    salespersonId = session.sub
-    salespersonName = session.fullName
-  } else {
-    const salesperson = await resolveSalesperson(input.salespersonId)
-
-    if (input.salespersonId && !salesperson) {
-      return { ok: false as const, error: 'Wybrany opiekun nie istnieje lub jest nieaktywny.' }
-    }
-
-    salespersonId = salesperson?.id ?? null
-    salespersonName = salesperson?.fullName ?? null
+  if (!owner) {
+    return { ok: false as const, error: 'Możesz przypisać leada tylko do siebie albo do osoby z własnej struktury.' }
   }
 
-  if (session.role === 'MANAGER') {
-    managerId = session.sub
-    managerName = session.fullName
+  const { byId } = buildUserMaps(users)
+  const supervisor = getDirectSupervisor(owner.id, byId)
+  const createdAt = new Date().toISOString()
+  const { firstName, lastName } = splitFullName(fullName)
+
+  if (isPrismaLeadStorageEnabled() && db) {
+    const created = await db.lead.create({
+      data: {
+        source,
+        firstName,
+        lastName,
+        email,
+        phone,
+        message: input.message?.trim() || null,
+        interestedModel: null,
+        region: input.region?.trim() || null,
+        pipelineStage: stage.stageKey,
+        managerId: supervisor?.id ?? null,
+        salespersonId: owner.id,
+        nextActionAt: null,
+        details: {
+          create: {
+            kind: 'INFO',
+            label: 'Lead utworzony',
+            value: `Lead został utworzony na etapie ${stage.name}.`,
+            authorUserId: session.sub,
+            createdAt: new Date(createdAt),
+          },
+        },
+      },
+      include: {
+        manager: true,
+        salesperson: true,
+        details: {
+          include: { authorUser: true },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    })
+
+    return { ok: true as const, lead: mapDbLead(created) }
   }
 
-  const nextLead: ManagedLead = {
+  const store = await getFileStore(users)
+  const nextLead: PersistedLeadRecord = {
     id: `lead-${crypto.randomUUID()}`,
     source,
     fullName,
     email,
     phone,
-    interestedModel: input.interestedModel?.trim() || null,
+    interestedModel: null,
     region: input.region?.trim() || null,
-    stageId: stage.id,
+    stageKey: stage.stageKey,
     message: input.message?.trim() || null,
-    managerId,
-    managerName,
-    salespersonId,
-    salespersonName,
+    managerId: supervisor?.id ?? null,
+    managerName: supervisor?.fullName ?? null,
+    salespersonId: owner.id,
+    salespersonName: owner.fullName,
     nextActionAt: null,
-    details: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    details: [
+      buildActivityEntry({
+        kind: 'INFO',
+        label: 'Lead utworzony',
+        value: `Lead został utworzony na etapie ${stage.name}.`,
+        authorName: session.fullName,
+        createdAt,
+      }),
+    ],
+    createdAt,
+    updatedAt: createdAt,
   }
 
-  const leads = await getStore()
-  leads.push(nextLead)
+  store.leads.push(nextLead)
+  await writeStore(store)
 
-  return { ok: true as const, lead: nextLead }
+  return { ok: true as const, lead: mapPersistedLead(nextLead) }
 }
 
 export async function moveManagedLeadToStage(session: AuthSession, leadId: string, stageId: string) {
-  const stage = await resolveStage(stageId)
+  const [stage, users] = await Promise.all([resolveStage(stageId), listManagedUsers()])
 
   if (!stage) {
     return { ok: false as const, error: 'Nieprawidłowy etap leada.' }
   }
 
-  const leads = await getStore()
-  const lead = leads.find((entry) => entry.id === leadId)
+  const lead = await getManagedLeadByIdInternal(leadId, session)
 
   if (!lead) {
     return { ok: false as const, error: 'Nie znaleziono leada.' }
   }
 
-  if (!canViewLead(session, lead)) {
-    return { ok: false as const, error: 'Nie masz dostępu do tego leada.' }
+  const updatedAt = new Date().toISOString()
+
+  if (isPrismaLeadStorageEnabled() && db) {
+    await db.$transaction([
+      db.lead.update({
+        where: { id: leadId },
+        data: { pipelineStage: stage.stageKey },
+      }),
+      db.leadDetailEntry.create({
+        data: {
+          leadId,
+          kind: 'INFO',
+          label: 'Zmiana etapu',
+          value: `Lead został przesunięty do etapu ${stage.name}.`,
+          authorUserId: session.sub,
+          createdAt: new Date(updatedAt),
+        },
+      }),
+    ])
+
+    const refreshed = await db.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        manager: true,
+        salesperson: true,
+        details: {
+          include: { authorUser: true },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    })
+
+    if (!refreshed) {
+      return { ok: false as const, error: 'Nie znaleziono leada po zapisaniu zmiany etapu.' }
+    }
+
+    return { ok: true as const, lead: mapDbLead(refreshed) }
   }
 
-  lead.stageId = stage.id
-  lead.updatedAt = new Date().toISOString()
+  const store = await getFileStore(users)
+  const leadIndex = store.leads.findIndex((entry) => entry.id === leadId)
 
-  return { ok: true as const, lead }
+  if (leadIndex === -1) {
+    return { ok: false as const, error: 'Nie znaleziono leada.' }
+  }
+
+  store.leads[leadIndex] = {
+    ...store.leads[leadIndex],
+    stageKey: stage.stageKey,
+    updatedAt,
+    details: [
+      buildActivityEntry({
+        kind: 'INFO',
+        label: 'Zmiana etapu',
+        value: `Lead został przesunięty do etapu ${stage.name}.`,
+        authorName: session.fullName,
+        createdAt: updatedAt,
+      }),
+      ...store.leads[leadIndex].details,
+    ],
+  }
+
+  await writeStore(store)
+  return { ok: true as const, lead: mapPersistedLead(store.leads[leadIndex]) }
 }
 
 export async function addManagedLeadDetailEntry(
@@ -395,15 +816,11 @@ export async function addManagedLeadDetailEntry(
     value: string
   }
 ) {
-  const leads = await getStore()
-  const lead = leads.find((entry) => entry.id === input.leadId)
+  const users = await listManagedUsers()
+  const lead = await getManagedLeadByIdInternal(input.leadId, session)
 
   if (!lead) {
     return { ok: false as const, error: 'Nie znaleziono leada.' }
-  }
-
-  if (!canViewLead(session, lead)) {
-    return { ok: false as const, error: 'Nie masz dostępu do tego leada.' }
   }
 
   const value = input.value.trim()
@@ -417,60 +834,83 @@ export async function addManagedLeadDetailEntry(
     return { ok: false as const, error: 'Podaj nazwę informacji.' }
   }
 
-  const nextEntry: LeadDetailEntry = {
-    id: `lead-detail-${crypto.randomUUID()}`,
+  const createdAt = new Date().toISOString()
+
+  if (isPrismaLeadStorageEnabled() && db) {
+    const entry = await db.leadDetailEntry.create({
+      data: {
+        leadId: input.leadId,
+        kind: input.kind,
+        label: input.kind === 'COMMENT' ? 'Komentarz' : label,
+        value,
+        authorUserId: session.sub,
+        createdAt: new Date(createdAt),
+      },
+      include: { authorUser: true },
+    })
+
+    await db.lead.update({
+      where: { id: input.leadId },
+      data: { updatedAt: new Date(createdAt) },
+    })
+
+    return {
+      ok: true as const,
+      entry: {
+        id: entry.id,
+        kind: entry.kind,
+        label: entry.label,
+        value: entry.value,
+        authorName: entry.authorUser?.fullName ?? null,
+        createdAt: entry.createdAt.toISOString(),
+      } satisfies LeadDetailEntry,
+    }
+  }
+
+  const store = await getFileStore(users)
+  const leadIndex = store.leads.findIndex((entry) => entry.id === input.leadId)
+
+  if (leadIndex === -1) {
+    return { ok: false as const, error: 'Nie znaleziono leada.' }
+  }
+
+  const nextEntry = buildActivityEntry({
     kind: input.kind,
     label: input.kind === 'COMMENT' ? 'Komentarz' : label,
     value,
     authorName: session.fullName,
-    createdAt: new Date().toISOString(),
+    createdAt,
+  })
+
+  store.leads[leadIndex] = {
+    ...store.leads[leadIndex],
+    updatedAt: createdAt,
+    details: [nextEntry, ...store.leads[leadIndex].details],
   }
 
-  if (!Array.isArray(lead.details)) {
-    lead.details = []
-  }
-
-  lead.details.unshift(nextEntry)
-  lead.updatedAt = new Date().toISOString()
-
+  await writeStore(store)
   return { ok: true as const, entry: nextEntry }
 }
 
-export async function assignManagedLeadSalesperson(session: AuthSession, leadId: string, salespersonId: string) {
-  if (!isLeadership(session.role)) {
-    return { ok: false as const, error: 'Tylko administrator, dyrektor lub manager mogą przypisywać leady.' }
+export async function logManagedLeadActivity(
+  session: AuthSession,
+  input: {
+    leadId: string
+    label: string
+    value: string
   }
+) {
+  return addManagedLeadDetailEntry(session, {
+    leadId: input.leadId,
+    kind: 'INFO',
+    label: input.label,
+    value: input.value,
+  })
+}
 
-  const leads = await getStore()
-  const lead = leads.find((entry) => entry.id === leadId)
-
-  if (!lead) {
-    return { ok: false as const, error: 'Nie znaleziono leada.' }
-  }
-
-  if (!canViewLead(session, lead)) {
-    return { ok: false as const, error: 'Nie masz dostępu do tego leada.' }
-  }
-
-  if (!salespersonId) {
-    lead.salespersonId = null
-    lead.salespersonName = null
-  } else {
-    const salesperson = await resolveSalesperson(salespersonId)
-
-    if (!salesperson) {
-      return { ok: false as const, error: 'Wybrany opiekun nie istnieje lub jest nieaktywny.' }
-    }
-
-    lead.salespersonId = salesperson.id
-    lead.salespersonName = salesperson.fullName
-  }
-
-  if (session.role === 'MANAGER') {
-    lead.managerId = session.sub
-    lead.managerName = session.fullName
-  }
-
-  lead.updatedAt = new Date().toISOString()
-  return { ok: true as const, lead }
+export async function assignManagedLeadSalesperson(_session: AuthSession, _leadId: string, _salespersonId: string) {
+  void _session
+  void _leadId
+  void _salespersonId
+  return { ok: false as const, error: 'Zmiana opiekuna po utworzeniu leada jest zablokowana.' }
 }

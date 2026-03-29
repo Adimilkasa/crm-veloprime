@@ -3,14 +3,14 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarClock, FilePlus2, FileText, GripVertical, Phone, Plus, Search, UserRound, X } from 'lucide-react'
+import { ArrowLeft, CalendarClock, FilePlus2, FileText, GripVertical, Phone, Search, UserRound, X } from 'lucide-react'
 
 type LeadStage = {
   id: string
   name: string
   color: string
   order: number
-  kind: 'OPEN' | 'WON' | 'LOST'
+  kind: 'OPEN' | 'WON' | 'LOST' | 'HOLD'
 }
 
 type ManagedLead = {
@@ -49,9 +49,17 @@ type LeadOfferSummary = {
   pdfHref: string
 }
 
-type SalesUser = {
-  id: string
-  fullName: string
+function getStageKindLabel(kind: LeadStage['kind']) {
+  switch (kind) {
+    case 'WON':
+      return 'Wygrane'
+    case 'LOST':
+      return 'Utracone'
+    case 'HOLD':
+      return 'Wstrzymane'
+    default:
+      return 'Otwarte'
+  }
 }
 
 function formatDate(value: string | null) {
@@ -80,42 +88,42 @@ function formatShortDate(value: string | null) {
 
 function getStageSurface(stage: LeadStage) {
   return {
-    borderColor: `${stage.color}66`,
-    background: `linear-gradient(180deg, ${stage.color}28 0%, ${stage.color}10 100%)`,
+    borderColor: `${stage.color}24`,
+    background: `linear-gradient(180deg, rgba(255,255,255,0.52) 0%, ${stage.color}12 100%)`,
   }
 }
 
 function getStageHeaderSurface(stage: LeadStage) {
   return {
-    borderColor: `${stage.color}55`,
-    background: `linear-gradient(135deg, ${stage.color}32 0%, rgba(255,255,255,0.96) 78%)`,
+    borderColor: `${stage.color}22`,
+    background: `linear-gradient(135deg, rgba(255,255,255,0.82) 0%, ${stage.color}18 100%)`,
   }
 }
 
 function getStageBadgeSurface(stage: LeadStage) {
   return {
-    borderColor: `${stage.color}66`,
-    backgroundColor: `${stage.color}22`,
+    borderColor: `${stage.color}30`,
+    backgroundColor: `${stage.color}18`,
     color: '#2c2417',
   }
 }
 
 function getLeadCardSurface(stage: LeadStage, hasOwner: boolean) {
   return {
-    borderColor: hasOwner ? `${stage.color}3f` : `${stage.color}66`,
+    borderColor: hasOwner ? `${stage.color}22` : `${stage.color}30`,
     background: hasOwner
-      ? `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, ${stage.color}0f 100%)`
-      : `linear-gradient(180deg, ${stage.color}1e 0%, rgba(255,250,240,0.98) 100%)`,
+      ? `linear-gradient(180deg, rgba(255,255,255,0.96) 0%, ${stage.color}0a 100%)`
+      : `linear-gradient(180deg, rgba(255,255,255,0.98) 0%, ${stage.color}10 100%)`,
     boxShadow: hasOwner
-      ? '0 12px 26px rgba(31,31,31,0.05)'
-      : '0 14px 28px rgba(31,31,31,0.06)',
+      ? '0 16px 34px rgba(15,15,15,0.05)'
+      : '0 18px 38px rgba(15,15,15,0.06)',
   }
 }
 
 function getLeadMetaSurface(stage: LeadStage) {
   return {
-    borderColor: `${stage.color}2f`,
-    background: `linear-gradient(180deg, rgba(255,255,255,0.88) 0%, ${stage.color}0d 100%)`,
+    borderColor: `${stage.color}20`,
+    background: `linear-gradient(180deg, rgba(255,255,255,0.78) 0%, ${stage.color}0b 100%)`,
   }
 }
 
@@ -165,11 +173,8 @@ function LeadDetailsScreen({
   selectedLead,
   leadOffers,
   stages,
-  salesUsers,
-  canAssign,
   isPending,
   moveLeadStageAction,
-  assignLeadSalespersonAction,
   addLeadInformationAction,
   addLeadCommentAction,
   onClose,
@@ -177,11 +182,8 @@ function LeadDetailsScreen({
   selectedLead: ManagedLead | null
   leadOffers: LeadOfferSummary[]
   stages: LeadStage[]
-  salesUsers: SalesUser[]
-  canAssign: boolean
   isPending: boolean
   moveLeadStageAction: (formData: FormData) => Promise<void>
-  assignLeadSalespersonAction: (formData: FormData) => Promise<void>
   addLeadInformationAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
   addLeadCommentAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
   onClose: () => void
@@ -268,8 +270,8 @@ function LeadDetailsScreen({
             <div className="rounded-[22px] border border-[#ebe4d7] bg-white p-4 shadow-[0_14px_32px_rgba(31,31,31,0.04)]">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b27]">Obsługa</div>
               <div className="mt-3 grid gap-2.5 text-sm text-[#444444]">
-                <div>Manager: {selectedLead.managerName ?? 'Nie przypisano'}</div>
-                <div>Handlowiec: {selectedLead.salespersonName ?? 'Nie przypisano'}</div>
+                <div>Przełożony: {selectedLead.managerName ?? 'Nie przypisano'}</div>
+                <div>Opiekun: {selectedLead.salespersonName ?? 'Nie przypisano'}</div>
                 <div className="flex items-center gap-2"><CalendarClock className="h-4 w-4 text-[#9d7b27]" />{formatDate(selectedLead.nextActionAt)}</div>
                 <div>Aktualizacja: {formatDate(selectedLead.updatedAt)}</div>
               </div>
@@ -298,26 +300,6 @@ function LeadDetailsScreen({
                 </button>
               </div>
             </form>
-
-            {canAssign ? (
-              <form action={assignLeadSalespersonAction} className="rounded-[22px] border border-[#ebe4d7] bg-white p-4 shadow-[0_14px_32px_rgba(31,31,31,0.04)]">
-                <input type="hidden" name="leadId" value={selectedLead.id} />
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b27]">Przypisanie handlowca</div>
-                <div className="mt-3 flex flex-col gap-3">
-                  <select name="salespersonId" defaultValue={selectedLead.salespersonId ?? ''} className="h-11 min-w-0 rounded-2xl border border-[#e8e1d4] bg-[#fffdf9] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]">
-                    <option value="">Bez handlowca</option>
-                    {salesUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.fullName}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="submit" className="inline-flex h-11 items-center justify-center rounded-[14px] border border-[#e5dfd1] bg-white px-4 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
-                    Zapisz opiekuna
-                  </button>
-                </div>
-              </form>
-            ) : null}
 
             <div className="rounded-[22px] border border-[#ebe4d7] bg-white p-4 shadow-[0_14px_32px_rgba(31,31,31,0.04)]">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b27]">Oferty klienta</div>
@@ -480,31 +462,20 @@ export function LeadsKanbanBoard({
   leads,
   leadOffersByLeadId,
   stages,
-  salesUsers,
-  canAssign,
-  canManageStages,
   moveLeadStageAction,
-  createLeadStageAction,
-  assignLeadSalespersonAction,
   addLeadInformationAction,
   addLeadCommentAction,
 }: {
   leads: ManagedLead[]
   leadOffersByLeadId: Record<string, LeadOfferSummary[]>
   stages: LeadStage[]
-  salesUsers: SalesUser[]
-  canAssign: boolean
-  canManageStages: boolean
   moveLeadStageAction: (formData: FormData) => Promise<void>
-  createLeadStageAction: (formData: FormData) => Promise<void>
-  assignLeadSalespersonAction: (formData: FormData) => Promise<void>
   addLeadInformationAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
   addLeadCommentAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
 }) {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null)
   const [hoveredStageId, setHoveredStageId] = useState<string | null>(null)
-  const [stageInsertAfter, setStageInsertAfter] = useState<LeadStage | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -562,10 +533,10 @@ export function LeadsKanbanBoard({
     const isHovered = hoveredStageId === stageId
 
     return [
-      'flex h-full flex-col rounded-[24px] border p-2.5 shadow-[0_18px_42px_rgba(31,31,31,0.05)] transition duration-150',
+      'crm-stage-column flex h-full flex-col rounded-[28px] p-2.5 transition duration-150',
       isHovered
-        ? 'scale-[1.01] border-[rgba(201,161,59,0.28)] shadow-[0_24px_56px_rgba(31,31,31,0.08)] ring-2 ring-[rgba(201,161,59,0.12)]'
-        : 'border-[#e8e1d4]',
+        ? 'scale-[1.01] border-[rgba(212,168,79,0.24)] shadow-[0_24px_56px_rgba(15,15,15,0.08)] ring-2 ring-[rgba(212,168,79,0.10)]'
+        : '',
       !hasLeads ? 'justify-start' : '',
     ].join(' ')
   }
@@ -574,78 +545,34 @@ export function LeadsKanbanBoard({
     const isHovered = hoveredStageId === stageId
 
     return [
-      'rounded-[18px] border border-dashed px-4 py-10 text-center text-xs transition duration-150',
+      'crm-empty-state rounded-[18px] px-4 py-10 text-center text-xs transition duration-150',
       isHovered
-        ? 'border-[rgba(201,161,59,0.45)] bg-[rgba(201,161,59,0.10)] text-[#8f6b18]'
-        : 'border-[#e7dfd0] bg-[#fcfbf8] text-[#8a826f]',
+        ? 'border-[rgba(212,168,79,0.36)] bg-[rgba(212,168,79,0.08)] text-[#8f6b18]'
+        : 'text-[#8a826f]',
     ].join(' ')
   }
 
   function getCardStateClassName(lead: ManagedLead) {
     const hasOwner = Boolean(lead.salespersonId)
     return hasOwner
-      ? 'border-[#e7dfd0] bg-white text-[#5f5a4f]'
-      : 'border-[#efe3c2] bg-[#fffaf0] text-[#8f6b18]'
+    ? 'border-[rgba(0,0,0,0.04)] bg-white/80 text-[#5f5a4f]'
+    : 'border-[rgba(212,168,79,0.18)] bg-[rgba(255,250,239,0.8)] text-[#8f6b18]'
   }
 
   return (
     <section className="grid gap-4">
       {selectedLead ? (
-        <div className="fixed inset-0 z-40 bg-[rgba(36,30,20,0.16)] backdrop-blur-md">
+        <div className="fixed inset-0 z-40 bg-[rgba(17,17,17,0.12)] backdrop-blur-md">
           <LeadDetailsScreen
             selectedLead={selectedLead}
             leadOffers={selectedLeadOffers}
             stages={stages}
-            salesUsers={salesUsers}
-            canAssign={canAssign}
             isPending={isPending}
             moveLeadStageAction={moveLeadStageAction}
-            assignLeadSalespersonAction={assignLeadSalespersonAction}
             addLeadInformationAction={addLeadInformationAction}
             addLeadCommentAction={addLeadCommentAction}
             onClose={() => setSelectedLeadId(null)}
           />
-        </div>
-      ) : null}
-
-      {stageInsertAfter ? (
-        <div className="fixed inset-0 z-40 bg-[rgba(36,30,20,0.16)] p-4 backdrop-blur-md sm:p-6" onClick={() => setStageInsertAfter(null)}>
-          <div className="mx-auto w-full max-w-xl rounded-[28px] border border-[#e9e1d3] bg-[#fcfbf8] shadow-[0_30px_80px_rgba(31,31,31,0.14)]" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-center justify-between gap-4 border-b border-[#eee6d9] px-5 py-4">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Pipeline leadów</div>
-                <h3 className="mt-1 text-xl font-semibold text-[#1f1f1f]">Dodaj etap po: {stageInsertAfter.name}</h3>
-              </div>
-              <button type="button" onClick={() => setStageInsertAfter(null)} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#ebe3d6] bg-white text-[#5f5a4f] transition hover:border-[rgba(201,161,59,0.24)] hover:text-[#8f6b18]">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <form action={createLeadStageAction} className="grid gap-4 px-5 py-5">
-              <input type="hidden" name="afterStageId" value={stageInsertAfter.id} />
-              <label className="block">
-                <span className="text-sm font-medium text-[#1f1f1f]">Nazwa etapu</span>
-                <input name="name" className="mt-2 h-11 w-full rounded-2xl border border-[#e8e1d4] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="Np. Finansowanie ustalone" />
-              </label>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="block">
-                  <span className="text-sm font-medium text-[#1f1f1f]">Kolor znacznika</span>
-                  <input name="color" defaultValue={stageInsertAfter.color} className="mt-2 h-11 w-full rounded-2xl border border-[#e8e1d4] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]" placeholder="#5aa9e6" />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-medium text-[#1f1f1f]">Typ etapu</span>
-                  <select name="kind" defaultValue={stageInsertAfter.kind} className="mt-2 h-11 w-full rounded-2xl border border-[#e8e1d4] bg-white px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.45)]">
-                    <option value="OPEN">Otwarte</option>
-                    <option value="WON">Wygrane</option>
-                    <option value="LOST">Utracone</option>
-                  </select>
-                </label>
-              </div>
-              <button type="submit" className="inline-flex h-11 items-center justify-center rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white transition hover:bg-[#b8932f]">
-                Dodaj etap w tym miejscu
-              </button>
-            </form>
-          </div>
         </div>
       ) : null}
 
@@ -655,8 +582,8 @@ export function LeadsKanbanBoard({
           <div className="text-xs uppercase tracking-[0.16em] text-[#8a826f]">Przeciągnij kartę albo kliknij szczegóły</div>
         </div>
 
-        <div className="grid gap-3 rounded-[24px] border border-[#e8e1d4] bg-white p-3 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <label className="flex h-12 items-center gap-3 rounded-2xl border border-[#e8e1d4] bg-[#fcfbf8] px-4 text-sm text-[#5f5a4f]">
+        <div className="crm-card grid gap-3 rounded-[24px] p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <label className="crm-input flex h-12 items-center gap-3 px-4 text-sm text-[#5f5a4f]">
             <Search className="h-4 w-4 text-[#9d7b27]" />
             <input
               value={searchQuery}
@@ -667,7 +594,7 @@ export function LeadsKanbanBoard({
           </label>
 
           <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-[#7a7262] lg:justify-end">
-            <span className="rounded-full border border-[#e7dfd0] bg-[#fcfbf8] px-3 py-1">Widoczne: {filteredLeads.length}</span>
+            <span className="crm-pill px-3 py-1">Widoczne: {filteredLeads.length}</span>
           </div>
         </div>
       </div>
@@ -706,25 +633,15 @@ export function LeadsKanbanBoard({
                   className={`${getColumnClassNames(stage.id, stageLeads.length > 0)} w-[248px] sm:w-[274px] xl:w-[292px]`}
                   style={stageStyle}
                 >
-                  <div className="rounded-[18px] border px-3 py-3" style={getStageHeaderSurface(stage)}>
+                  <div className="crm-stage-header rounded-[22px] border px-3 py-3" style={getStageHeaderSurface(stage)}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-[#1f1f1f]">{stage.name}</div>
                         <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#6f6553]">{stageLeads.length} leadów</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {canManageStages ? (
-                          <button
-                            type="button"
-                            onClick={() => setStageInsertAfter(stage)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[#e7dfd0] bg-white text-[#8f6b18] transition hover:border-[rgba(201,161,59,0.34)] hover:bg-[#fff8ea]"
-                            aria-label={`Dodaj etap po ${stage.name}`}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
-                        ) : null}
                         <span className="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={getStageBadgeSurface(stage)}>
-                          {stage.kind === 'OPEN' ? 'Otwarte' : stage.kind === 'WON' ? 'Wygrane' : 'Utracone'}
+                          {getStageKindLabel(stage.kind)}
                         </span>
                       </div>
                     </div>

@@ -29,6 +29,7 @@ export async function createUserAction(formData: FormData) {
     fullName: String(formData.get('fullName') || ''),
     email: String(formData.get('email') || ''),
     role: String(formData.get('role') || 'SALES') as UserRoleKey,
+    password: String(formData.get('password') || ''),
     region: String(formData.get('region') || ''),
     teamName: String(formData.get('teamName') || ''),
     reportsToUserId: String(formData.get('reportsToUserId') || ''),
@@ -41,7 +42,14 @@ export async function createUserAction(formData: FormData) {
   await syncCommissionRules(session.fullName)
 
   revalidatePath('/users')
-  redirect('/users?success=created')
+  const nextUrl = new URL('/users', 'http://localhost')
+  nextUrl.searchParams.set('success', 'created')
+
+  if (result.temporaryPassword) {
+    nextUrl.searchParams.set('tempPassword', result.temporaryPassword)
+  }
+
+  redirect(`${nextUrl.pathname}${nextUrl.search}`)
 }
 
 export async function toggleUserStatusAction(formData: FormData) {

@@ -24,6 +24,22 @@ enum LeadStatus {
   LOST
 }
 
+enum LeadPipelineStage {
+  NEW_LEAD
+  FIRST_CONTACT
+  FOLLOW_UP
+  MEETING_SCHEDULED
+  OFFER_SHARED
+  WON
+  LOST
+  ON_HOLD
+}
+
+enum LeadDetailEntryKind {
+  INFO
+  COMMENT
+}
+
 enum VehicleStatus {
   AVAILABLE
   RESERVED
@@ -76,6 +92,7 @@ model User {
   updatedAt      DateTime      @updatedAt
   managedLeads   Lead[]        @relation("LeadManager")
   assignedLeads  Lead[]        @relation("LeadSalesOwner")
+  leadDetailEntriesAuthored LeadDetailEntry[] @relation("LeadDetailEntryAuthor")
   customers      Customer[]
   offers         Offer[]
   commissionRulesOwned SalesCommissionRule[] @relation("CommissionRuleOwner")
@@ -113,14 +130,35 @@ model Lead {
   interestedModel   String?
   interestedVehicle String?
   region            String?
+  pipelineStage     LeadPipelineStage @default(NEW_LEAD)
   managerId         String?
   manager           User?       @relation("LeadManager", fields: [managerId], references: [id])
   salespersonId     String?
   salesperson       User?       @relation("LeadSalesOwner", fields: [salespersonId], references: [id])
+  nextActionAt      DateTime?
   customerId        String?
   customer          Customer?   @relation(fields: [customerId], references: [id])
+  details           LeadDetailEntry[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+
+  @@index([pipelineStage])
+  @@index([salespersonId])
+  @@index([updatedAt])
+}
+
+model LeadDetailEntry {
+  id           String              @id @default(cuid())
+  leadId       String
+  lead         Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  kind         LeadDetailEntryKind @default(INFO)
+  label        String
+  value        String
+  authorUserId String?
+  authorUser   User?               @relation("LeadDetailEntryAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  createdAt    DateTime            @default(now())
+
+  @@index([leadId, createdAt])
 }
 
 model Vehicle {

@@ -15,6 +15,8 @@ export type PricingSheet = {
 const PRICING_DATA_DIR = path.join(process.cwd(), 'data')
 const PRICING_SHEET_PATH = path.join(PRICING_DATA_DIR, 'pricing-sheet.json')
 
+let inMemoryPricingSheet: PricingSheet | null = null
+
 function canManagePricing(role: AuthSession['role']) {
   return role === 'ADMIN' || role === 'DIRECTOR'
 }
@@ -78,12 +80,18 @@ function buildSeedSheet(): PricingSheet {
 }
 
 async function ensureStoreFile() {
-  await mkdir(PRICING_DATA_DIR, { recursive: true })
-
   try {
+    await mkdir(PRICING_DATA_DIR, { recursive: true })
     await readFile(PRICING_SHEET_PATH, 'utf8')
   } catch {
-    await writeFile(PRICING_SHEET_PATH, JSON.stringify(buildSeedSheet(), null, 2), 'utf8')
+    const seedSheet = buildSeedSheet()
+    inMemoryPricingSheet = seedSheet
+
+    try {
+      await writeFile(PRICING_SHEET_PATH, JSON.stringify(seedSheet, null, 2), 'utf8')
+    } catch {
+      // Serverless environments may not allow writes to the application filesystem.
+    }
   }
 }
 
@@ -101,15 +109,23 @@ async function readStore() {
       updatedBy: typeof parsed.updatedBy === 'string' ? parsed.updatedBy : null,
     } satisfies PricingSheet
   } catch {
-    const seed = buildSeedSheet()
-    await writeStore(seed)
-    return seed
+    if (!inMemoryPricingSheet) {
+      inMemoryPricingSheet = buildSeedSheet()
+    }
+
+    return inMemoryPricingSheet
   }
 }
 
 async function writeStore(sheet: PricingSheet) {
-  await ensureStoreFile()
-  await writeFile(PRICING_SHEET_PATH, JSON.stringify(sheet, null, 2), 'utf8')
+  inMemoryPricingSheet = sheet
+
+  try {
+    await ensureStoreFile()
+    await writeFile(PRICING_SHEET_PATH, JSON.stringify(sheet, null, 2), 'utf8')
+  } catch {
+    // Ignore filesystem write failures in serverless hosting.
+  }
 }
 
 export async function getActivePricingSheet() {

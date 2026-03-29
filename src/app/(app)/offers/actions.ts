@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/auth'
-import { assignManagedOfferLead, createLeadForManagedOffer, createManagedOffer, createManagedOfferVersion, updateManagedOffer } from '@/lib/offer-management'
+import { assignManagedOfferLead, createManagedOffer, createManagedOfferVersion, updateManagedOffer } from '@/lib/offer-management'
 
 async function requireSession() {
   const session = await getSession()
@@ -60,25 +60,6 @@ export async function assignOfferLeadAction(formData: FormData) {
   revalidatePath('/offers')
   revalidatePath('/leads')
   return { ok: true as const }
-}
-
-export async function createOfferLeadAction(formData: FormData) {
-  const session = await requireSession()
-  const result = await createLeadForManagedOffer(session, {
-    offerId: String(formData.get('offerId') || ''),
-    fullName: String(formData.get('fullName') || ''),
-    email: String(formData.get('email') || ''),
-    phone: String(formData.get('phone') || ''),
-    region: String(formData.get('region') || ''),
-  })
-
-  if (!result.ok) {
-    return result
-  }
-
-  revalidatePath('/offers')
-  revalidatePath('/leads')
-  return { ok: true as const, leadId: result.lead.id }
 }
 
 export async function updateOfferAction(formData: FormData) {

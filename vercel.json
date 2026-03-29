@@ -1,0 +1,40 @@
+{
+  "headers": [
+    {
+      "source": "/download/(.*)\\.appinstaller",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/appinstaller"
+        }
+      ]
+    },
+    {
+      "source": "/download/(.*)\\.msix",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/msix"
+        }
+      ]
+    },
+    {
+      "source": "/download/(.*)\\.cer",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/pkix-cert"
+        }
+      ]
+    },
+    {
+      "source": "/download/(.*)\\.ps1",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
+    }
+  ]
+}

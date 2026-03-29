@@ -59,6 +59,30 @@ function sanitizeClonedPdfDocument(sourceRoot: HTMLElement, clonedDocument: Docu
   }
 }
 
+type Html2PdfOptions = {
+  margin: [number, number, number, number]
+  filename: string
+  image: {
+    type: 'jpeg'
+    quality: number
+  }
+  pagebreak: {
+    mode: string[]
+    before: string[]
+  }
+  html2canvas: {
+    scale: number
+    useCORS: boolean
+    backgroundColor: string
+    onclone: (clonedDocument: Document) => void
+  }
+  jsPDF: {
+    unit: 'mm'
+    format: 'a4'
+    orientation: 'portrait'
+  }
+}
+
 export function PrintPdfButton() {
   const [isDownloading, setIsDownloading] = useState(false)
 
@@ -75,7 +99,7 @@ export function PrintPdfButton() {
       const html2pdfModule = await import('html2pdf.js')
       const html2pdf = html2pdfModule.default
       const offerNumber = documentElement.getAttribute('data-offer-number') || 'oferta-veloprime'
-      const options: any = {
+      const options: Html2PdfOptions = {
         margin: [8, 8, 8, 8],
         filename: `${offerNumber}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },

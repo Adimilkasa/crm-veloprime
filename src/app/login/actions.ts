@@ -8,7 +8,7 @@ export async function loginAction(formData: FormData) {
   const email = String(formData.get('email') || '')
   const password = String(formData.get('password') || '')
 
-  const user = validateDemoCredentials(email, password)
+  const user = await validateDemoCredentials(email, password)
 
   if (!user) {
     redirect('/login?error=credentials')

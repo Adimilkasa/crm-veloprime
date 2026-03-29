@@ -1,11 +1,48 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { randomUUID, scryptSync } from 'node:crypto'
 
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 const VAT_RATE = 1.23
 const PALETTES_PATH = path.join(process.cwd(), 'data', 'byd-color-palettes.json')
+const PASSWORD_HASH_PREFIX = 'scrypt:'
+
+const seedUsers = [
+  {
+    id: 'demo-admin',
+    email: 'admin@veloprime.pl',
+    fullName: 'Administrator VeloPrime',
+    role: 'ADMIN',
+    reportsToUserId: null,
+    password: 'Admin123!',
+  },
+  {
+    id: 'demo-director',
+    email: 'dyrektor@veloprime.pl',
+    fullName: 'Dyrektor Sprzedazy',
+    role: 'DIRECTOR',
+    reportsToUserId: null,
+    password: 'Director123!',
+  },
+  {
+    id: 'demo-manager',
+    email: 'manager@veloprime.pl',
+    fullName: 'Manager Regionu',
+    role: 'MANAGER',
+    reportsToUserId: 'demo-director',
+    password: 'Manager123!',
+  },
+  {
+    id: 'demo-sales',
+    email: 'handlowiec@veloprime.pl',
+    fullName: 'Handlowiec VeloPrime',
+    role: 'SALES',
+    reportsToUserId: 'demo-manager',
+    password: 'Sales123!',
+  },
+]
 
 function roundMoney(value) {
   return Number(value.toFixed(2))
@@ -23,6 +60,12 @@ function toNet(gross, explicitNet) {
   return null
 }
 
+function hashPassword(password) {
+  const salt = randomUUID().replace(/-/g, '')
+  const hash = scryptSync(password, salt, 64).toString('hex')
+  return `${PASSWORD_HASH_PREFIX}${salt}:${hash}`
+}
+
 async function readPalettes() {
   const raw = await readFile(PALETTES_PATH, 'utf8')
   const parsed = JSON.parse(raw)
@@ -31,6 +74,29 @@ async function readPalettes() {
 }
 
 async function main() {
+  for (const user of seedUsers) {
+    await prisma.user.upsert({
+      where: { id: user.id },
+      update: {
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: true,
+        reportsToUserId: user.reportsToUserId,
+        passwordHash: hashPassword(user.password),
+      },
+      create: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: true,
+        reportsToUserId: user.reportsToUserId,
+        passwordHash: hashPassword(user.password),
+      },
+    })
+  }
+
   const palettes = await readPalettes()
 
   for (const palette of palettes) {
@@ -107,7 +173,7 @@ async function main() {
     })
   }
 
-  console.log(`Seeded ${palettes.length} color palettes.`)
+  console.log(`Seeded ${seedUsers.length} users and ${palettes.length} color palettes.`)
 }
 
 main()

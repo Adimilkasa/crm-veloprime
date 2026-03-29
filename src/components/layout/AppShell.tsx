@@ -11,71 +11,20 @@ const PRIMARY_NAV_HREFS = ['/dashboard', '/leads', '/customers', '/offers']
 const BACKGROUND_STORAGE_KEY = 'crm-veloprime-shell-background'
 const BACKGROUND_PRESETS = [
   {
-    key: 'sand',
-    label: 'Piaskowe',
-    description: 'Ciepły, domyślny wariant VeloPrime.',
-    shellBackground: 'radial-gradient(circle at top, rgba(201,161,59,0.16), transparent 26%), radial-gradient(circle at 12% 18%, rgba(255,244,214,0.7), transparent 22%), linear-gradient(180deg, #fbfaf6 0%, #f4f0e8 100%)',
-    swatchBackground: 'linear-gradient(135deg, #f6eedc 0%, #e7d1a0 100%)',
+    key: 'signature',
+    label: 'Signature',
+    description: 'Domyślny wariant VeloPrime: jasny, ciepły i najbardziej premium.',
+    shellBackground: 'radial-gradient(circle at top, rgba(212,168,79,0.1), transparent 24%), radial-gradient(circle at 12% 16%, rgba(255,249,238,0.92), transparent 18%), linear-gradient(180deg, #fcfcfa 0%, #f4f1eb 100%)',
+    swatchBackground: 'linear-gradient(135deg, #f8f0de 0%, #e4c98d 100%)',
   },
   {
-    key: 'ocean',
-    label: 'Ocean',
-    description: 'Chłodny, bardziej technologiczny klimat.',
-    shellBackground: 'radial-gradient(circle at top, rgba(74,144,226,0.2), transparent 28%), radial-gradient(circle at 88% 14%, rgba(146,208,255,0.5), transparent 20%), linear-gradient(180deg, #f6fbff 0%, #e8f2fb 100%)',
-    swatchBackground: 'linear-gradient(135deg, #d7ecff 0%, #78b3ea 100%)',
-  },
-  {
-    key: 'sage',
-    label: 'Szałwia',
-    description: 'Spokojny, lekko zielony wariant do codziennej pracy.',
-    shellBackground: 'radial-gradient(circle at top, rgba(31,143,106,0.18), transparent 28%), radial-gradient(circle at 18% 16%, rgba(208,240,223,0.65), transparent 22%), linear-gradient(180deg, #f6fbf8 0%, #e7f1ea 100%)',
-    swatchBackground: 'linear-gradient(135deg, #d6ecde 0%, #7fbb9c 100%)',
-  },
-  {
-    key: 'sunset',
-    label: 'Zachód',
-    description: 'Wyraźniejszy, bursztynowo-miedziany akcent.',
-    shellBackground: 'radial-gradient(circle at top, rgba(192,86,33,0.2), transparent 30%), radial-gradient(circle at 82% 12%, rgba(255,204,168,0.52), transparent 18%), linear-gradient(180deg, #fcf7f2 0%, #f3e5da 100%)',
-    swatchBackground: 'linear-gradient(135deg, #f8dcc7 0%, #cf7e55 100%)',
-  },
-  {
-    key: 'lavender',
-    label: 'Lawenda',
-    description: 'Jaśniejszy wariant z chłodnym fioletem.',
-    shellBackground: 'radial-gradient(circle at top, rgba(124,92,255,0.18), transparent 28%), radial-gradient(circle at 14% 20%, rgba(222,212,255,0.6), transparent 22%), linear-gradient(180deg, #fbfaff 0%, #eee9fb 100%)',
-    swatchBackground: 'linear-gradient(135deg, #e7defb 0%, #9b84eb 100%)',
-  },
-  {
-    key: 'stone',
-    label: 'Szare',
-    description: 'Neutralne, spokojne tło do dłuższej pracy.',
-    shellBackground: 'radial-gradient(circle at top, rgba(120,128,140,0.16), transparent 28%), radial-gradient(circle at 86% 16%, rgba(228,232,238,0.65), transparent 20%), linear-gradient(180deg, #f5f6f8 0%, #e5e9ef 100%)',
-    swatchBackground: 'linear-gradient(135deg, #dde1e7 0%, #95a0ae 100%)',
+    key: 'studio',
+    label: 'Studio',
+    description: 'Chłodniejszy wariant do dłuższej pracy z danymi i ofertami.',
+    shellBackground: 'radial-gradient(circle at top, rgba(145,155,170,0.08), transparent 24%), radial-gradient(circle at 86% 14%, rgba(240,243,247,0.84), transparent 18%), linear-gradient(180deg, #fbfcfd 0%, #eef1f4 100%)',
+    swatchBackground: 'linear-gradient(135deg, #e6eaef 0%, #b0bbc8 100%)',
   },
 ] as const
-
-function getNavIconClassName(href: string) {
-  switch (href) {
-    case '/dashboard':
-      return 'text-[#4a90e2]'
-    case '/leads':
-      return 'text-[#b7791f]'
-    case '/customers':
-      return 'text-[#1f8f6a]'
-    case '/vehicles':
-      return 'text-[#c05621]'
-    case '/offers':
-      return 'text-[#8f6b18]'
-    case '/commissions':
-      return 'text-[#7c5cff]'
-    case '/users':
-      return 'text-[#c53030]'
-    case '/pricing':
-      return 'text-[#2b6cb0]'
-    default:
-      return 'text-[#8a826f]'
-  }
-}
 
 export function AppShell({
   children,
@@ -91,35 +40,42 @@ export function AppShell({
   const navigation = getNavigationForRole(role).filter((item) => item.href !== '/colors')
   const [isMoreOpen, setMoreOpen] = useState(false)
   const [isThemeOpen, setThemeOpen] = useState(false)
-  const [backgroundPresetKey, setBackgroundPresetKey] = useState<(typeof BACKGROUND_PRESETS)[number]['key']>('sand')
+  const [backgroundPresetKey, setBackgroundPresetKey] = useState<(typeof BACKGROUND_PRESETS)[number]['key']>(() => {
+    if (typeof window === 'undefined') {
+      return 'signature'
+    }
+
+    const storedPreset = window.localStorage.getItem(BACKGROUND_STORAGE_KEY)
+    return BACKGROUND_PRESETS.some((preset) => preset.key === storedPreset)
+      ? storedPreset as (typeof BACKGROUND_PRESETS)[number]['key']
+      : 'signature'
+  })
   const primaryNavigation = navigation.filter((item) => PRIMARY_NAV_HREFS.includes(item.href))
   const secondaryNavigation = navigation.filter((item) => !PRIMARY_NAV_HREFS.includes(item.href))
   const hasActiveSecondaryItem = secondaryNavigation.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
   const activeBackgroundPreset = BACKGROUND_PRESETS.find((preset) => preset.key === backgroundPresetKey) ?? BACKGROUND_PRESETS[0]
 
   useEffect(() => {
-    setMoreOpen(false)
-    setThemeOpen(false)
-  }, [pathname])
+    const closeMenusTimer = window.setTimeout(() => {
+      setMoreOpen(false)
+      setThemeOpen(false)
+    }, 0)
 
-  useEffect(() => {
-    const storedPreset = window.localStorage.getItem(BACKGROUND_STORAGE_KEY)
-
-    if (storedPreset && BACKGROUND_PRESETS.some((preset) => preset.key === storedPreset)) {
-      setBackgroundPresetKey(storedPreset as (typeof BACKGROUND_PRESETS)[number]['key'])
+    return () => {
+      window.clearTimeout(closeMenusTimer)
     }
-  }, [])
+  }, [pathname])
 
   useEffect(() => {
     window.localStorage.setItem(BACKGROUND_STORAGE_KEY, backgroundPresetKey)
   }, [backgroundPresetKey])
 
   return (
-    <div className="min-h-screen text-[#1f1f1f] transition-[background] duration-300" style={{ background: activeBackgroundPreset.shellBackground }}>
+    <div className="min-h-screen text-[#111111] transition-[background] duration-300" style={{ background: activeBackgroundPreset.shellBackground }}>
       <div className="min-h-screen">
-        <header className="sticky top-0 z-30 border-b border-[#e9e4d9] bg-[rgba(250,250,249,0.86)] backdrop-blur-xl transition-colors duration-300">
-          <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-2 px-4 py-2.5 lg:px-8 lg:py-2.5 xl:flex-row xl:items-center xl:justify-between">
-            <Link href="/dashboard" className="inline-flex h-8 w-fit shrink-0 items-center rounded-full border border-[rgba(201,161,59,0.28)] bg-[rgba(201,161,59,0.12)] px-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8f6b18] shadow-[0_8px_22px_rgba(201,161,59,0.12)]">
+        <header className="crm-glass-nav sticky top-0 z-30 transition-colors duration-300">
+          <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-2.5 px-4 py-3 lg:px-8 xl:flex-row xl:items-center xl:justify-between">
+            <Link href="/dashboard" className="crm-pill inline-flex h-8 w-fit shrink-0 items-center px-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8c6b22] shadow-[0_10px_24px_rgba(212,168,79,0.1)]">
               CRM VeloPrime
             </Link>
 
@@ -133,15 +89,15 @@ export function AppShell({
                       key={item.href}
                       href={item.href}
                       className={[
-                        'inline-flex h-9 shrink-0 items-center gap-2 rounded-[16px] border px-3 text-[13px] font-medium shadow-[0_10px_24px_rgba(31,31,31,0.03)] transition',
+                        'inline-flex h-9 shrink-0 items-center gap-2 rounded-[16px] px-3 text-[13px] font-medium transition',
                         isActive
-                          ? 'border-[rgba(201,161,59,0.34)] bg-[#c9a13b] text-white shadow-[0_16px_32px_rgba(201,161,59,0.22)]'
-                          : 'border-[#ebe5d8] bg-white text-[#6b6b6b] hover:border-[rgba(201,161,59,0.24)] hover:text-[#1f1f1f]',
+                          ? 'crm-button-primary'
+                          : 'crm-button-secondary text-[#575247]',
                       ].join(' ')}
                     >
                         <Icon className={[
                           'h-3.5 w-3.5 transition',
-                          isActive ? 'text-white' : getNavIconClassName(item.href),
+                          isActive ? 'text-[#181512]' : 'text-[#8a857a]',
                         ].join(' ')} />
                       <span>{item.label}</span>
                     </Link>
@@ -154,10 +110,10 @@ export function AppShell({
                       type="button"
                       onClick={() => setMoreOpen((current) => !current)}
                       className={[
-                        'inline-flex h-9 items-center gap-2 rounded-[16px] border px-3 text-[13px] font-medium shadow-[0_10px_24px_rgba(31,31,31,0.03)] transition',
+                        'inline-flex h-9 items-center gap-2 rounded-[16px] px-3 text-[13px] font-medium transition',
                         hasActiveSecondaryItem || isMoreOpen
-                          ? 'border-[rgba(201,161,59,0.34)] bg-[#c9a13b] text-white shadow-[0_16px_32px_rgba(201,161,59,0.22)]'
-                          : 'border-[#ebe5d8] bg-white text-[#6b6b6b] hover:border-[rgba(201,161,59,0.24)] hover:text-[#1f1f1f]',
+                          ? 'crm-button-primary'
+                          : 'crm-button-secondary text-[#575247]',
                       ].join(' ')}
                     >
                       <span>Więcej</span>
@@ -168,8 +124,8 @@ export function AppShell({
                     </button>
 
                     {isMoreOpen ? (
-                      <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-[280px] rounded-[22px] border border-[#e8e1d4] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(250,247,241,0.98)_100%)] p-3 shadow-[0_22px_48px_rgba(31,31,31,0.12)] backdrop-blur-xl">
-                        <div className="rounded-[18px] border border-[#ece4d7] bg-[linear-gradient(135deg,#fffdfa_0%,#f7f0e2_100%)] px-3.5 py-3">
+                      <div className="crm-overlay absolute right-0 top-[calc(100%+10px)] z-40 w-[280px] rounded-[22px] p-3">
+                        <div className="crm-card rounded-[18px] px-3.5 py-3">
                           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8c6715]">Sekcje dodatkowe</div>
                           <div className="mt-1 text-[13px] leading-5 text-[#5f5a4f]">Rzadziej używane moduły dostępne z jednego miejsca.</div>
                         </div>
@@ -184,15 +140,15 @@ export function AppShell({
                                 key={item.href}
                                 href={item.href}
                                 className={[
-                                  'flex items-center justify-between gap-3 rounded-[16px] border px-3.5 py-3 transition',
+                                  'flex items-center justify-between gap-3 rounded-[16px] px-3.5 py-3 transition',
                                   isActive
-                                    ? 'border-[#ead7a7] bg-[linear-gradient(135deg,#fff8e8_0%,#f8ecd0_100%)] text-[#1f1f1f] shadow-[0_10px_24px_rgba(201,161,59,0.12)]'
-                                    : 'border-[#ece4d7] bg-white/90 text-[#5f5a4f] hover:border-[#e1d3b2] hover:bg-[#fffdfa] hover:text-[#1f1f1f]',
+                                    ? 'crm-button-primary text-[#181512]'
+                                    : 'crm-card text-[#5f5a4f] hover:text-[#1f1f1f]',
                                 ].join(' ')}
                               >
                                 <div className="flex min-w-0 items-center gap-3">
-                                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] border border-[#ece4d7] bg-[#fcfbf8]">
-                                    <Icon className={['h-4 w-4', getNavIconClassName(item.href)].join(' ')} />
+                                  <span className="crm-pill inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-[rgba(255,255,255,0.74)]">
+                                    <Icon className={['h-4 w-4', isActive ? 'text-[#181512]' : 'text-[#8a857a]'].join(' ')} />
                                   </span>
                                   <span className="truncate text-[13px] font-medium">{item.label}</span>
                                 </div>
@@ -208,9 +164,12 @@ export function AppShell({
             </nav>
 
             <div className="relative flex shrink-0 flex-wrap gap-2 sm:items-center sm:justify-end">
+              <span className="crm-pill hidden px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-[#746e62] shadow-[0_8px_24px_rgba(31,31,31,0.03)] lg:inline-flex">
+                {userName}
+              </span>
               <span className={[
-                'inline-flex h-7 items-center rounded-full px-3 text-[11px] uppercase tracking-[0.16em] shadow-[0_8px_24px_rgba(31,31,31,0.04)]',
-                'border border-[#ebe5d8] bg-white text-[#6b6b6b]',
+                'inline-flex h-7 items-center rounded-full px-3 text-[11px] uppercase tracking-[0.16em] shadow-[0_8px_24px_rgba(31,31,31,0.03)]',
+                'crm-pill text-[#6b6b6b]',
               ].join(' ')}>
                 {roleDefinition.label}
               </span>
@@ -218,30 +177,30 @@ export function AppShell({
                 type="button"
                 onClick={() => setThemeOpen((current) => !current)}
                 className={[
-                  'inline-flex h-9 items-center justify-center gap-2 rounded-[16px] border bg-white px-3 text-[13px] font-medium shadow-[0_10px_30px_rgba(31,31,31,0.04)] transition',
+                  'inline-flex h-9 items-center justify-center gap-2 rounded-[16px] px-3 text-[13px] font-medium transition',
                   isThemeOpen
-                    ? 'border-[rgba(201,161,59,0.34)] text-[#8f6b18]'
-                    : 'border-[#ebe5d8] text-[#4d4d4d] hover:border-[rgba(201,161,59,0.28)] hover:text-[#8f6b18]',
+                    ? 'crm-button-primary text-[#181512]'
+                    : 'crm-button-secondary text-[#4d4d4d] hover:text-[#1f1f1f]',
                 ].join(' ')}
               >
-                <Palette className="h-4 w-4 text-[#8f6b18]" />
+                <Palette className="h-4 w-4 text-[#8a857a]" />
                 <span className="hidden md:inline">Tło</span>
               </button>
-              <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-[16px] border border-[#ebe5d8] bg-white text-[#4d4d4d] shadow-[0_10px_30px_rgba(31,31,31,0.04)] transition hover:border-[rgba(201,161,59,0.28)] hover:text-[#8f6b18]">
+              <button type="button" className="crm-button-icon inline-flex h-9 w-9 items-center justify-center rounded-[16px] text-[#4d4d4d] hover:text-[#1f1f1f]">
                 <Bell className="h-4 w-4" />
               </button>
               <form action="/logout" method="post">
-                <button type="submit" className="inline-flex h-9 items-center justify-center gap-2 rounded-[16px] border border-[#ebe5d8] bg-white px-3 text-[13px] font-medium text-[#4d4d4d] shadow-[0_10px_30px_rgba(31,31,31,0.04)] transition hover:border-[rgba(201,161,59,0.28)] hover:text-[#8f6b18]">
+                <button type="submit" className="crm-button-secondary inline-flex h-9 items-center justify-center gap-2 rounded-[16px] px-3 text-[13px] font-medium text-[#4d4d4d] hover:text-[#1f1f1f]">
                   <LogOut className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Wyloguj</span>
                 </button>
               </form>
 
               {isThemeOpen ? (
-                <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-[320px] rounded-[22px] border border-[#e8e1d4] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(250,247,241,0.98)_100%)] p-3 shadow-[0_22px_48px_rgba(31,31,31,0.12)] backdrop-blur-xl">
-                  <div className="rounded-[18px] border border-[#ece4d7] bg-[linear-gradient(135deg,#fffdfa_0%,#f7f0e2_100%)] px-3.5 py-3">
+                <div className="crm-overlay absolute right-0 top-[calc(100%+10px)] z-40 w-[320px] rounded-[22px] p-3">
+                  <div className="crm-card rounded-[18px] px-3.5 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8c6715]">Tło aplikacji</div>
-                    <div className="mt-1 text-[13px] leading-5 text-[#5f5a4f]">Każdy użytkownik może dobrać własny wariant wizualny. Ustawienie zapisuje się lokalnie w przeglądarce.</div>
+                    <div className="mt-1 text-[13px] leading-5 text-[#5f5a4f]">Dwa dopracowane warianty utrzymują spójny charakter marki. Ustawienie zapisuje się lokalnie w przeglądarce.</div>
                   </div>
 
                   <div className="mt-3 grid gap-2">
@@ -257,10 +216,10 @@ export function AppShell({
                             setThemeOpen(false)
                           }}
                           className={[
-                            'flex items-center justify-between gap-3 rounded-[16px] border px-3.5 py-3 text-left transition',
+                            'flex items-center justify-between gap-3 rounded-[16px] px-3.5 py-3 text-left transition',
                             isActive
-                              ? 'border-[#ead7a7] bg-[linear-gradient(135deg,#fff8e8_0%,#f8ecd0_100%)] shadow-[0_10px_24px_rgba(201,161,59,0.12)]'
-                              : 'border-[#ece4d7] bg-white/90 hover:border-[#e1d3b2] hover:bg-[#fffdfa]',
+                              ? 'crm-button-primary'
+                              : 'crm-card',
                           ].join(' ')}
                         >
                           <div className="flex min-w-0 items-center gap-3">
@@ -272,7 +231,7 @@ export function AppShell({
                           </div>
                           <span className={[
                             'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border',
-                            isActive ? 'border-[#d9c288] bg-white text-[#8f6b18]' : 'border-[#e7dfd0] bg-[#fcfbf8] text-transparent',
+                            isActive ? 'border-[#d9c288] bg-white text-[#8f6b18]' : 'border-[rgba(0,0,0,0.04)] bg-[rgba(255,255,255,0.74)] text-transparent',
                           ].join(' ')}>
                             <Check className="h-3.5 w-3.5" />
                           </span>
@@ -286,7 +245,7 @@ export function AppShell({
           </div>
         </header>
 
-        <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 lg:px-8 lg:py-6">
+        <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-6 lg:px-8 lg:py-7">
           <div>{children}</div>
         </div>
       </div>

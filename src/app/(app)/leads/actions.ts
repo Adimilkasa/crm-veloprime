@@ -6,9 +6,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import {
   addManagedLeadDetailEntry,
-  assignManagedLeadSalesperson,
   createManagedLead,
-  createManagedLeadStage,
   moveManagedLeadToStage,
 } from '@/lib/lead-management'
 
@@ -30,7 +28,6 @@ export async function createLeadAction(formData: FormData) {
     fullName: String(formData.get('fullName') || ''),
     email: String(formData.get('email') || ''),
     phone: String(formData.get('phone') || ''),
-    interestedModel: String(formData.get('interestedModel') || ''),
     region: String(formData.get('region') || ''),
     message: String(formData.get('message') || ''),
     stageId: String(formData.get('stageId') || ''),
@@ -57,37 +54,6 @@ export async function moveLeadStageAction(formData: FormData) {
 
   revalidatePath('/leads')
   redirect('/leads?success=stage')
-}
-
-export async function assignLeadSalespersonAction(formData: FormData) {
-  const session = await requireSession()
-  const leadId = String(formData.get('leadId') || '')
-  const salespersonId = String(formData.get('salespersonId') || '')
-  const result = await assignManagedLeadSalesperson(session, leadId, salespersonId)
-
-  if (!result.ok) {
-    redirect(`/leads?error=${encodeURIComponent(result.error)}`)
-  }
-
-  revalidatePath('/leads')
-  redirect('/leads?success=assigned')
-}
-
-export async function createLeadStageAction(formData: FormData) {
-  const session = await requireSession()
-  const result = await createManagedLeadStage(session, {
-    name: String(formData.get('name') || ''),
-    color: String(formData.get('color') || ''),
-    kind: (String(formData.get('kind') || 'OPEN') as 'OPEN' | 'WON' | 'LOST'),
-    afterStageId: String(formData.get('afterStageId') || ''),
-  })
-
-  if (!result.ok) {
-    redirect(`/leads?error=${encodeURIComponent(result.error)}`)
-  }
-
-  revalidatePath('/leads')
-  redirect('/leads?success=stage-created')
 }
 
 export async function addLeadInformationAction(formData: FormData) {

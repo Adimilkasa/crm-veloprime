@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Palette, Plus, Save, Trash2 } from 'lucide-react'
+import { Plus, Save, Trash2 } from 'lucide-react'
 
 type ColorOption = {
   name: string
@@ -60,15 +60,31 @@ export function ColorPalettesWorkspace({
   palettes: ColorPalette[]
   saveColorPalettesAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
 }) {
+  const editorKey = JSON.stringify(palettes)
+
+  return (
+    <ColorPalettesWorkspaceEditor
+      key={editorKey}
+      roleLabel={roleLabel}
+      palettes={palettes}
+      saveColorPalettesAction={saveColorPalettesAction}
+    />
+  )
+}
+
+function ColorPalettesWorkspaceEditor({
+  roleLabel,
+  palettes,
+  saveColorPalettesAction,
+}: {
+  roleLabel: string
+  palettes: ColorPalette[]
+  saveColorPalettesAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
+}) {
   const router = useRouter()
   const [draftPalettes, setDraftPalettes] = useState<ColorPalette[]>(palettes)
   const [selectedPaletteKey, setSelectedPaletteKey] = useState<string>(palettes[0]?.paletteKey ?? '')
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
-
-  useEffect(() => {
-    setDraftPalettes(palettes)
-    setSelectedPaletteKey(palettes[0]?.paletteKey ?? '')
-  }, [palettes])
 
   const selectedPalette = draftPalettes.find((palette) => palette.paletteKey === selectedPaletteKey) ?? null
   const stats = useMemo(() => ({

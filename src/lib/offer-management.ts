@@ -3,12 +3,11 @@ import 'server-only'
 import { OfferColorKind, Prisma } from '@prisma/client'
 
 import type { AuthSession } from '@/lib/auth'
-import { getDemoUsers } from '@/lib/auth'
 import type { ModelColorPalette } from '@/lib/color-management'
 import { listActiveCommissionRules } from '@/lib/commission-management'
 import { db, hasDatabaseUrl } from '@/lib/db'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
-import { createManagedLead, listManagedLeads, listManagedLeadStages, type ManagedLead } from '@/lib/lead-management'
+import { createManagedLead, listManagedLeads, listManagedLeadStages, logManagedLeadActivity, type ManagedLead } from '@/lib/lead-management'
 import { calculateOfferSummary, type OfferCalculationSummary, type OfferCustomerType } from '@/lib/offer-calculations'
 import { buildDetailedPricingCatalog, type DetailedPricingCatalogItem } from '@/lib/pricing-catalog'
 import { getActivePricingSheet } from '@/lib/pricing-management'
@@ -165,12 +164,56 @@ export const offerStatusOptions: Array<{ value: OfferStatus; label: string }> = 
   { value: 'EXPIRED', label: 'Wygasła' },
 ]
 
-function canViewOffer(session: AuthSession, offer: ManagedOffer) {
-  if (session.role === 'ADMIN' || session.role === 'DIRECTOR' || session.role === 'MANAGER') {
-    return true
+function buildUserHierarchyMaps(users: ManagedUser[]) {
+  const children = new Map<string, ManagedUser[]>()
+
+  for (const user of users) {
+    const supervisorId = user.reportsToUserId ?? null
+
+    if (!supervisorId) {
+      continue
+    }
+
+    const bucket = children.get(supervisorId) ?? []
+    bucket.push(user)
+    children.set(supervisorId, bucket)
   }
 
-  return offer.ownerId === session.sub
+  return { children }
+}
+
+function getVisibleOfferOwnerIds(session: AuthSession, users: ManagedUser[]) {
+  if (session.role === 'ADMIN') {
+    return new Set(users.map((user) => user.id))
+  }
+
+  const { children } = buildUserHierarchyMaps(users)
+  const visible = new Set<string>([session.sub])
+  const queue = [session.sub]
+
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    const descendants = children.get(current) ?? []
+
+    for (const descendant of descendants) {
+      if (visible.has(descendant.id)) {
+        continue
+      }
+
+      visible.add(descendant.id)
+      queue.push(descendant.id)
+    }
+  }
+
+  return visible
+}
+
+function canViewOffer(offer: ManagedOffer, visibleOwnerIds: Set<string>) {
+  if (!offer.ownerId) {
+    return false
+  }
+
+  return visibleOwnerIds.has(offer.ownerId)
 }
 
 function normalizeComparable(value: string | null | undefined) {
@@ -249,8 +292,16 @@ function nextOfferNumber(offers: ManagedOffer[]) {
 }
 
 async function buildSeedOffers() {
-  const adminSession = getDemoUsers().find((user) => user.role === 'ADMIN') ?? getDemoUsers()[0]
-  const leads = adminSession ? await listManagedLeads(adminSession) : []
+  const users = await listManagedUsers()
+  const adminSession = users.find((user) => user.role === 'ADMIN') ?? users[0]
+  const leads = adminSession
+    ? await listManagedLeads({
+        sub: adminSession.id,
+        email: adminSession.email,
+        fullName: adminSession.fullName,
+        role: adminSession.role,
+      })
+    : []
 
   return leads.slice(0, 2).map((lead, index) => {
     const createdAt = new Date(Date.now() - (index + 1) * 86400000).toISOString()
@@ -269,7 +320,7 @@ async function buildSeedOffers() {
       selectedColorName: null,
       customerType: 'PRIVATE',
       discountValue: null,
-      ownerId: lead.salespersonId ?? adminSession?.sub ?? 'demo-admin',
+      ownerId: lead.salespersonId ?? adminSession?.id ?? 'demo-admin',
       ownerName: lead.salespersonName ?? adminSession?.fullName ?? 'Administrator VeloPrime',
       validUntil: new Date(Date.now() + (index + 5) * 86400000).toISOString(),
       totalGross: index === 0 ? 184900 : 203500,
@@ -457,6 +508,9 @@ function buildOfferCalculation(
 }
 
 async function getManagedOffer(session: AuthSession, offerId: string) {
+  const users = await listManagedUsers()
+  const visibleOwnerIds = getVisibleOfferOwnerIds(session, users)
+
   if (isPrismaOfferStorageEnabled() && db) {
     const record = await db.offer.findUnique({
       where: { id: offerId },
@@ -475,7 +529,7 @@ async function getManagedOffer(session: AuthSession, offerId: string) {
 
     const mapped = mapDbOfferToManagedOffer(record)
 
-    if (!canViewOffer(session, mapped)) {
+    if (!canViewOffer(mapped, visibleOwnerIds)) {
       return null
     }
 
@@ -487,7 +541,7 @@ async function getManagedOffer(session: AuthSession, offerId: string) {
 
   const offer = (await getStore()).find((entry) => entry.id === offerId) ?? null
 
-  if (!offer || !canViewOffer(session, offer)) {
+  if (!offer || !canViewOffer(offer, visibleOwnerIds)) {
     return null
   }
 
@@ -495,7 +549,11 @@ async function getManagedOffer(session: AuthSession, offerId: string) {
 }
 
 export async function listManagedOffers(session: AuthSession) {
-  const leads = await listManagedLeads(session)
+  const [leads, users] = await Promise.all([
+    listManagedLeads(session),
+    listManagedUsers(),
+  ])
+  const visibleOwnerIds = getVisibleOfferOwnerIds(session, users)
 
   if (isPrismaOfferStorageEnabled() && db) {
     const offers = await db.offer.findMany({
@@ -517,13 +575,13 @@ export async function listManagedOffers(session: AuthSession) {
         const matchedLead = matchLeadForOffer(leads, mapped)
         return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
       })
-      .filter((offer) => canViewOffer(session, offer))
+      .filter((offer) => canViewOffer(offer, visibleOwnerIds))
   }
 
   const offers = await getStore()
 
   return [...offers]
-    .filter((offer) => canViewOffer(session, offer))
+    .filter((offer) => canViewOffer(offer, visibleOwnerIds))
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
 }
 
@@ -810,6 +868,14 @@ export async function createManagedOffer(
       },
     })
 
+    if (lead) {
+      await logManagedLeadActivity(session, {
+        leadId: lead.id,
+        label: 'Oferta utworzona',
+        value: `Utworzono ofertę ${created.number} (${created.title}).`,
+      })
+    }
+
     return { ok: true as const, offer: mapDbOfferToManagedOffer(created) }
   }
 
@@ -846,6 +912,14 @@ export async function createManagedOffer(
 
   offers.unshift(nextOffer)
 
+  if (lead) {
+    await logManagedLeadActivity(session, {
+      leadId: lead.id,
+      label: 'Oferta utworzona',
+      value: `Utworzono ofertę ${nextOffer.number} (${nextOffer.title}).`,
+    })
+  }
+
   return { ok: true as const, offer: nextOffer }
 }
 
@@ -872,16 +946,10 @@ export async function updateManagedOffer(
     notes?: string
   }
 ) {
-  const offer = isPrismaOfferStorageEnabled()
-    ? await getManagedOfferWithCalculation(session, input.offerId)
-    : (await getStore()).find((entry) => entry.id === input.offerId) ?? null
+  const offer = await getManagedOfferWithCalculation(session, input.offerId)
 
   if (!offer) {
     return { ok: false as const, error: 'Nie znaleziono oferty.' }
-  }
-
-  if (!canViewOffer(session, offer)) {
-    return { ok: false as const, error: 'Nie masz dostępu do tej oferty.' }
   }
 
   const customerType = input.customerType === 'BUSINESS' ? 'BUSINESS' : 'PRIVATE'
@@ -1061,10 +1129,6 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
     return { ok: false as const, error: 'Nie znaleziono oferty.' }
   }
 
-  if (!canViewOffer(session, offer)) {
-    return { ok: false as const, error: 'Nie masz dostępu do tej oferty.' }
-  }
-
   const versionId = `offer-version-${crypto.randomUUID()}`
   const versionNumber = offer.versions.length + 1
   const payload = buildOfferVersionSnapshot(offer, versionId, versionNumber)
@@ -1093,6 +1157,14 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
       },
     })
 
+    if (offer.leadId) {
+      await logManagedLeadActivity(session, {
+        leadId: offer.leadId,
+        label: 'Nowa wersja oferty',
+        value: `Dodano wersję ${nextVersion.versionNumber} do oferty ${offer.number}.`,
+      })
+    }
+
     return { ok: true as const, version: nextVersion }
   }
 
@@ -1105,6 +1177,14 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
 
   storedOffer.versions.unshift(nextVersion)
   storedOffer.updatedAt = new Date().toISOString()
+
+  if (offer.leadId) {
+    await logManagedLeadActivity(session, {
+      leadId: offer.leadId,
+      label: 'Nowa wersja oferty',
+      value: `Dodano wersję ${nextVersion.versionNumber} do oferty ${offer.number}.`,
+    })
+  }
 
   return { ok: true as const, version: nextVersion }
 }
@@ -1123,16 +1203,10 @@ export async function assignManagedOfferLead(
     return { ok: false as const, error: 'Wybierz poprawnego leada do przypisania oferty.' }
   }
 
-  const offer = isPrismaOfferStorageEnabled()
-    ? await getManagedOfferWithCalculation(session, input.offerId)
-    : (await getStore()).find((entry) => entry.id === input.offerId) ?? null
+  const offer = await getManagedOfferWithCalculation(session, input.offerId)
 
   if (!offer) {
     return { ok: false as const, error: 'Nie znaleziono oferty.' }
-  }
-
-  if (!canViewOffer(session, offer)) {
-    return { ok: false as const, error: 'Nie masz dostępu do tej oferty.' }
   }
 
   const nextOwnerId = lead.salespersonId ?? offer.ownerId
@@ -1161,6 +1235,12 @@ export async function assignManagedOfferLead(
       },
     })
 
+    await logManagedLeadActivity(session, {
+      leadId: lead.id,
+      label: 'Oferta przypięta',
+      value: `Oferta ${updated.number} została przypięta do leada.`,
+    })
+
     return { ok: true as const, offer: { ...mapDbOfferToManagedOffer(updated), leadId: lead.id } }
   }
 
@@ -1172,6 +1252,12 @@ export async function assignManagedOfferLead(
   offer.ownerName = nextOwnerName
   offer.notes = offer.notes ?? lead.message ?? null
   offer.updatedAt = new Date().toISOString()
+
+  await logManagedLeadActivity(session, {
+    leadId: lead.id,
+    label: 'Oferta przypięta',
+    value: `Oferta ${offer.number} została przypięta do leada.`,
+  })
 
   return { ok: true as const, offer }
 }
@@ -1186,16 +1272,10 @@ export async function createLeadForManagedOffer(
     region?: string
   }
 ) {
-  const offer = isPrismaOfferStorageEnabled()
-    ? await getManagedOfferWithCalculation(session, input.offerId)
-    : (await getStore()).find((entry) => entry.id === input.offerId) ?? null
+  const offer = await getManagedOfferWithCalculation(session, input.offerId)
 
   if (!offer) {
     return { ok: false as const, error: 'Nie znaleziono oferty.' }
-  }
-
-  if (!canViewOffer(session, offer)) {
-    return { ok: false as const, error: 'Nie masz dostępu do tej oferty.' }
   }
 
   const stages = await listManagedLeadStages()

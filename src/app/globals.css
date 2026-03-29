@@ -1,14 +1,36 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #fafaf9;
-  --surface: #ffffff;
-  --surface-strong: #fcfbf8;
-  --foreground: #1f1f1f;
-  --muted: #6b6b6b;
-  --accent: #c9a13b;
-  --accent-strong: #b8932f;
-  --border: #e8e2d3;
+  --background: #fcfcfa;
+  --background-bottom: #f4f1eb;
+  --background-spotlight: rgba(255, 249, 238, 0.92);
+  --surface: rgba(255, 255, 255, 0.7);
+  --surface-strong: rgba(249, 246, 241, 0.86);
+  --card: rgba(255, 255, 255, 0.92);
+  --card-strong: #ffffff;
+  --overlay: rgba(255, 255, 255, 0.95);
+  --foreground: #111111;
+  --muted: #666666;
+  --muted-strong: #4f4f4f;
+  --muted-soft: #8a857a;
+  --accent: #d4a84f;
+  --accent-strong: #be933e;
+  --accent-soft: #ead4a4;
+  --accent-glow: rgba(212, 168, 79, 0.18);
+  --border: rgba(0, 0, 0, 0.045);
+  --border-strong: rgba(17, 17, 17, 0.08);
+  --shadow-surface: 0 12px 34px rgba(15, 15, 15, 0.04);
+  --shadow-card: 0 20px 56px rgba(15, 15, 15, 0.07);
+  --shadow-overlay: 0 30px 88px rgba(15, 15, 15, 0.12);
+  --shadow-gold: 0 12px 28px rgba(212, 168, 79, 0.16);
+  --radius-surface: 28px;
+  --radius-card: 24px;
+  --radius-input: 18px;
+  --radius-pill: 999px;
+  --motion-fast: 180ms;
+  --motion-base: 220ms;
+  --motion-slow: 280ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 html {
@@ -18,10 +40,12 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(201, 161, 59, 0.14), transparent 28%),
-    linear-gradient(180deg, #fafaf9 0%, #f7f6f4 100%);
+    radial-gradient(circle at top, rgba(212, 168, 79, 0.09), transparent 26%),
+    radial-gradient(circle at 12% 16%, var(--background-spotlight), transparent 18%),
+    linear-gradient(180deg, var(--background) 0%, var(--background-bottom) 100%);
   color: var(--foreground);
-  font-family: var(--font-manrope), Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 * {
@@ -31,6 +55,156 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition-timing-function: var(--ease-standard);
+}
+
+::selection {
+  background: rgba(212, 168, 79, 0.2);
+  color: var(--foreground);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(212, 168, 79, 0.14);
+}
+
+.crm-glass-nav {
+  border-bottom: 1px solid rgba(17, 17, 17, 0.04);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(249, 246, 241, 0.72) 100%);
+  box-shadow: 0 10px 30px rgba(17, 17, 17, 0.035);
+  backdrop-filter: blur(20px);
+}
+
+.crm-surface {
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0%, rgba(248, 245, 240, 0.8) 100%);
+  box-shadow: var(--shadow-surface);
+  backdrop-filter: blur(16px);
+}
+
+.crm-card {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 248, 244, 0.9) 100%);
+  box-shadow: var(--shadow-card);
+}
+
+.crm-card-strong {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(251, 248, 244, 0.95) 100%);
+  box-shadow: var(--shadow-card);
+}
+
+.crm-overlay {
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 246, 241, 0.92) 100%);
+  box-shadow: var(--shadow-overlay);
+  backdrop-filter: blur(20px);
+}
+
+.crm-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: var(--radius-pill);
+}
+
+.crm-input {
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 246, 242, 0.88) 100%);
+  color: var(--foreground);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: border-color var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard), background var(--motion-base) var(--ease-standard);
+}
+
+.crm-input:focus {
+  border-color: rgba(212, 168, 79, 0.45);
+  box-shadow: 0 0 0 4px rgba(212, 168, 79, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  outline: none;
+}
+
+.crm-button-primary {
+  border: 1px solid rgba(190, 147, 62, 0.28);
+  background: linear-gradient(180deg, #e3c986 0%, #d7af58 100%);
+  color: #181512;
+  box-shadow: var(--shadow-gold);
+  transition: transform var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard), filter var(--motion-base) var(--ease-standard), background var(--motion-base) var(--ease-standard);
+}
+
+.crm-button-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.015);
+  box-shadow: 0 16px 34px rgba(212, 168, 79, 0.2);
+}
+
+.crm-button-secondary {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 245, 240, 0.92) 100%);
+  color: var(--muted-strong);
+  box-shadow: 0 10px 26px rgba(15, 15, 15, 0.04);
+  transition: transform var(--motion-base) var(--ease-standard), border-color var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard), background var(--motion-base) var(--ease-standard);
+}
+
+.crm-button-secondary:hover {
+  transform: translateY(-1px);
+  border-color: rgba(212, 168, 79, 0.18);
+  color: var(--foreground);
+  box-shadow: 0 14px 30px rgba(15, 15, 15, 0.06);
+}
+
+.crm-button-icon {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 24px rgba(15, 15, 15, 0.04);
+  transition: transform var(--motion-base) var(--ease-standard), border-color var(--motion-base) var(--ease-standard), color var(--motion-base) var(--ease-standard), background var(--motion-base) var(--ease-standard);
+}
+
+.crm-button-icon:hover {
+  transform: translateY(-1px);
+  border-color: rgba(212, 168, 79, 0.18);
+}
+
+.crm-stage-column {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, rgba(248, 245, 240, 0.68) 100%);
+  box-shadow: var(--shadow-surface);
+  backdrop-filter: blur(14px);
+}
+
+.crm-stage-header {
+  border: 1px solid rgba(255, 255, 255, 0.44);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(248, 246, 242, 0.68) 100%);
+}
+
+.crm-empty-state {
+  border: 1px dashed rgba(17, 17, 17, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(248, 246, 242, 0.76) 100%);
+}
+
+.crm-feedback {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 10px 24px rgba(15, 15, 15, 0.04);
 }
 
 .kanban-scroll-fade-strong {

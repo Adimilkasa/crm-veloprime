@@ -66,6 +66,12 @@ export default function Home() {
 
       <section className="flex flex-col gap-3 sm:flex-row">
         <Link
+          href="/download"
+          className="inline-flex items-center justify-center rounded-2xl border border-[rgba(201,161,59,0.28)] bg-[linear-gradient(180deg,#f4dfae_0%,#d7af58_100%)] px-6 py-3 text-sm font-semibold text-[#1a1610] shadow-[0_18px_32px_rgba(201,161,59,0.22)] transition hover:translate-y-[-1px] hover:brightness-[1.02]"
+        >
+          Pobierz aplikację Windows
+        </Link>
+        <Link
           href="/login"
           className="inline-flex items-center justify-center rounded-2xl border border-[rgba(201,161,59,0.3)] bg-[#c9a13b] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(201,161,59,0.22)] transition hover:bg-[#b8932f]"
         >

@@ -86,17 +86,6 @@ function getFinancingVariantOptions(customerType: OfferCustomerType) {
   return FINANCING_VARIANT_OPTIONS[customerType]
 }
 
-function formatDate(value: string | null) {
-  if (!value) {
-    return 'Brak'
-  }
-
-  return new Intl.DateTimeFormat('pl-PL', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
-}
-
 function formatMoney(value: number | null) {
   if (value === null) {
     return 'Do ustalenia'
@@ -115,14 +104,6 @@ function formatPercentValue(value: number | null) {
   }
 
   return `${value.toFixed(2).replace('.', ',')}%`
-}
-
-function getOfferPoolAmount(summary: OfferCalculationSummary | null) {
-  if (!summary) {
-    return null
-  }
-
-  return summary.customerType === 'BUSINESS' ? summary.marginPoolNet : summary.marginPoolGross
 }
 
 function getStatusTone(status: OfferStatus) {
@@ -156,7 +137,7 @@ function getStatusLabel(status: OfferStatus) {
 }
 
 function SectionEyebrow({ children }: { children: string }) {
-  return <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8c6715]">{children}</div>
+  return <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8c6715]">{children}</div>
 }
 
 function SectionTitle({ title, description }: { title: string; description?: string }) {
@@ -183,12 +164,11 @@ function EditorPanel({
 }) {
   return (
     <section className={cx(
-      'rounded-[22px] border p-3.5',
-      tone === 'default' && 'border-[#ece4d7] bg-[#fffdfa]',
-      tone === 'warm' && 'border-[#e5d5b3] bg-[linear-gradient(180deg,#fffdf7_0%,#faf5ea_100%)]',
-      tone === 'cool' && 'border-[#dbe5f0] bg-[linear-gradient(180deg,#ffffff_0%,#f7fafd_100%)]',
-      tone === 'sage' && 'border-[#d7e8dd] bg-[linear-gradient(180deg,#fbfefc_0%,#eef7f1_100%)]',
-      tone === 'lavender' && 'border-[#e4dbfb] bg-[linear-gradient(180deg,#fcfbff_0%,#f3efff_100%)]',
+      'crm-card rounded-[24px] p-4',
+      tone === 'warm' && 'bg-[linear-gradient(180deg,rgba(255,252,244,0.94)_0%,rgba(248,242,228,0.9)_100%)]',
+      tone === 'cool' && 'bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(244,248,252,0.9)_100%)]',
+      tone === 'sage' && 'bg-[linear-gradient(180deg,rgba(252,255,253,0.94)_0%,rgba(239,246,241,0.9)_100%)]',
+      tone === 'lavender' && 'bg-[linear-gradient(180deg,rgba(253,252,255,0.94)_0%,rgba(244,240,251,0.9)_100%)]',
     )}>
       <SectionEyebrow>{eyebrow}</SectionEyebrow>
       <SectionTitle title={title} description={description} />
@@ -200,12 +180,12 @@ function EditorPanel({
 function MiniStat({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'accent' | 'success' | 'info' | 'lavender' }) {
   return (
     <div className={cx(
-      'min-h-[104px] rounded-[20px] border p-4',
-      tone === 'default' && 'border-[#e8e1d4] bg-[rgba(255,255,255,0.82)]',
-      tone === 'accent' && 'border-[#ead6a4] bg-[linear-gradient(180deg,rgba(255,248,229,0.96)_0%,rgba(252,241,213,0.82)_100%)]',
-      tone === 'success' && 'border-[#cee2d6] bg-[linear-gradient(180deg,rgba(245,251,247,0.96)_0%,rgba(231,243,236,0.82)_100%)]',
-      tone === 'info' && 'border-[#cfddf0] bg-[linear-gradient(180deg,rgba(248,251,255,0.96)_0%,rgba(230,239,250,0.84)_100%)]',
-      tone === 'lavender' && 'border-[#dfd4f3] bg-[linear-gradient(180deg,rgba(249,246,255,0.96)_0%,rgba(239,232,251,0.84)_100%)]',
+      'min-h-[104px] rounded-[22px] border p-4 shadow-[0_14px_30px_rgba(15,15,15,0.04)]',
+      tone === 'default' && 'border-[rgba(0,0,0,0.04)] bg-[rgba(255,255,255,0.78)]',
+      tone === 'accent' && 'border-[rgba(212,168,79,0.22)] bg-[linear-gradient(180deg,rgba(255,250,239,0.96)_0%,rgba(250,241,218,0.84)_100%)]',
+      tone === 'success' && 'border-[rgba(63,125,100,0.16)] bg-[linear-gradient(180deg,rgba(247,252,249,0.96)_0%,rgba(235,245,239,0.84)_100%)]',
+      tone === 'info' && 'border-[rgba(74,144,226,0.16)] bg-[linear-gradient(180deg,rgba(250,252,255,0.96)_0%,rgba(236,242,250,0.84)_100%)]',
+      tone === 'lavender' && 'border-[rgba(124,92,255,0.16)] bg-[linear-gradient(180deg,rgba(251,249,255,0.96)_0%,rgba(241,236,249,0.84)_100%)]',
     )}>
       <div className="text-[11px] uppercase tracking-[0.14em] text-[#6f6859]">{label}</div>
       <div className="mt-3 text-[21px] font-semibold leading-7 text-[#1f1f1f]">{value}</div>
@@ -251,7 +231,7 @@ function ResultsPanel({
     : 'Wyłączony'
 
   return (
-    <section className="sticky top-24 rounded-[28px] border border-[#d6ddec] bg-[linear-gradient(180deg,rgba(252,253,255,0.98)_0%,rgba(238,244,251,0.94)_100%)] p-4 shadow-[0_20px_42px_rgba(31,31,31,0.06)] backdrop-blur-sm">
+    <section className="crm-surface sticky top-24 rounded-[30px] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <SectionEyebrow>Panel wynikowy</SectionEyebrow>
@@ -264,9 +244,9 @@ function ResultsPanel({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-[#677181]">
-        <span className="rounded-full border border-[#d6dfed] bg-[rgba(255,255,255,0.7)] px-3 py-1">{offer.number}</span>
-        <span className="rounded-full border border-[#d6dfed] bg-[rgba(255,255,255,0.7)] px-3 py-1">{offer.customerName || 'Klient do uzupełnienia'}</span>
-        <span className="rounded-full border border-[#d6dfed] bg-[rgba(255,255,255,0.7)] px-3 py-1">{offer.modelName ?? 'Model do uzupełnienia'}</span>
+        <span className="crm-pill px-3 py-1">{offer.number}</span>
+        <span className="crm-pill px-3 py-1">{offer.customerName || 'Klient do uzupełnienia'}</span>
+        <span className="crm-pill px-3 py-1">{offer.modelName ?? 'Model do uzupełnienia'}</span>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -276,7 +256,7 @@ function ResultsPanel({
         <MiniStat label="Kolory" value={colorCharge} tone="info" />
       </div>
 
-      <div className="mt-4 rounded-[24px] border border-[#ccdaef] bg-[rgba(255,255,255,0.62)] p-4">
+      <div className="crm-card mt-4 rounded-[24px] p-4">
         <div className="flex items-center justify-between gap-3 border-b border-[#dbe5f2] pb-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4d77b6]">Finansowanie</div>
           <div className="text-[11px] uppercase tracking-[0.14em] text-[#73849f]">Scenariusz klienta</div>
@@ -308,7 +288,7 @@ function ResultsPanel({
         )}
       </div>
 
-      <div className="mt-4 rounded-[24px] border border-[#d4e6da] bg-[rgba(255,255,255,0.6)] p-4">
+      <div className="crm-card mt-4 rounded-[24px] p-4">
         <div className="flex items-center justify-between gap-3 border-b border-[#ddebe1] pb-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#3f7d64]">Konfiguracja oferty</div>
           <div className="text-[11px] uppercase tracking-[0.14em] text-[#6f8777]">Parametry bazowe</div>
@@ -343,7 +323,6 @@ export function OffersWorkspace({
   statusOptions,
   createOfferAction,
   assignOfferLeadAction,
-  createOfferLeadAction,
   updateOfferAction,
   createOfferVersionAction,
 }: {
@@ -354,7 +333,6 @@ export function OffersWorkspace({
   statusOptions: Array<{ value: OfferStatus; label: string }>
   createOfferAction: (formData: FormData) => Promise<{ ok: boolean; error?: string; offerId?: string }>
   assignOfferLeadAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
-  createOfferLeadAction: (formData: FormData) => Promise<{ ok: boolean; error?: string; leadId?: string }>
   updateOfferAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
   createOfferVersionAction: (formData: FormData) => Promise<{ ok: boolean; error?: string; versionId?: string; pdfUrl?: string }>
 }) {
@@ -383,7 +361,6 @@ export function OffersWorkspace({
   const [editorFinancingVariant, setEditorFinancingVariant] = useState(offers[0]?.financingVariant ?? '')
   const [editorNotes, setEditorNotes] = useState(offers[0]?.notes ?? '')
   const [assignLeadId, setAssignLeadId] = useState(initialLeadId ?? '')
-  const [assignLeadSearchQuery, setAssignLeadSearchQuery] = useState('')
   const hasHandledInitialLeadRef = useRef(false)
 
   const pricingOptionsByKey = useMemo(() => new Map(pricingOptions.map((option) => [option.key, option])), [pricingOptions])
@@ -401,29 +378,12 @@ export function OffersWorkspace({
       return [lead.label, lead.modelName, lead.contact, lead.ownerName].some((value) => value?.toLowerCase().includes(normalizedQuery))
     })
   }, [createLeadSearchQuery, leadOptions])
-  const filteredAssignLeadOptions = useMemo(() => {
-    const normalizedQuery = assignLeadSearchQuery.trim().toLowerCase()
-
-    return leadOptions.filter((lead) => {
-      if (!normalizedQuery) {
-        return true
-      }
-
-      return [lead.label, lead.modelName, lead.contact, lead.ownerName].some((value) => value?.toLowerCase().includes(normalizedQuery))
-    })
-  }, [assignLeadSearchQuery, leadOptions])
 
   useEffect(() => {
     if (!selectedOfferId && offers.length > 0) {
       setSelectedOfferId(offers[0].id)
     }
   }, [offers, selectedOfferId])
-
-  useEffect(() => {
-    if (!selectedOffer) {
-      return
-    }
-  }, [selectedOffer])
 
   useEffect(() => {
     if (!isOpeningPreview) {
@@ -443,16 +403,15 @@ export function OffersWorkspace({
     }
 
     hasHandledInitialLeadRef.current = true
-    const existingOffer = offers.find((offer) => offer.leadId === initialLeadId)
-
-    if (existingOffer) {
-      setSelectedOfferId(existingOffer.id)
+    if (!leadOptions.some((lead) => lead.id === initialLeadId)) {
+      setCreateSelectedLeadId(initialLeadId)
+      setCreateOpen(true)
+      setCreateFeedback('Nie znaleziono leada do rozpoczęcia nowej oferty. Wybierz klienta z listy.')
       return
     }
 
-    setCreateSelectedLeadId(initialLeadId)
-    setCreateOpen(true)
-  }, [initialLeadId, offers])
+    void handleCreateOfferForLead(initialLeadId)
+  }, [initialLeadId, leadOptions])
 
   useEffect(() => {
     setEditorPricingCatalogKey(selectedOffer?.pricingCatalogKey ?? '')
@@ -469,7 +428,7 @@ export function OffersWorkspace({
     setEditorFinancingVariant(selectedOffer?.financingVariant ?? '')
     setEditorNotes(selectedOffer?.notes ?? '')
     setAssignLeadId(selectedOffer?.leadId ?? initialLeadId ?? '')
-  }, [selectedOffer?.id, selectedOffer?.pricingCatalogKey, selectedOffer?.customerType, selectedOffer?.financingTermMonths, selectedOffer?.financingInputValue, selectedOffer?.financingBuyoutPercent, selectedOffer?.customerName, selectedOffer?.customerEmail, selectedOffer?.customerPhone, selectedOffer?.validUntil, selectedOffer?.discountValue, selectedOffer?.financingVariant, selectedOffer?.notes])
+  }, [selectedOffer?.id, selectedOffer?.leadId, selectedOffer?.pricingCatalogKey, selectedOffer?.customerType, selectedOffer?.financingTermMonths, selectedOffer?.financingInputValue, selectedOffer?.financingBuyoutPercent, selectedOffer?.customerName, selectedOffer?.customerEmail, selectedOffer?.customerPhone, selectedOffer?.validUntil, selectedOffer?.discountValue, selectedOffer?.financingVariant, selectedOffer?.notes, initialLeadId])
 
   useEffect(() => {
     if (!getFinancingVariantOptions(editorCustomerType).includes(editorFinancingVariant)) {
@@ -548,6 +507,9 @@ export function OffersWorkspace({
     const result = await createOfferAction(formData)
 
     if (!result.ok) {
+      if (mode === 'LEAD') {
+        setCreateOpen(true)
+      }
       setCreateFeedback(result.error || 'Nie udało się utworzyć oferty.')
       return
     }
@@ -558,7 +520,7 @@ export function OffersWorkspace({
     setSelectedOfferId(result.offerId ?? null)
     setEditorFeedback(
       mode === 'FREE'
-        ? 'Szkic oferty został utworzony. Uzupełnij konfigurację i dane dopiero wtedy, kiedy będą potrzebne.'
+        ? 'Pomocniczy szkic ręczny został utworzony. Kanoniczny workflow nadal zakłada start oferty z leada.'
         : 'Szkic oferty dla wybranego klienta został utworzony.'
     )
     router.refresh()
@@ -582,20 +544,7 @@ export function OffersWorkspace({
     await createDraftOffer(formData, 'LEAD')
   }
 
-  async function handleAssignOfferLead(formData: FormData) {
-    setLeadBindingFeedback(null)
-    const result = await assignOfferLeadAction(formData)
-
-    if (!result.ok) {
-      setLeadBindingFeedback(result.error || 'Nie udało się przypisać leada do oferty.')
-      return
-    }
-
-    setLeadBindingFeedback('Lead został przypisany do oferty. Możesz teraz zapisać dokument PDF.')
-    router.refresh()
-  }
-
-  async function handleUpdateOffer(formData: FormData) {
+  async function handleUpdateOffer() {
     setEditorFeedback(null)
 
     if (editorBuyoutError) {
@@ -658,28 +607,6 @@ export function OffersWorkspace({
         setLeadBindingFeedback('Istniejący lead został przypisany do oferty przed wygenerowaniem PDF.')
       }
 
-      if (!selectedOffer?.leadId && offerFlowMode === 'FREE') {
-        const hasCustomerData = Boolean(editorCustomerName.trim() || editorCustomerEmail.trim() || editorCustomerPhone.trim())
-
-        if (!assignLeadId && hasCustomerData) {
-          const leadFormData = new FormData()
-          leadFormData.set('offerId', selectedOffer.id)
-          leadFormData.set('fullName', editorCustomerName.trim() || selectedOffer.customerName)
-          leadFormData.set('email', editorCustomerEmail.trim() || selectedOffer.customerEmail || '')
-          leadFormData.set('phone', editorCustomerPhone.trim() || selectedOffer.customerPhone || '')
-          leadFormData.set('region', editorCustomerRegion.trim())
-
-          const leadResult = await createOfferLeadAction(leadFormData)
-
-          if (!leadResult.ok) {
-            setEditorFeedback(leadResult.error || 'Nie udało się automatycznie utworzyć leada dla tej oferty.')
-            return
-          }
-
-          setLeadBindingFeedback('Lead został utworzony automatycznie z danych oferty i przypisany przed zapisem dokumentu.')
-        }
-      }
-
       const result = await createOfferVersionAction(formData)
 
       if (!result.ok) {
@@ -715,7 +642,7 @@ export function OffersWorkspace({
 
   return (
     <main className="grid gap-3.5">
-      <section className="overflow-hidden rounded-[22px] border border-[#e8e2d3] bg-[linear-gradient(135deg,#ffffff_0%,#fbf8f1_52%,#f7f3e8_100%)] px-4 py-2.5 shadow-[0_10px_22px_rgba(31,31,31,0.04)] lg:px-5 lg:py-2.5">
+      <section className="crm-card-strong overflow-hidden rounded-[26px] px-4 py-4 lg:px-5 lg:py-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Oferty PDF</div>
@@ -724,24 +651,28 @@ export function OffersWorkspace({
 
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={() => openCreateFlow()} className={[
-              'inline-flex h-11 items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-semibold transition',
+              'inline-flex h-11 items-center justify-center gap-2 rounded-[16px] px-4 text-sm font-semibold transition',
               startMode === 'SYSTEM'
-                ? 'bg-[#c9a13b] text-white shadow-[0_16px_32px_rgba(201,161,59,0.24)] hover:bg-[#b8932f]'
-                : 'border border-[#e5dfd1] bg-white text-[#4d4d4d] hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]'
+                ? 'crm-button-primary'
+                : 'crm-button-secondary'
             ].join(' ')}>
               <FilePlus2 className="h-4 w-4" />
               <span>Oferta dla klienta w systemie</span>
             </button>
             <button type="button" onClick={handleQuickCreateFreeOffer} className={[
-              'inline-flex h-11 items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-medium transition',
+              'inline-flex h-11 items-center justify-center gap-2 rounded-[16px] px-4 text-sm font-medium transition',
               startMode === 'FREE'
-                ? 'bg-[#c9a13b] text-white shadow-[0_16px_32px_rgba(201,161,59,0.24)] hover:bg-[#b8932f]'
-                : 'border border-[#e5dfd1] bg-white text-[#4d4d4d] hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]'
+                ? 'crm-button-primary'
+                : 'crm-button-secondary'
             ].join(' ')}>
               <FilePlus2 className="h-4 w-4" />
-              <span>Nowa oferta</span>
+              <span>Tryb wyjątkowy: szkic ręczny</span>
             </button>
           </div>
+        </div>
+
+        <div className="mt-3 border-t border-[#ece4d7] pt-3 text-sm leading-6 text-[#6b655a]">
+          Standardowa ścieżka pracy zaczyna ofertę z poziomu leada. Ręczny szkic zostawiamy wyłącznie jako pomocniczy wyjątek dla sytuacji backoffice albo pracy poza pipeline.
         </div>
 
         {selectedOffer ? (
@@ -759,9 +690,9 @@ export function OffersWorkspace({
               ) : null}
 
               <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-[#6b6b6b]">
-                <span className="rounded-full border border-[#e7dfd0] bg-[#fcfbf8] px-3 py-1">{selectedOffer.number}</span>
-                <span className="rounded-full border border-[#e7dfd0] bg-[#fcfbf8] px-3 py-1">Klient: {selectedOffer.customerName}</span>
-                <span className="rounded-full border border-[#e7dfd0] bg-[#fcfbf8] px-3 py-1">{offerFlowMode === 'SYSTEM' ? 'Klient systemowy' : 'Nowa oferta'}</span>
+                <span className="crm-pill px-3 py-1">{selectedOffer.number}</span>
+                <span className="crm-pill px-3 py-1">Klient: {selectedOffer.customerName}</span>
+                <span className="crm-pill px-3 py-1">{offerFlowMode === 'SYSTEM' ? 'Workflow z leada' : 'Tryb wyjątkowy'}</span>
               </div>
             </div>
 
@@ -772,10 +703,10 @@ export function OffersWorkspace({
                 onClick={handleOpenPreview}
                 aria-disabled={isGeneratingVersion || isOpeningPreview}
                 className={cx(
-                  'inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border bg-white px-4 text-sm font-medium transition',
+                  'inline-flex h-10 items-center justify-center gap-2 rounded-[16px] px-4 text-sm font-medium transition',
                   isGeneratingVersion || isOpeningPreview
-                    ? 'cursor-wait border-[#e7dfd0] text-[#9a9384]'
-                    : 'border-[#e5dfd1] text-[#4d4d4d] hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]'
+                    ? 'cursor-wait border-[rgba(0,0,0,0.04)] bg-[rgba(255,255,255,0.7)] text-[#9a9384]'
+                    : 'crm-button-secondary'
                 )}
               >
                 <ExternalLink className="h-4 w-4" />
@@ -785,10 +716,10 @@ export function OffersWorkspace({
                 type="submit"
                 disabled={isGeneratingVersion || isOpeningPreview}
                 className={cx(
-                  'inline-flex h-10 items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-medium text-white transition',
+                  'inline-flex h-10 items-center justify-center gap-2 rounded-[16px] px-4 text-sm font-medium transition',
                   isGeneratingVersion || isOpeningPreview
-                    ? 'cursor-wait bg-[#d7c28b]'
-                    : 'bg-[#c9a13b] hover:bg-[#b8932f]'
+                    ? 'cursor-wait border border-[rgba(190,147,62,0.18)] bg-[#d7c28b] text-[#181512]'
+                    : 'crm-button-primary'
                 )}
               >
                 <FileDown className="h-4 w-4" />
@@ -801,41 +732,41 @@ export function OffersWorkspace({
 
       <section className="grid gap-3.5">
         {isCreateOpen ? (
-          <section className="rounded-[28px] border border-[#e8e1d4] bg-white p-4 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-5">
-            <div className="flex items-start justify-between gap-4 border-b border-[#eee6d9] pb-4">
+          <section className="crm-card-strong rounded-[28px] p-4 lg:p-5">
+            <div className="flex items-start justify-between gap-4 border-b border-[rgba(17,17,17,0.05)] pb-4">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Nowa oferta</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Workflow z leada</div>
                 <h3 className="mt-1 text-xl font-semibold text-[#1f1f1f]">Wybierz klienta z systemu</h3>
               </div>
-              <button type="button" onClick={() => setCreateOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#ebe3d6] bg-white text-[#5f5a4f] transition hover:border-[rgba(201,161,59,0.24)] hover:text-[#8f6b18]">
+              <button type="button" onClick={() => setCreateOpen(false)} className="crm-button-icon inline-flex h-10 w-10 items-center justify-center rounded-2xl text-[#5f5a4f] hover:text-[#8f6b18]">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="mt-5 grid gap-3 rounded-[22px] border border-[#e8e1d4] bg-white p-4">
-              <label className="flex h-11 items-center gap-3 rounded-2xl border border-[#e8e1d4] bg-[#fcfbf8] px-4 text-sm text-[#5f5a4f]">
+            <div className="crm-card mt-5 grid gap-3 rounded-[22px] p-4">
+              <label className="crm-input flex h-11 items-center gap-3 px-4 text-sm text-[#5f5a4f]">
                 <Search className="h-4 w-4 text-[#9d7b27]" />
                 <input value={createLeadSearchQuery} onChange={(event) => setCreateLeadSearchQuery(event.target.value)} className="h-full w-full bg-transparent text-sm text-[#1f1f1f] outline-none placeholder:text-[#8a826f]" placeholder="Wyszukaj klienta, model albo kontakt..." />
               </label>
               <div className="grid max-h-72 gap-2 overflow-y-auto">
                 {filteredCreateLeadOptions.map((lead) => (
                   <button key={lead.id} type="button" onClick={() => handleCreateOfferForLead(lead.id)} className={[
-                    'rounded-[18px] border px-4 py-3 text-left transition',
+                    'rounded-[18px] px-4 py-3 text-left transition',
                     createSelectedLeadId === lead.id
-                      ? 'border-[rgba(201,161,59,0.30)] bg-[rgba(201,161,59,0.10)]'
-                      : 'border-[#e8e1d4] bg-[#fcfbf8] hover:border-[rgba(201,161,59,0.24)]',
+                      ? 'crm-button-primary text-[#181512]'
+                      : 'crm-card hover:border-[rgba(212,168,79,0.2)]',
                   ].join(' ')}>
                     <div className="text-sm font-semibold text-[#1f1f1f]">{lead.label}</div>
                     <div className="mt-1 text-sm text-[#6b6b6b]">{lead.modelName ?? 'Model do uzupełnienia'}{lead.contact ? ` • ${lead.contact}` : ''}</div>
                   </button>
                 ))}
                 {filteredCreateLeadOptions.length === 0 ? (
-                  <div className="rounded-[18px] border border-dashed border-[#e7dfd0] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#8a826f]">Brak leadów pasujących do wyszukiwania.</div>
+                  <div className="crm-empty-state rounded-[18px] px-4 py-8 text-center text-sm text-[#8a826f]">Brak leadów pasujących do wyszukiwania.</div>
                 ) : null}
               </div>
 
               {createFeedback ? (
-                <div className="rounded-[18px] border border-[#f1d4d2] bg-[#fff5f4] px-4 py-3 text-sm text-[#a64b45]">{createFeedback}</div>
+                <div className="crm-feedback rounded-[18px] border-[#f1d4d2] bg-[#fff5f4] px-4 py-3 text-sm text-[#a64b45]">{createFeedback}</div>
               ) : null}
 
               <div className="text-sm text-[#6b6b6b]">Kliknięcie klienta od razu utworzy szkic oferty i przypisze go do wybranego leada.</div>
@@ -847,10 +778,10 @@ export function OffersWorkspace({
           <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_390px]">
             <div className="grid gap-3.5">
               {offerFlowMode === 'FREE' ? (
-                <section className="rounded-[22px] border border-[#e5d5b3] bg-[linear-gradient(180deg,#fffdf7_0%,#faf5ea_100%)] p-3.5 shadow-[0_14px_30px_rgba(31,31,31,0.04)]">
+                <section className="crm-card rounded-[24px] bg-[linear-gradient(180deg,rgba(255,252,244,0.94)_0%,rgba(248,242,228,0.9)_100%)] p-3.5">
                   <div>
-                    <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#8c6715]">Sekcja 1 · Klient</div>
-                    <div className="mt-1 text-[13px] leading-5 text-[#5f5a4f]">Wpisz podstawowe dane klienta dla nowej oferty.</div>
+                    <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#8c6715]">Sekcja 1 · Tryb wyjątkowy</div>
+                    <div className="mt-1 text-[13px] leading-5 text-[#5f5a4f]">Ten widok służy tylko do pomocniczego szkicu poza pipeline. Jeżeli klient istnieje już w CRM, oferta powinna startować z poziomu leada.</div>
                   </div>
 
                   <div className="mt-4 grid gap-3 xl:grid-cols-4">
@@ -877,17 +808,17 @@ export function OffersWorkspace({
                   ) : null}
                 </section>
               ) : offerFlowMode === 'SYSTEM' ? (
-                <section className="rounded-[20px] border border-[#dbe5f0] bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] px-4 py-2.5 shadow-[0_10px_24px_rgba(31,31,31,0.03)]">
+                <section className="crm-surface rounded-[22px] px-4 py-3">
                   <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6d7682]">
-                    <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">Sekcja 1 · Klient systemowy</span>
+                    <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">Sekcja 1 · Workflow z leada</span>
                     <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">{selectedOffer.customerName}</span>
                     {selectedOffer.modelName ? <span className="rounded-full border border-[#dbe5f0] bg-white px-3 py-1">{selectedOffer.modelName}</span> : null}
                   </div>
-                  <div className="mt-2 text-sm text-[#555555]">Dane klienta są już powiązane z leadem, więc przechodzisz od razu do konfiguracji oferty.</div>
+                  <div className="mt-2 text-sm text-[#555555]">To jest kanoniczna ścieżka pracy zgodna z aplikacją: klient został wybrany w leadzie, a tutaj konfigurujesz już samą ofertę.</div>
                 </section>
               ) : null}
 
-              <form action={handleUpdateOffer} className="grid self-start gap-3.5 rounded-[24px] border border-[#e8e1d4] bg-white p-3.5 shadow-[0_18px_42px_rgba(31,31,31,0.05)] lg:p-4">
+              <form action={handleUpdateOffer} className="crm-card-strong grid self-start gap-3.5 rounded-[26px] p-3.5 lg:p-4">
                 <input type="hidden" name="offerId" value={selectedOffer.id} />
                 <input type="hidden" name="status" value={selectedOffer.status} />
 
@@ -934,7 +865,7 @@ export function OffersWorkspace({
                     </label>
                   </div>
 
-                  <div className="rounded-[18px] border border-[#dbe7f6] bg-[linear-gradient(180deg,#fbfdff_0%,#f3f8fe_100%)] p-3.5">
+                    <div className="crm-card rounded-[18px] bg-[linear-gradient(180deg,rgba(251,253,255,0.96)_0%,rgba(241,246,252,0.9)_100%)] p-3.5">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4a90e2]">Finansowanie klienta</div>
                     <div className="mt-1 text-xs leading-5 text-[#61738f]">Te pola wpływają na ratę w panelu wynikowym. Jeśli oferta ma być bez finansowania, zostaw je puste.</div>
 
@@ -976,18 +907,18 @@ export function OffersWorkspace({
                 </EditorPanel>
 
                 {editorFeedback ? (
-                  <div className="rounded-[18px] border border-[#e8e1d4] bg-[#fcfbf8] px-4 py-3 text-sm text-[#555555]">{editorFeedback}</div>
+                  <div className="crm-feedback rounded-[18px] px-4 py-3 text-sm text-[#555555]">{editorFeedback}</div>
                 ) : null}
 
                 {isGeneratingVersion || isOpeningPreview ? (
-                  <div className="rounded-[18px] border border-[#efe0ba] bg-[#fffaf0] px-4 py-3 text-sm text-[#7c6840]">
+                  <div className="crm-feedback rounded-[18px] border-[rgba(212,168,79,0.18)] bg-[#fffaf0] px-4 py-3 text-sm text-[#7c6840]">
                     {isGeneratingVersion
                       ? 'System zapisuje dane oferty i przygotowuje dokument. Nie klikaj ponownie, aż zakończy się otwieranie PDF.'
                       : 'System otwiera podgląd dokumentu. Przy pierwszym wejściu serwer może potrzebować kilku sekund.'}
                   </div>
                 ) : null}
 
-                <button type="submit" className="inline-flex h-10 items-center justify-center rounded-[14px] bg-[#c9a13b] px-4 text-sm font-medium text-white transition hover:bg-[#b8932f]">
+                <button type="submit" className="crm-button-primary inline-flex h-10 items-center justify-center rounded-[16px] px-4 text-sm font-medium">
                   Zapisz dane oferty
                 </button>
               </form>
@@ -1007,7 +938,7 @@ export function OffersWorkspace({
             </div>
           </div>
         ) : (
-          <div className="rounded-[28px] border border-dashed border-[#e7dfd0] bg-[#fcfbf8] px-4 py-20 text-center text-sm text-[#8a826f]">
+          <div className="crm-empty-state rounded-[28px] px-4 py-20 text-center text-sm text-[#8a826f]">
             Zacznij od kliknięcia jednego z przycisków na górze: oferta dla klienta z systemu albo oferta wolna bez przypisanego leada.
           </div>
         )}
