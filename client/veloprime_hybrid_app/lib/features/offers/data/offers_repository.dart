@@ -22,7 +22,7 @@ class OffersRepository {
       'versions': {
         'DATA': 'v1',
         'ASSETS': 'v1',
-        'APPLICATION': 'v4',
+        'APPLICATION': 'v5',
       },
     };
 

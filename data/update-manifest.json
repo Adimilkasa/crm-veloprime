@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v4",
+      "version": "v5",
       "publishedAt": "2026-03-30T00:00:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.5.0 with app-native offer preview and no external web handoff in the PDF screen.",
+      "summary": "Flutter client 0.1.6.0 signed with the trusted VeloPrime test certificate for Windows update delivery.",
       "priority": "STANDARD"
     }
   ]

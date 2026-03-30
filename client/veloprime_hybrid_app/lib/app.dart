@@ -54,7 +54,7 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
         const ClientVersionPayload(
           dataVersion: 'v1',
           assetsVersion: 'v1',
-          applicationVersion: 'v4',
+          applicationVersion: 'v5',
         ),
       );
 
