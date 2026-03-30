@@ -5,7 +5,6 @@ import '../../../core/presentation/veloprime_ui.dart';
 import '../../bootstrap/models/bootstrap_payload.dart';
 import '../../leads/data/leads_repository.dart';
 import '../../leads/models/lead_models.dart';
-import '../../leads/presentation/lead_create_page.dart';
 import '../data/offers_repository.dart';
 import '../models/offer_detail.dart';
 import 'offer_document_preview_page.dart';
@@ -474,55 +473,47 @@ class _OffersHomePageState extends State<OffersHomePage> {
   }
 
   Future<void> _createFreeOffer() async {
+    setState(() {
+      _isSavingOffer = true;
+      _createFeedback = 'Tworzymy nowy szkic oferty w aplikacji...';
+      _editorFeedback = null;
+    });
+
     try {
-      final overview = await widget.leadsRepository.fetchLeads();
+      final created = await widget.offersRepository.createOffer({
+        'title': '',
+        'customerType': 'PRIVATE',
+      });
 
       if (!mounted) {
         return;
       }
 
-      final payload = await showDialog<LeadDetailPayload>(
-        context: context,
-        barrierColor: Colors.black.withValues(alpha: 0.22),
-        builder: (_) => LeadCreatePage(
-          session: widget.session,
-          repository: widget.leadsRepository,
-          stages: overview.stages,
-          salespeople: overview.salespeople,
-          modal: true,
-        ),
-      );
-
-      if (payload == null || !mounted) {
-        return;
-      }
-
-      final leadOption = _mapLeadOption(payload.lead);
+      _replaceOffer(created);
+      _populateForm(created);
 
       setState(() {
-        _leadOptions = [
-          leadOption,
-          ..._leadOptions.where((lead) => lead.id != leadOption.id),
-        ];
         _isCreateInlineOpen = false;
         _createLeadSearchQuery = '';
         _createFeedback = null;
-        _flowMode = _OfferFlowMode.system;
+        _flowMode = _OfferFlowMode.free;
+        _editorFeedback = 'Nowy szkic oferty został otwarty bez przechodzenia do modułu leadów.';
       });
-
-      await _createOfferForLead(
-        payload.lead.id,
-        editorMessage: 'Nowy klient został zapisany w kanbanie i otwarto dla niego ofertę.',
-      );
     } catch (error) {
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _createFeedback = 'Nie udało się utworzyć klienta w pipeline. $error';
+        _createFeedback = 'Nie udało się utworzyć szkicu oferty. $error';
         _editorFeedback = _createFeedback;
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingOffer = false;
+        });
+      }
     }
   }
 

@@ -1,9 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../core/config/api_config.dart';
 import '../../../core/presentation/veloprime_ui.dart';
+import '../data/local_offer_assets.dart';
 import '../data/offers_repository.dart';
 import '../models/offer_document.dart';
 
@@ -27,8 +29,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
   static final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
 
   late Future<OfferDocumentSnapshot> _documentFuture;
-  bool _isPreparingShare = false;
-  bool _isSendingEmail = false;
 
   @override
   void initState() {
@@ -39,54 +39,30 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
     );
   }
 
-  Future<void> _openExternalDocument(String url, String label) async {
-    final uri = Uri.tryParse(url);
-
-    if (uri == null) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Niepoprawny link dla dokumentu: $label.')),
-      );
-      return;
-    }
-
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Nie udalo sie otworzyc dokumentu: $label.')),
-      );
-    }
-  }
-
-  Future<void> _copyPublicOfferLink() async {
-    if (_isPreparingShare) {
-      return;
-    }
-
-    setState(() {
-      _isPreparingShare = true;
-    });
-
+  Future<void> _openBundledDocument(String assetPath, String label) async {
     try {
-      final share = await widget.repository.createShareLink(
-        offerId: widget.offerId,
-        versionId: widget.versionId,
+      final assetBytes = await rootBundle.load(assetPath);
+      final extension = assetPath.contains('.') ? assetPath.substring(assetPath.lastIndexOf('.')) : '';
+      final tempDirectory = await Directory.systemTemp.createTemp('veloprime_offer_');
+      final tempFile = File('${tempDirectory.path}/$label$extension');
+      await tempFile.writeAsBytes(
+        assetBytes.buffer.asUint8List(assetBytes.offsetInBytes, assetBytes.lengthInBytes),
+        flush: true,
       );
-      await Clipboard.setData(ClipboardData(text: share.url));
 
+      final opened = await launchUrl(Uri.file(tempFile.path), mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Nie udalo sie otworzyc dokumentu: $label.')),
+        );
+      }
+    } on FlutterError {
       if (!mounted) {
         return;
       }
 
-      final expiresLabel = share.expiresAt == null
-          ? ''
-          : ' Link ważny do ${_formatNullableDate(share.expiresAt, _dateFormat) ?? '-'}.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Skopiowano link do oferty klienta.$expiresLabel')),
+        SnackBar(content: Text('Brak lokalnego dokumentu: $label.')),
       );
     } catch (error) {
       if (!mounted) {
@@ -94,89 +70,8 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
+        SnackBar(content: Text('Nie udalo sie przygotowac dokumentu: $label.\n$error')),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPreparingShare = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _openPublicOfferLink() async {
-    if (_isPreparingShare) {
-      return;
-    }
-
-    setState(() {
-      _isPreparingShare = true;
-    });
-
-    try {
-      final share = await widget.repository.createShareLink(
-        offerId: widget.offerId,
-        versionId: widget.versionId,
-      );
-      await _openExternalDocument(share.url, 'oferta online');
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPreparingShare = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _sendOfferEmail(String? email) async {
-    if (_isSendingEmail) {
-      return;
-    }
-
-    setState(() {
-      _isSendingEmail = true;
-    });
-
-    try {
-      final result = await widget.repository.sendOfferEmail(
-        offerId: widget.offerId,
-        versionId: widget.versionId,
-        toEmail: email,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      final expiresLabel = result.expiresAt == null
-          ? ''
-          : ' Link aktywny do ${_formatNullableDate(result.expiresAt, _dateFormat) ?? '-'}.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Oferta została wysłana na ${result.to}.$expiresLabel')),
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSendingEmail = false;
-        });
-      }
     }
   }
 
@@ -228,11 +123,17 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
 
           final customer = document.payload.customer;
           final advisor = document.payload.advisor;
-          final assets = document.assets;
-          final heroImage = [
-            ...assets.premiumImages,
-            ...assets.exteriorImages,
-            ...assets.detailImages,
+          final localAssets = getLocalOfferAssetBundle(customer.modelName ?? document.title);
+          final galleryImages = [
+            ...localAssets.premiumImages,
+            ...localAssets.exteriorImages,
+            ...localAssets.interiorImages,
+            ...localAssets.detailImages,
+          ].toSet().toList();
+          final heroImageAsset = [
+            ...localAssets.premiumImages,
+            ...localAssets.exteriorImages,
+            ...localAssets.detailImages,
           ].cast<String?>().firstWhere((item) => item != null, orElse: () => null);
             final contactParts = [customer.customerEmail, customer.customerPhone]
               .whereType<String>()
@@ -249,9 +150,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               : customer.financingVariant ?? 'Warunki ustalane indywidualnie';
             final offerNarrative = 'Dokument zbiera konfigurację ${customer.modelName ?? document.title} '
               'dla ${customer.customerName}, poziom ceny końcowej i proponowany scenariusz rozmowy o finansowaniu: $commercialSummary.';
-          final specPdfUrl = assets.specPdfUrl == null || assets.specPdfUrl!.isEmpty
-              ? null
-              : _toAbsoluteAssetUrl(assets.specPdfUrl!);
+          final specPdfAssetPath = localAssets.specPdfAssetPath;
 
           return SingleChildScrollView(
             child: Center(
@@ -269,36 +168,9 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                           icon: const Icon(Icons.arrow_back_rounded),
                           label: const Text('Powrot'),
                         ),
-                        FilledButton.icon(
-                          onPressed: _isSendingEmail ? null : () => _sendOfferEmail(snapshot.data?.payload.customer.customerEmail),
-                          icon: _isSendingEmail
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.send_rounded),
-                          label: const Text('Wyslij na email'),
-                        ),
-                        FilledButton.icon(
-                          onPressed: _isPreparingShare ? null : _copyPublicOfferLink,
-                          icon: _isPreparingShare
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.link_rounded),
-                          label: const Text('Kopiuj link oferty'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _isPreparingShare ? null : _openPublicOfferLink,
-                          icon: const Icon(Icons.open_in_new_rounded),
-                          label: const Text('Otworz online'),
-                        ),
-                        if (specPdfUrl != null)
+                        if (specPdfAssetPath != null)
                           OutlinedButton.icon(
-                            onPressed: () => _openExternalDocument(specPdfUrl, 'specyfikacja modelu'),
+                            onPressed: () => _openBundledDocument(specPdfAssetPath, 'specyfikacja-modelu'),
                             icon: const Icon(Icons.description_outlined),
                             label: const Text('Otworz specyfikacje PDF'),
                           ),
@@ -307,7 +179,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                     const SizedBox(height: 16),
                     _PreviewHeroCard(
                       document: document,
-                      heroImageUrl: heroImage,
+                      heroImageAsset: heroImageAsset,
                       dateFormat: _dateFormat,
                     ),
                     const SizedBox(height: 18),
@@ -321,14 +193,14 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         _PreviewMetricCard(label: 'Finansowanie', value: commercialSummary),
                       ],
                     ),
-                    if (specPdfUrl != null) ...[
+                    if (specPdfAssetPath != null) ...[
                       const SizedBox(height: 20),
                       _PreviewSectionCard(
                         title: 'Specyfikacja modelu',
                         child: _LinkedAssetCard(
                           eyebrow: 'Dokument pomocniczy',
                           title: 'PDF specyfikacji samochodu',
-                          value: specPdfUrl,
+                          value: 'Plik jest wbudowany w aplikacje i otwiera sie lokalnie bez przechodzenia przez WWW.',
                           icon: Icons.description_outlined,
                         ),
                       ),
@@ -437,13 +309,8 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                   ),
                                   const SizedBox(height: 14),
                                   _AssetGallery(
-                                    heroImageUrl: heroImage,
-                                    imageUrls: [
-                                      ...assets.premiumImages,
-                                      ...assets.exteriorImages,
-                                      ...assets.interiorImages,
-                                      ...assets.detailImages,
-                                    ],
+                                    heroImageAsset: heroImageAsset,
+                                    imageAssets: galleryImages,
                                   ),
                                 ],
                               ),
@@ -486,12 +353,12 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
 class _PreviewHeroCard extends StatelessWidget {
   const _PreviewHeroCard({
     required this.document,
-    required this.heroImageUrl,
+    required this.heroImageAsset,
     required this.dateFormat,
   });
 
   final OfferDocumentSnapshot document;
-  final String? heroImageUrl;
+  final String? heroImageAsset;
   final DateFormat dateFormat;
 
   @override
@@ -524,12 +391,12 @@ class _PreviewHeroCard extends StatelessWidget {
                 _PreviewPill(label: 'Wygenerowano', value: _formatNullableDate(document.payload.createdAt, dateFormat) ?? '-'),
               ],
             ),
-            if (heroImageUrl != null) ...[
+            if (heroImageAsset != null) ...[
               const SizedBox(height: 20),
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Image.network(
-                  _toAbsoluteAssetUrl(heroImageUrl!),
+                child: Image.asset(
+                  heroImageAsset!,
                   height: 280,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -545,18 +412,18 @@ class _PreviewHeroCard extends StatelessWidget {
 
 class _AssetGallery extends StatelessWidget {
   const _AssetGallery({
-    required this.heroImageUrl,
-    required this.imageUrls,
+    required this.heroImageAsset,
+    required this.imageAssets,
   });
 
-  final String? heroImageUrl;
-  final List<String> imageUrls;
+  final String? heroImageAsset;
+  final List<String> imageAssets;
 
   @override
   Widget build(BuildContext context) {
-    final thumbnails = imageUrls.where((item) => item != heroImageUrl).take(6).toList();
+    final thumbnails = imageAssets.where((item) => item != heroImageAsset).take(6).toList();
 
-    if (heroImageUrl == null && thumbnails.isEmpty) {
+    if (heroImageAsset == null && thumbnails.isEmpty) {
       return const _MissingImagePlaceholder(label: 'Brak grafik modelu dla tego dokumentu');
     }
 
@@ -565,10 +432,10 @@ class _AssetGallery extends StatelessWidget {
       runSpacing: 10,
       children: thumbnails
           .map(
-            (imageUrl) => ClipRRect(
+            (imageAsset) => ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                _toAbsoluteAssetUrl(imageUrl),
+              child: Image.asset(
+                imageAsset,
                 width: 140,
                 height: 100,
                 fit: BoxFit.cover,
@@ -820,14 +687,6 @@ class _PreviewInfoItem {
 
   final String label;
   final String value;
-}
-
-String _toAbsoluteAssetUrl(String path) {
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
-  }
-
-  return '${ApiConfig.baseUrl}$path';
 }
 
 String? _formatNullableDate(String? value, [DateFormat? format]) {
