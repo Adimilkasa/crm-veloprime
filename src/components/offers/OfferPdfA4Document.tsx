@@ -22,7 +22,15 @@ export type OfferPdfPayload = {
     finalNetLabel: string
     notes: string | null
   }
+  advisor?: {
+    fullName: string
+    email: string | null
+    phone: string | null
+    role: string
+  }
   internal: {
+    ownerName?: string
+    ownerRole?: string
     financing: {
       estimatedInstallment: number
       downPaymentAmount: number
@@ -32,6 +40,15 @@ export type OfferPdfPayload = {
       termMonths: number
     } | null
   }
+}
+
+function buildAdvisorLine(advisor: OfferPdfPayload['advisor']) {
+  if (!advisor) {
+    return 'Dane opiekuna zostaną potwierdzone po zapisaniu kontaktu handlowca.'
+  }
+
+  const parts = [advisor.email, advisor.phone].filter(Boolean)
+  return parts.length > 0 ? parts.join(' • ') : 'Brak danych kontaktowych opiekuna.'
 }
 
 export type OfferPdfAssets = {
@@ -103,6 +120,10 @@ function buildOfferNarrative(payload: OfferPdfPayload) {
   return `Konfiguracja ${modelName} została przygotowana dla ${payload.customer.customerName}. Punkt wyjścia do rozmowy stanowi cena końcowa ${payload.customer.finalGrossLabel} brutto oraz scenariusz finansowania: ${financingSummary}.`
 }
 
+function hasValue(value: string | null | undefined) {
+  return Boolean(value?.trim())
+}
+
 function Page({ children }: { children: ReactNode }) {
   return <section className="pdf-a4-page">{children}</section>
 }
@@ -148,10 +169,14 @@ function GallerySection({
 export function OfferPdfA4Document({
   payload,
   assets,
+  publicOfferUrl = null,
+  publicOfferExpiresAt = null,
   studio = false,
 }: {
   payload: OfferPdfPayload
   assets: OfferPdfAssets
+  publicOfferUrl?: string | null
+  publicOfferExpiresAt?: string | null
   studio?: boolean
 }) {
   const financing = payload.internal.financing
@@ -163,6 +188,7 @@ export function OfferPdfA4Document({
   const offerHeadline = payload.customer.modelName ?? payload.customer.title ?? 'Oferta VeloPrime'
   const financingSummary = payload.customer.financingSummary ?? payload.customer.financingVariant ?? 'Warunki ustalane indywidualnie'
   const contactLine = buildContactLine(payload.customer)
+  const hasPublicOfferUrl = hasValue(publicOfferUrl)
   const coverBriefItems = [
     { label: 'Dla klienta', value: payload.customer.customerName },
     { label: 'Kontakt', value: contactLine },
@@ -170,6 +196,7 @@ export function OfferPdfA4Document({
     { label: 'Finansowanie', value: financingSummary },
   ]
   const galleryImageCount = detailImages.length + interiorImages.length + exteriorImages.length
+  const advisorLine = buildAdvisorLine(payload.advisor)
 
   return (
     <section
@@ -203,13 +230,14 @@ export function OfferPdfA4Document({
             <div className="pdf-a4-eyebrow">{payload.customer.offerNumber}</div>
             <h1 className="pdf-a4-hero-title">{offerHeadline}</h1>
             <p className="pdf-a4-hero-description">
-              Oferta przygotowana dla {payload.customer.customerName} z wybraną konfiguracją, finansowaniem i zestawem materiałów produktowych VeloPrime.
+              Oferta przygotowana dla {payload.customer.customerName} z wybraną konfiguracją, finansowaniem i zestawem materiałów produktowych VeloPrime. Ten PDF porządkuje najważniejsze ustalenia, a główna wersja klienta pozostaje dostępna online.
             </p>
 
             <div className="pdf-a4-chip-row">
               <span className="pdf-a4-chip">Klient: {payload.customer.customerName}</span>
               <span className="pdf-a4-chip">Kolor: {payload.customer.selectedColorName ?? 'Bazowy'}</span>
               <span className="pdf-a4-chip">Finansowanie: {payload.customer.financingVariant ?? 'Indywidualnie ustalane'}</span>
+              {hasPublicOfferUrl ? <span className="pdf-a4-chip pdf-a4-chip--accent">Kanał główny: oferta online</span> : null}
             </div>
 
             <div className="pdf-a4-cover-brief-grid">
@@ -276,12 +304,12 @@ export function OfferPdfA4Document({
           </article>
 
           <article className="pdf-a4-info-card pdf-a4-info-card--cover pdf-a4-info-card--bronze">
-            <div className="pdf-a4-card-label pdf-a4-card-label--gold">Oferta i terminy</div>
+            <div className="pdf-a4-card-label pdf-a4-card-label--gold">Opiekun oferty</div>
             <div className="pdf-a4-info-list">
-              <div><span>Numer:</span> {payload.customer.offerNumber}</div>
-              <div><span>Wersja:</span> {payload.versionNumber}</div>
-              <div><span>Wygenerowano:</span> {formatDate(payload.createdAt)}</div>
-              <div><span>Kontakt:</span> {contactLine}</div>
+              <div><span>Osoba:</span> {payload.advisor?.fullName ?? payload.internal.ownerName ?? 'Opiekun VeloPrime'}</div>
+              <div><span>Rola:</span> {payload.advisor?.role ?? payload.internal.ownerRole ?? 'Handlowiec'}</div>
+              <div><span>Kontakt:</span> {advisorLine}</div>
+              <div><span>Numer oferty:</span> {payload.customer.offerNumber}</div>
             </div>
           </article>
         </div>
@@ -357,9 +385,21 @@ export function OfferPdfA4Document({
               <div className="pdf-a4-card-label pdf-a4-card-label--gold">Uwagi do oferty</div>
               <p>{notes || 'Ta wersja dokumentu jest gotowym punktem wyjścia do rozmowy, doprecyzowania warunków i finalizacji decyzji zakupowej.'}</p>
             </div>
-            <div className="pdf-a4-notes-box pdf-a4-notes-box--soft">
-              <div className="pdf-a4-card-label pdf-a4-card-label--green">Zakres rozmowy z klientem</div>
-              <p>Dokument zbiera konfigurację, poziom ceny końcowej i proponowany scenariusz finansowania. Finalne warunki mogą zostać doprecyzowane w trakcie spotkania lub dalszych uzgodnień.</p>
+            <div className="pdf-a4-channel-card">
+              <div className="pdf-a4-card-label pdf-a4-card-label--green">Oferta online</div>
+              <div className="pdf-a4-channel-title">
+                {hasPublicOfferUrl ? 'PDF jest eksportem aktywnej oferty online' : 'Link online zostanie przypisany przy udostępnieniu'}
+              </div>
+              <p className="pdf-a4-channel-copy">
+                {hasPublicOfferUrl
+                  ? `Klient może wracać do tej samej wersji oferty przez link online.${publicOfferExpiresAt ? ` Link ważny do ${formatDate(publicOfferExpiresAt)}.` : ''}`
+                  : 'Po wygenerowaniu linku publicznego klient otrzyma pełny widok oferty online wraz z galerią, finansowaniem i kontaktem do opiekuna.'}
+              </p>
+              {hasPublicOfferUrl ? <div className="pdf-a4-link">{publicOfferUrl}</div> : null}
+              <div className="pdf-a4-channel-meta">
+                <div>Specyfikacja: {assets.specPdfUrl ? 'dostępna jako osobny dokument PDF' : 'brak przypisanego pliku specyfikacji'}</div>
+                <div>Kontakt do opiekuna: {advisorLine}</div>
+              </div>
             </div>
           </div>
         </div>

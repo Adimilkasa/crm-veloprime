@@ -74,6 +74,11 @@ export default async function UsersPage({
             </label>
 
             <label className="block">
+              <span className="text-sm font-medium text-[#2f2a22]">Telefon</span>
+              <input name="phone" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="+48 600 100 200" />
+            </label>
+
+            <label className="block">
               <span className="text-sm font-medium text-[#2f2a22]">Hasło startowe</span>
               <input name="password" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="Pozostaw puste, aby wygenerować tymczasowe" />
             </label>
@@ -166,7 +171,10 @@ export default async function UsersPage({
                   <div className="text-sm font-semibold text-[#1f1f1f]">{user.fullName}</div>
                   <div className="mt-1 text-xs uppercase tracking-[0.18em] text-[#8a826f]">{user.source === 'seed' ? 'konto demo' : 'konto custom'}</div>
                 </div>
-                <div className="text-sm text-[#666666]">{user.email}</div>
+                <div className="text-sm text-[#666666]">
+                  <div>{user.email}</div>
+                  <div className="mt-1 text-xs text-[#8a826f]">{user.phone ?? 'Brak telefonu'}</div>
+                </div>
                 <div className="text-sm text-[#1f1f1f]">{roleDefinitions.find((role) => role.key === user.role)?.label ?? user.role}</div>
                 <div className="text-sm text-[#666666]">{user.region ?? '—'}</div>
                 <div className="text-sm text-[#666666]">

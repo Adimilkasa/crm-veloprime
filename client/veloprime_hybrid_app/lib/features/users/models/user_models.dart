@@ -3,6 +3,7 @@ class ManagedUserAccount {
     required this.id,
     required this.fullName,
     required this.email,
+    required this.phone,
     required this.role,
     required this.isActive,
     required this.region,
@@ -15,6 +16,7 @@ class ManagedUserAccount {
   final String id;
   final String fullName;
   final String email;
+  final String? phone;
   final String role;
   final bool isActive;
   final String? region;
@@ -28,6 +30,7 @@ class ManagedUserAccount {
       id: json['id'] as String? ?? '',
       fullName: json['fullName'] as String? ?? '',
       email: json['email'] as String? ?? '',
+      phone: json['phone'] as String?,
       role: json['role'] as String? ?? 'SALES',
       isActive: json['isActive'] as bool? ?? false,
       region: json['region'] as String?,

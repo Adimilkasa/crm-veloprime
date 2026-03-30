@@ -4,6 +4,52 @@ import '../models/offer_document.dart';
 import '../models/offer_finalization.dart';
 import '../models/offer_pdf_version.dart';
 
+class OfferShareLinkResult {
+  const OfferShareLinkResult({
+    required this.url,
+    required this.expiresAt,
+    required this.versionId,
+    required this.token,
+  });
+
+  final String url;
+  final String? expiresAt;
+  final String versionId;
+  final String token;
+
+  factory OfferShareLinkResult.fromJson(Map<String, dynamic> json) {
+    return OfferShareLinkResult(
+      url: json['url'] as String? ?? '',
+      expiresAt: json['expiresAt'] as String?,
+      versionId: json['versionId'] as String? ?? '',
+      token: json['token'] as String? ?? '',
+    );
+  }
+}
+
+class OfferEmailSendResult {
+  const OfferEmailSendResult({
+    required this.to,
+    required this.publicUrl,
+    required this.expiresAt,
+    required this.versionId,
+  });
+
+  final String to;
+  final String publicUrl;
+  final String? expiresAt;
+  final String versionId;
+
+  factory OfferEmailSendResult.fromJson(Map<String, dynamic> json) {
+    return OfferEmailSendResult(
+      to: json['to'] as String? ?? '',
+      publicUrl: json['publicUrl'] as String? ?? '',
+      expiresAt: json['expiresAt'] as String?,
+      versionId: json['versionId'] as String? ?? '',
+    );
+  }
+}
+
 class OffersRepository {
   OffersRepository(this._apiClient);
 
@@ -56,6 +102,28 @@ class OffersRepository {
     final suffix = versionId != null && versionId.isNotEmpty ? '?versionId=$versionId' : '';
     final json = await _apiClient.getJson('/api/client/offers/$offerId/document$suffix');
     return OfferDocumentSnapshot.fromJson(json['document'] as Map<String, dynamic>? ?? const {});
+  }
+
+  Future<OfferShareLinkResult> createShareLink({
+    required String offerId,
+    String? versionId,
+  }) async {
+    final json = await _apiClient.postJson('/api/client/offers/$offerId/share', {
+      'versionId': versionId,
+    });
+    return OfferShareLinkResult.fromJson(json['share'] as Map<String, dynamic>? ?? const {});
+  }
+
+  Future<OfferEmailSendResult> sendOfferEmail({
+    required String offerId,
+    String? versionId,
+    String? toEmail,
+  }) async {
+    final json = await _apiClient.postJson('/api/client/offers/$offerId/send-email', {
+      'versionId': versionId,
+      'toEmail': toEmail,
+    });
+    return OfferEmailSendResult.fromJson(json['email'] as Map<String, dynamic>? ?? const {});
   }
 
   Future<OfferDetail> updateOffer({

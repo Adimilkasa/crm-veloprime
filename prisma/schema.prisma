@@ -398,6 +398,9 @@ model OfferVersion {
   offer         Offer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
   versionNumber Int
   pdfUrl        String?
+  shareToken    String?   @unique
+  sharedAt      DateTime?
+  shareExpiresAt DateTime?
   payloadJson   Json?
   customerSnapshotJson Json?
   internalSnapshotJson Json?

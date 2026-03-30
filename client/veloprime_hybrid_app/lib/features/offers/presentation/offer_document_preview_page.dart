@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/api_config.dart';
@@ -26,6 +27,8 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
   static final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
 
   late Future<OfferDocumentSnapshot> _documentFuture;
+  bool _isPreparingShare = false;
+  bool _isSendingEmail = false;
 
   @override
   void initState() {
@@ -56,6 +59,124 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Nie udalo sie otworzyc dokumentu: $label.')),
       );
+    }
+  }
+
+  Future<void> _copyPublicOfferLink() async {
+    if (_isPreparingShare) {
+      return;
+    }
+
+    setState(() {
+      _isPreparingShare = true;
+    });
+
+    try {
+      final share = await widget.repository.createShareLink(
+        offerId: widget.offerId,
+        versionId: widget.versionId,
+      );
+      await Clipboard.setData(ClipboardData(text: share.url));
+
+      if (!mounted) {
+        return;
+      }
+
+      final expiresLabel = share.expiresAt == null
+          ? ''
+          : ' Link ważny do ${_formatNullableDate(share.expiresAt, _dateFormat) ?? '-'}.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Skopiowano link do oferty klienta.$expiresLabel')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPreparingShare = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openPublicOfferLink() async {
+    if (_isPreparingShare) {
+      return;
+    }
+
+    setState(() {
+      _isPreparingShare = true;
+    });
+
+    try {
+      final share = await widget.repository.createShareLink(
+        offerId: widget.offerId,
+        versionId: widget.versionId,
+      );
+      await _openExternalDocument(share.url, 'oferta online');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPreparingShare = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendOfferEmail(String? email) async {
+    if (_isSendingEmail) {
+      return;
+    }
+
+    setState(() {
+      _isSendingEmail = true;
+    });
+
+    try {
+      final result = await widget.repository.sendOfferEmail(
+        offerId: widget.offerId,
+        versionId: widget.versionId,
+        toEmail: email,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final expiresLabel = result.expiresAt == null
+          ? ''
+          : ' Link aktywny do ${_formatNullableDate(result.expiresAt, _dateFormat) ?? '-'}.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Oferta została wysłana na ${result.to}.$expiresLabel')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingEmail = false;
+        });
+      }
     }
   }
 
@@ -106,6 +227,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
           }
 
           final customer = document.payload.customer;
+          final advisor = document.payload.advisor;
           final assets = document.assets;
           final heroImage = [
             ...assets.premiumImages,
@@ -117,6 +239,11 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               .where((item) => item.trim().isNotEmpty)
               .toList();
             final contactLine = contactParts.isEmpty ? 'Kontakt do potwierdzenia' : contactParts.join(' • ');
+            final advisorParts = [advisor.email, advisor.phone]
+              .whereType<String>()
+              .where((item) => item.trim().isNotEmpty)
+              .toList();
+            final advisorLine = advisorParts.isEmpty ? 'Brak danych kontaktowych opiekuna' : advisorParts.join(' • ');
             final commercialSummary = customer.financingSummary != null && customer.financingSummary!.trim().isNotEmpty
               ? customer.financingSummary!
               : customer.financingVariant ?? 'Warunki ustalane indywidualnie';
@@ -141,6 +268,33 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                           onPressed: () => Navigator.of(context).pop(),
                           icon: const Icon(Icons.arrow_back_rounded),
                           label: const Text('Powrot'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: _isSendingEmail ? null : () => _sendOfferEmail(snapshot.data?.payload.customer.customerEmail),
+                          icon: _isSendingEmail
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.send_rounded),
+                          label: const Text('Wyslij na email'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: _isPreparingShare ? null : _copyPublicOfferLink,
+                          icon: _isPreparingShare
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.link_rounded),
+                          label: const Text('Kopiuj link oferty'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _isPreparingShare ? null : _openPublicOfferLink,
+                          icon: const Icon(Icons.open_in_new_rounded),
+                          label: const Text('Otworz online'),
                         ),
                         if (specPdfUrl != null)
                           OutlinedButton.icon(
@@ -258,6 +412,15 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                         ? customer.notes!
                                         : 'Brak dodatkowych notatek w dokumencie. Ten snapshot jest gotowym punktem wyjścia do rozmowy handlowej.',
                                     tint: const Color(0xFFF3EFE7),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _PreviewCalloutBox(
+                                    title: 'Opiekun oferty',
+                                    value: [
+                                      advisor.fullName.isNotEmpty ? advisor.fullName : document.payload.internal.ownerName,
+                                      advisorLine,
+                                    ].where((item) => item.trim().isNotEmpty).join('\n'),
+                                    tint: const Color(0xFFEAF4F4),
                                   ),
                                 ],
                               ),

@@ -48,6 +48,7 @@ export async function POST(request: Request) {
   const result = await createManagedUser({
     fullName: typeof payload.fullName === 'string' ? payload.fullName : '',
     email: typeof payload.email === 'string' ? payload.email : '',
+    phone: typeof payload.phone === 'string' ? payload.phone : '',
     role: (typeof payload.role === 'string' ? payload.role : 'SALES') as UserRoleKey,
     password: typeof payload.password === 'string' ? payload.password : '',
     region: typeof payload.region === 'string' ? payload.region : '',

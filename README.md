@@ -129,6 +129,13 @@ Jesli plik nie istnieje, klient korzysta z wartosci przekazanej przez `--dart-de
 
 Skopiuj `.env.example` do `.env` i ustaw `DATABASE_URL` przed podpinaniem bazy danych.
 
+Mailing ofert online korzysta z providera Resend przez HTTP API. Na Vercelu ustaw:
+
+- `RESEND_API_KEY` - klucz API konta wysylkowego
+- `OFFER_EMAIL_FROM` - glowny adres nadawcy dla projektu, na przyklad `oferty@veloprime.pl`
+
+System automatycznie ustawia `Reply-To` na email opiekuna oferty, jezeli konto handlowca ma uzupelniony adres email.
+
 ## Założenia wersji startowej
 
 - osobny panel pod subdomenę typu `crm.veloprime.pl`
@@ -147,6 +154,7 @@ Skopiuj `.env.example` do `.env` i ustaw `DATABASE_URL` przed podpinaniem bazy d
 - `docs/SALES_CALCULATION_MODEL.md` - model kalkulacji sprzedaży, hierarchii prowizyjnej i reguł oferty
 - `docs/HYBRID_CLIENT_IMPLEMENTATION_PLAN.md` - etapowy plan przejscia do klienta hybrydowego Windows + Android tablet
 - `docs/DEPLOYMENT_WORKFLOW.md` - zasady wdrozen, w ktorych GitHub jest zrodlem prawdy, a Vercel tylko targetem build/deploy
+- `docs/OFFER_SHARE_EMAIL_ROLLOUT.md` - checklista wdrozenia publicznych linkow ofert i wysylki email z aplikacji
 - `docs/REPO_CHANGESET_PLAN.md` - proponowany podzial aktualnych zmian na male, czytelne commity
 - `docs/REPO_CLEANUP_AUDIT.md` - audyt uzywanych, zduplikowanych i generowanych plikow przed cleanupem repo
 - `docs/RELEASE_ASSET_POLICY.md` - polityka dla `public/download/` i binarnych paczek `.msix`
@@ -186,6 +194,8 @@ Podzial zmian na commity opisuje `docs/REPO_CHANGESET_PLAN.md`, a zasady dla art
 - `POST /api/client/offers/:offerId/lead` - przypiecie istniejacego leada albo utworzenie nowego leada z danych oferty z poziomu klienta lokalnego
 - `GET /api/client/offers/:offerId/document` - snapshot dokumentu oferty i assety do lokalnego podgladu PDF
 - `POST /api/client/offers/:offerId/pdf-version` - utworzenie nowej wersji dokumentu PDF oferty po stronie centrali
+- `POST /api/client/offers/:offerId/share` - wygenerowanie publicznego linku do konkretnej wersji oferty online
+- `POST /api/client/offers/:offerId/send-email` - wysylka maila do klienta z linkiem do aktywnej oferty online
 - `GET /api/updates/manifest` - pobranie opublikowanych wersji `DATA`, `ASSETS`, `APPLICATION`
 - `POST /api/updates/compare` - porownanie wersji klienta lokalnego z wersjami opublikowanymi centralnie
 - `POST /api/updates/publish` - publikacja nowej wersji przez administratora lub dyrektora

@@ -28,6 +28,7 @@ export async function createUserAction(formData: FormData) {
   const result = await createManagedUser({
     fullName: String(formData.get('fullName') || ''),
     email: String(formData.get('email') || ''),
+    phone: String(formData.get('phone') || ''),
     role: String(formData.get('role') || 'SALES') as UserRoleKey,
     password: String(formData.get('password') || ''),
     region: String(formData.get('region') || ''),

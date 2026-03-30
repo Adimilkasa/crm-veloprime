@@ -3,9 +3,11 @@ import 'server-only'
 import { OfferColorKind, Prisma } from '@prisma/client'
 
 import type { AuthSession } from '@/lib/auth'
+import { getOfferAssetBundle } from '@/lib/offer-assets'
 import type { ModelColorPalette } from '@/lib/color-management'
 import { listActiveCommissionRules } from '@/lib/commission-management'
 import { db, hasDatabaseUrl } from '@/lib/db'
+import { sendTransactionalEmail } from '@/lib/email-service'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
 import { createManagedLead, listManagedLeads, listManagedLeadStages, logManagedLeadActivity, type ManagedLead } from '@/lib/lead-management'
 import { calculateOfferSummary, type OfferCalculationSummary, type OfferCustomerType } from '@/lib/offer-calculations'
@@ -21,6 +23,9 @@ export type OfferVersion = {
   summary: string
   createdAt: string
   pdfUrl: string | null
+  shareToken: string | null
+  sharedAt: string | null
+  shareExpiresAt: string | null
   payloadJson: OfferDocumentPayload | null
   customerSnapshotJson: OfferCustomerSnapshot | null
   internalSnapshotJson: OfferInternalSnapshot | null
@@ -78,7 +83,15 @@ export type OfferDocumentPayload = {
   versionNumber: number
   createdAt: string
   customer: OfferCustomerSnapshot
+  advisor: OfferAdvisorSnapshot
   internal: OfferInternalSnapshot
+}
+
+export type OfferAdvisorSnapshot = {
+  fullName: string
+  email: string | null
+  phone: string | null
+  role: AuthSession['role']
 }
 
 export type ManagedOffer = {
@@ -97,6 +110,8 @@ export type ManagedOffer = {
   discountValue: number | null
   ownerId: string
   ownerName: string
+  ownerEmail: string | null
+  ownerPhone: string | null
   validUntil: string | null
   totalGross: number | null
   totalNet: number | null
@@ -138,6 +153,13 @@ export type OfferPricingOption = {
   basePriceNet: number | null
   marginPoolGross: number | null
   marginPoolNet: number | null
+}
+
+export type ManagedOfferShare = {
+  offerId: string
+  versionId: string
+  token: string
+  expiresAt: string | null
 }
 
 export type OfferColorPaletteOption = ModelColorPalette
@@ -291,6 +313,162 @@ function nextOfferNumber(offers: ManagedOffer[]) {
   return `OFR-${year}${month}${day}-${sequence}`
 }
 
+function buildOfferShareToken() {
+  return crypto.randomUUID().replace(/-/g, '')
+}
+
+function resolveOfferShareExpiresAt(validUntil: string | null, fallbackCreatedAt: string) {
+  if (validUntil) {
+    const validUntilDate = new Date(validUntil)
+
+    if (!Number.isNaN(validUntilDate.getTime())) {
+      return validUntilDate.toISOString()
+    }
+  }
+
+  const createdAt = new Date(fallbackCreatedAt)
+  const baseTime = Number.isNaN(createdAt.getTime()) ? Date.now() : createdAt.getTime()
+  return new Date(baseTime + 7 * 86400000).toISOString()
+}
+
+function stripHtml(value: string) {
+  return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function buildAbsoluteUrl(origin: string, path: string) {
+  return new URL(path, origin).toString()
+}
+
+function buildOfferEmailContent(input: {
+  publicUrl: string
+  logoUrl: string
+  heroImageUrl: string | null
+  modelName: string
+  customerName: string
+  offerNumber: string
+  validUntil: string | null
+  finalGrossLabel: string
+  financingSummary: string | null
+  advisorName: string
+  advisorEmail: string | null
+  advisorPhone: string | null
+}) {
+  const validityLabel = input.validUntil
+    ? new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium' }).format(new Date(input.validUntil))
+    : 'bez określonej daty końcowej'
+  const advisorContact = [input.advisorEmail, input.advisorPhone].filter(Boolean).join(' • ') || 'Skontaktuj się bezpośrednio z opiekunem oferty.'
+  const financingLabel = input.financingSummary ?? 'Warunki finansowania są opisane w pełnej ofercie online.'
+  const heroMarkup = input.heroImageUrl
+    ? `<img src="${input.heroImageUrl}" alt="${input.modelName}" style="display:block;width:100%;max-width:520px;height:auto;border-radius:24px;object-fit:cover;" />`
+    : ''
+
+  const html = `
+    <div style="margin:0;padding:32px 16px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#172033;">
+      <div style="max-width:640px;margin:0 auto;background:linear-gradient(180deg,#ffffff 0%,#f9fbff 100%);border:1px solid rgba(20,33,61,0.08);border-radius:28px;overflow:hidden;box-shadow:0 24px 70px rgba(17,32,67,0.12);">
+        <div style="padding:28px 28px 16px;background:linear-gradient(135deg,#17325f 0%,#214b87 100%);color:#ffffff;">
+          <img src="${input.logoUrl}" alt="VeloPrime" style="display:block;height:34px;width:auto;max-width:180px;" />
+          <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:rgba(255,255,255,0.66);">Oferta indywidualna</div>
+          <h1 style="margin:14px 0 0;font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em;">${input.modelName}</h1>
+          <p style="margin:14px 0 0;font-size:15px;line-height:1.8;color:rgba(255,255,255,0.8);">Przygotowaliśmy aktywną ofertę online dla ${input.customerName}. Link poniżej prowadzi do pełnego widoku oferty wraz z galerią, finansowaniem i danymi opiekuna.</p>
+        </div>
+        <div style="padding:24px 28px 0;">${heroMarkup}</div>
+        <div style="padding:28px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+            <div style="border:1px solid rgba(20,33,61,0.08);border-radius:20px;padding:16px;background:#ffffff;">
+              <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">Numer oferty</div>
+              <div style="margin-top:10px;font-size:18px;font-weight:700;color:#172033;">${input.offerNumber}</div>
+            </div>
+            <div style="border:1px solid rgba(20,33,61,0.08);border-radius:20px;padding:16px;background:#ffffff;">
+              <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">Cena końcowa</div>
+              <div style="margin-top:10px;font-size:18px;font-weight:700;color:#172033;">${input.finalGrossLabel}</div>
+            </div>
+            <div style="border:1px solid rgba(20,33,61,0.08);border-radius:20px;padding:16px;background:#ffffff;">
+              <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">Ważność</div>
+              <div style="margin-top:10px;font-size:18px;font-weight:700;color:#172033;">${validityLabel}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:18px;border:1px solid rgba(20,33,61,0.08);border-radius:24px;background:linear-gradient(180deg,#f9fbfe 0%,#f4f7fb 100%);padding:18px 20px;">
+            <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">Finansowanie</div>
+            <p style="margin:12px 0 0;font-size:15px;line-height:1.8;color:#55627d;">${financingLabel}</p>
+          </div>
+
+          <div style="margin-top:24px;text-align:center;">
+            <a href="${input.publicUrl}" style="display:inline-block;padding:14px 26px;border-radius:999px;background:linear-gradient(180deg,#e3c986 0%,#d6ad56 100%);color:#1c1711;text-decoration:none;font-size:15px;font-weight:700;box-shadow:0 16px 34px rgba(212,168,79,0.18);">Otwórz ofertę online</a>
+            <div style="margin-top:14px;font-size:13px;line-height:1.7;color:#667389;">Jeśli przycisk nie działa, skopiuj ten adres: <br /><a href="${input.publicUrl}" style="color:#214b87;word-break:break-all;">${input.publicUrl}</a></div>
+          </div>
+
+          <div style="margin-top:24px;border-top:1px solid rgba(20,33,61,0.08);padding-top:20px;">
+            <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">Opiekun oferty</div>
+            <div style="margin-top:10px;font-size:18px;font-weight:700;color:#172033;">${input.advisorName}</div>
+            <div style="margin-top:8px;font-size:14px;line-height:1.8;color:#55627d;">${advisorContact}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `.trim()
+
+  const text = [
+    `VeloPrime | Oferta ${input.modelName}`,
+    '',
+    `Klient: ${input.customerName}`,
+    `Numer oferty: ${input.offerNumber}`,
+    `Cena końcowa: ${input.finalGrossLabel}`,
+    `Ważność: ${validityLabel}`,
+    `Finansowanie: ${financingLabel}`,
+    '',
+    `Oferta online: ${input.publicUrl}`,
+    '',
+    `Opiekun oferty: ${input.advisorName}`,
+    advisorContact,
+  ].join('\n')
+
+  return { html, text }
+}
+
+async function markManagedOfferAsSent(session: AuthSession, offerId: string) {
+  const offer = await getManagedOfferWithCalculation(session, offerId)
+
+  if (!offer) {
+    return
+  }
+
+  if (isPrismaOfferStorageEnabled() && db) {
+    if (offer.status !== 'SENT') {
+      await db.offer.update({
+        where: { id: offerId },
+        data: { status: 'SENT' },
+      })
+    }
+  } else {
+    const offers = await getStore()
+    const storedOffer = offers.find((entry) => entry.id === offerId)
+
+    if (storedOffer) {
+      storedOffer.status = 'SENT'
+      storedOffer.updatedAt = new Date().toISOString()
+    }
+  }
+
+  if (!offer.leadId) {
+    return
+  }
+
+  const stages = await listManagedLeadStages()
+  const offerSharedStage = stages.find((stage) => stage.name === 'Oferta przekazana') ?? null
+
+  if (offerSharedStage) {
+    const { moveManagedLeadToStage } = await import('@/lib/lead-management')
+    await moveManagedLeadToStage(session, offer.leadId, offerSharedStage.id)
+  }
+
+  await logManagedLeadActivity(session, {
+    leadId: offer.leadId,
+    label: 'Oferta wysłana e-mailem',
+    value: `Oferta ${offer.number} została wysłana e-mailem do klienta.`,
+  })
+}
+
 async function buildSeedOffers() {
   const users = await listManagedUsers()
   const adminSession = users.find((user) => user.role === 'ADMIN') ?? users[0]
@@ -305,6 +483,7 @@ async function buildSeedOffers() {
 
   return leads.slice(0, 2).map((lead, index) => {
     const createdAt = new Date(Date.now() - (index + 1) * 86400000).toISOString()
+    const ownerUser = users.find((user) => user.id === (lead.salespersonId ?? adminSession?.id)) ?? adminSession
 
     return {
       id: `offer-seed-${index + 1}`,
@@ -322,6 +501,8 @@ async function buildSeedOffers() {
       discountValue: null,
       ownerId: lead.salespersonId ?? adminSession?.id ?? 'demo-admin',
       ownerName: lead.salespersonName ?? adminSession?.fullName ?? 'Administrator VeloPrime',
+      ownerEmail: ownerUser?.email ?? null,
+      ownerPhone: ownerUser?.phone ?? null,
       validUntil: new Date(Date.now() + (index + 5) * 86400000).toISOString(),
       totalGross: index === 0 ? 184900 : 203500,
       totalNet: index === 0 ? 150325.2 : 165447.15,
@@ -338,6 +519,9 @@ async function buildSeedOffers() {
           summary: `Wersja startowa / ${lead.interestedModel ?? 'model'} / ${formatMoney(index === 0 ? 184900 : 203500)}`,
           createdAt,
           pdfUrl: null,
+          shareToken: null,
+          sharedAt: null,
+          shareExpiresAt: null,
           payloadJson: null,
           customerSnapshotJson: null,
           internalSnapshotJson: null,
@@ -400,6 +584,12 @@ function buildOfferVersionSnapshot(offer: ManagedOfferWithCalculation, versionId
       financingSummary,
       financingDisclaimer: financing && financing.ok ? financing.summary.disclaimerText : null,
       createdAt,
+    },
+    advisor: {
+      fullName: offer.ownerName,
+      email: offer.ownerEmail,
+      phone: offer.ownerPhone,
+      role: offer.calculation?.ownerRole ?? 'SALES',
     },
     internal: {
       catalogKey: offer.pricingCatalogKey,
@@ -768,6 +958,11 @@ export async function createManagedOffer(
   }
 
   const ownerId = lead?.salespersonId ?? session.sub
+  const users = await listManagedUsers()
+  const ownerUser = users.find((user) => user.id === ownerId) ?? null
+  const resolvedOwnerName = lead?.salespersonName ?? ownerUser?.fullName ?? session.fullName
+  const resolvedOwnerEmail = ownerUser?.email ?? session.email
+  const resolvedOwnerPhone = ownerUser?.phone ?? null
   const pricingSheet = await getActivePricingSheet()
   const catalogItems = buildDetailedPricingCatalog(pricingSheet)
   const pricingResult = await resolveOfferPricing({
@@ -819,7 +1014,6 @@ export async function createManagedOffer(
   })
 
   if (isPrismaOfferStorageEnabled() && db) {
-    const users = await listManagedUsers()
     await ensureUsersInDb(users)
     const catalogIds = await syncCatalogItemsToDb(catalogItems)
     const customer = lead
@@ -895,7 +1089,9 @@ export async function createManagedOffer(
     customerType,
     discountValue,
     ownerId,
-    ownerName: lead?.salespersonName ?? session.fullName,
+    ownerName: resolvedOwnerName,
+    ownerEmail: resolvedOwnerEmail,
+    ownerPhone: resolvedOwnerPhone,
     validUntil: input.validUntil?.trim() ? new Date(input.validUntil).toISOString() : null,
     totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
     totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
@@ -1139,6 +1335,9 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
     summary: `${offer.title} / ${offer.selectedColorName ?? 'kolor bazowy'} / ${offer.financingVariant ?? 'wariant bez finansowania'} / ${formatMoney(offer.totalGross)}`,
     createdAt: payload.createdAt,
     pdfUrl: `/offers/${offer.id}/pdf?versionId=${versionId}`,
+    shareToken: null,
+    sharedAt: null,
+    shareExpiresAt: null,
     payloadJson: payload,
     customerSnapshotJson: payload.customer,
     internalSnapshotJson: payload.internal,
@@ -1151,6 +1350,9 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
         offerId: offer.id,
         versionNumber: nextVersion.versionNumber,
         pdfUrl: nextVersion.pdfUrl,
+        shareToken: nextVersion.shareToken,
+        sharedAt: nextVersion.sharedAt ? new Date(nextVersion.sharedAt) : null,
+        shareExpiresAt: nextVersion.shareExpiresAt ? new Date(nextVersion.shareExpiresAt) : null,
         payloadJson: nextVersion.payloadJson as Prisma.InputJsonValue,
         customerSnapshotJson: nextVersion.customerSnapshotJson as Prisma.InputJsonValue,
         internalSnapshotJson: nextVersion.internalSnapshotJson as Prisma.InputJsonValue,
@@ -1189,6 +1391,246 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
   return { ok: true as const, version: nextVersion }
 }
 
+export async function createManagedOfferShare(
+  session: AuthSession,
+  input: {
+    offerId: string
+    versionId?: string | null
+  },
+) {
+  const offer = await getManagedOfferWithCalculation(session, input.offerId)
+
+  if (!offer) {
+    return { ok: false as const, error: 'Nie znaleziono oferty do udostępnienia.' }
+  }
+
+  let version = input.versionId?.trim()
+    ? offer.versions.find((entry) => entry.id === input.versionId?.trim()) ?? null
+    : offer.versions[0] ?? null
+
+  if (input.versionId?.trim() && !version) {
+    return { ok: false as const, error: 'Nie znaleziono wskazanej wersji oferty.' }
+  }
+
+  if (!version) {
+    const versionResult = await createManagedOfferVersion(session, offer.id)
+
+    if (!versionResult.ok) {
+      return versionResult
+    }
+
+    version = versionResult.version
+  }
+
+  const token = version.shareToken ?? buildOfferShareToken()
+  const expiresAt = resolveOfferShareExpiresAt(offer.validUntil, version.createdAt)
+  const sharedAt = new Date().toISOString()
+
+  if (isPrismaOfferStorageEnabled() && db) {
+    await db.offerVersion.update({
+      where: { id: version.id },
+      data: {
+        shareToken: token,
+        sharedAt: new Date(sharedAt),
+        shareExpiresAt: expiresAt ? new Date(expiresAt) : null,
+      },
+    })
+  } else {
+    version.shareToken = token
+    version.sharedAt = sharedAt
+    version.shareExpiresAt = expiresAt
+  }
+
+  return {
+    ok: true as const,
+    share: {
+      offerId: offer.id,
+      versionId: version.id,
+      token,
+      expiresAt,
+    } satisfies ManagedOfferShare,
+  }
+}
+
+export async function getPublicOfferDocumentSnapshot(token: string) {
+  const normalizedToken = token.trim()
+
+  if (!normalizedToken) {
+    return { ok: false as const, status: 'not-found' as const }
+  }
+
+  if (isPrismaOfferStorageEnabled() && db) {
+    const version = await db.offerVersion.findUnique({
+      where: { shareToken: normalizedToken },
+      include: {
+        offer: {
+          include: {
+            customer: true,
+            owner: true,
+          },
+        },
+      },
+    })
+
+    if (!version) {
+      return { ok: false as const, status: 'not-found' as const }
+    }
+
+    if (version.shareExpiresAt && version.shareExpiresAt.getTime() < Date.now()) {
+      return {
+        ok: false as const,
+        status: 'expired' as const,
+        title: version.offer.title,
+        advisorName: version.offer.owner.fullName,
+        advisorEmail: version.offer.owner.email,
+        advisorPhone: version.offer.owner.phone,
+      }
+    }
+
+    const payload = version.payloadJson as OfferDocumentPayload | null
+
+    if (!payload) {
+      return { ok: false as const, status: 'not-found' as const }
+    }
+
+    return {
+      ok: true as const,
+      offerId: version.offerId,
+      offerNumber: version.offer.number,
+      title: version.offer.title,
+      shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,
+      version: {
+        id: version.id,
+        versionNumber: version.versionNumber,
+        summary: `${version.offer.title} / ${payload.customer.finalGrossLabel}`,
+        createdAt: version.createdAt.toISOString(),
+        pdfUrl: version.pdfUrl,
+        shareToken: version.shareToken,
+        sharedAt: version.sharedAt?.toISOString() ?? null,
+        shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,
+        payloadJson: payload,
+        customerSnapshotJson: (version.customerSnapshotJson as OfferCustomerSnapshot | null) ?? payload.customer,
+        internalSnapshotJson: (version.internalSnapshotJson as OfferInternalSnapshot | null) ?? payload.internal,
+      } satisfies OfferVersion,
+      payload,
+      assets: await getOfferAssetBundle(payload.customer.modelName),
+    }
+  }
+
+  const offers = await getStore()
+
+  for (const offer of offers) {
+    const version = offer.versions.find((entry) => entry.shareToken === normalizedToken)
+
+    if (!version) {
+      continue
+    }
+
+    if (version.shareExpiresAt && new Date(version.shareExpiresAt).getTime() < Date.now()) {
+      return {
+        ok: false as const,
+        status: 'expired' as const,
+        title: offer.title,
+        advisorName: offer.ownerName,
+        advisorEmail: offer.ownerEmail,
+        advisorPhone: offer.ownerPhone,
+      }
+    }
+
+    const payload = version.payloadJson
+
+    if (!payload) {
+      return { ok: false as const, status: 'not-found' as const }
+    }
+
+    return {
+      ok: true as const,
+      offerId: offer.id,
+      offerNumber: offer.number,
+      title: offer.title,
+      shareExpiresAt: version.shareExpiresAt,
+      version,
+      payload,
+      assets: await getOfferAssetBundle(payload.customer.modelName),
+    }
+  }
+
+  return { ok: false as const, status: 'not-found' as const }
+}
+
+export async function sendManagedOfferEmail(
+  session: AuthSession,
+  input: {
+    offerId: string
+    versionId?: string | null
+    toEmail?: string | null
+  },
+  origin: string,
+) {
+  const shareResult = await createManagedOfferShare(session, {
+    offerId: input.offerId,
+    versionId: input.versionId,
+  })
+
+  if (!shareResult.ok) {
+    return shareResult
+  }
+
+  const document = await getOfferDocumentSnapshot(session, input.offerId, shareResult.share.versionId)
+
+  if (!document) {
+    return { ok: false as const, error: 'Nie udało się przygotować dokumentu oferty do wysyłki.' }
+  }
+
+  const recipient = (input.toEmail?.trim() || document.payload.customer.customerEmail || '').trim().toLowerCase()
+
+  if (!recipient || !recipient.includes('@')) {
+    return { ok: false as const, error: 'Oferta nie ma poprawnego adresu email klienta.' }
+  }
+
+  const modelName = document.payload.customer.modelName ?? document.payload.customer.title ?? document.offer.title
+  const publicUrl = `${origin}/oferta/${shareResult.share.token}`
+  const assets = await getOfferAssetBundle(document.payload.customer.modelName)
+  const absoluteLogoUrl = buildAbsoluteUrl(origin, assets.logoUrl)
+  const heroImage = assets.images.premium[0] ?? assets.images.exterior[0] ?? assets.images.other[0] ?? null
+  const absoluteHeroImage = heroImage ? buildAbsoluteUrl(origin, heroImage) : null
+  const advisorName = document.payload.advisor.fullName || document.payload.internal.ownerName || 'Opiekun VeloPrime'
+  const { html, text } = buildOfferEmailContent({
+    publicUrl,
+    logoUrl: absoluteLogoUrl,
+    heroImageUrl: absoluteHeroImage,
+    modelName,
+    customerName: document.payload.customer.customerName,
+    offerNumber: document.payload.customer.offerNumber,
+    validUntil: document.payload.customer.validUntil ?? shareResult.share.expiresAt,
+    finalGrossLabel: document.payload.customer.finalGrossLabel,
+    financingSummary: document.payload.customer.financingSummary ?? document.payload.customer.financingVariant,
+    advisorName,
+    advisorEmail: document.payload.advisor.email,
+    advisorPhone: document.payload.advisor.phone,
+  })
+
+  await sendTransactionalEmail({
+    to: recipient,
+    subject: `VeloPrime | Oferta ${stripHtml(modelName)} | ${stripHtml(document.payload.customer.customerName)}`,
+    html,
+    text,
+    replyTo: document.payload.advisor.email,
+  })
+
+  await markManagedOfferAsSent(session, input.offerId)
+
+  return {
+    ok: true as const,
+    email: {
+      to: recipient,
+      publicUrl,
+      expiresAt: shareResult.share.expiresAt,
+      versionId: shareResult.share.versionId,
+    },
+  }
+}
+
 export async function assignManagedOfferLead(
   session: AuthSession,
   input: {
@@ -1211,6 +1653,8 @@ export async function assignManagedOfferLead(
 
   const nextOwnerId = lead.salespersonId ?? offer.ownerId
   const nextOwnerName = lead.salespersonName ?? offer.ownerName
+  const users = await listManagedUsers()
+  const nextOwnerUser = users.find((user) => user.id === nextOwnerId) ?? null
 
   if (isPrismaOfferStorageEnabled() && db) {
     const customer = await ensureCustomerFromLead(lead, nextOwnerId)
@@ -1250,6 +1694,8 @@ export async function assignManagedOfferLead(
   offer.customerPhone = lead.phone
   offer.ownerId = nextOwnerId
   offer.ownerName = nextOwnerName
+  offer.ownerEmail = nextOwnerUser?.email ?? offer.ownerEmail
+  offer.ownerPhone = nextOwnerUser?.phone ?? offer.ownerPhone
   offer.notes = offer.notes ?? lead.message ?? null
   offer.updatedAt = new Date().toISOString()
 
@@ -1335,6 +1781,7 @@ async function ensureUsersInDb(users: ManagedUser[]) {
         fullName: user.fullName,
         role: user.role,
         isActive: user.isActive,
+        phone: user.phone,
         region: user.region,
         teamName: user.teamName,
         reportsToUserId: user.reportsToUserId,
@@ -1345,6 +1792,7 @@ async function ensureUsersInDb(users: ManagedUser[]) {
         fullName: user.fullName,
         role: user.role,
         isActive: user.isActive,
+        phone: user.phone,
         region: user.region,
         teamName: user.teamName,
         reportsToUserId: user.reportsToUserId,
@@ -1491,6 +1939,8 @@ function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
     discountValue: offer.discountAmount ? Number(offer.discountAmount) : null,
     ownerId: offer.ownerId,
     ownerName: offer.owner.fullName,
+    ownerEmail: offer.owner.email,
+    ownerPhone: offer.owner.phone,
     validUntil: offer.validUntil?.toISOString() ?? null,
     totalGross: offer.totalGross ? Number(offer.totalGross) : null,
     totalNet: offer.totalNet ? Number(offer.totalNet) : null,
@@ -1510,6 +1960,9 @@ function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
           : `${offer.title} / ${formatMoney(offer.totalGross ? Number(offer.totalGross) : null)}`,
         createdAt: version.createdAt.toISOString(),
         pdfUrl: version.pdfUrl,
+        shareToken: version.shareToken,
+        sharedAt: version.sharedAt?.toISOString() ?? null,
+        shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,
         payloadJson: (version.payloadJson as OfferDocumentPayload | null) ?? null,
         customerSnapshotJson: (version.customerSnapshotJson as OfferCustomerSnapshot | null) ?? null,
         internalSnapshotJson: (version.internalSnapshotJson as OfferInternalSnapshot | null) ?? null,

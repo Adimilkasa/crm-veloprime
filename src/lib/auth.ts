@@ -17,12 +17,14 @@ export type AuthSession = {
 }
 
 export type DemoUser = AuthSession & {
+  phone?: string | null
   reportsToUserId?: string | null
   password: string
 }
 
 type AuthBackedUser = DemoUser & {
   isActive: boolean
+  phone: string | null
   region: string | null
   teamName: string | null
   createdAt: string
@@ -37,6 +39,7 @@ const seedUsers: DemoUser[] = [
     email: 'admin@veloprime.pl',
     fullName: 'Administrator VeloPrime',
     role: 'ADMIN',
+    phone: '+48 600 100 100',
     reportsToUserId: null,
     password: 'Admin123!'
   },
@@ -45,6 +48,7 @@ const seedUsers: DemoUser[] = [
     email: 'dyrektor@veloprime.pl',
     fullName: 'Dyrektor Sprzedazy',
     role: 'DIRECTOR',
+    phone: '+48 600 100 200',
     reportsToUserId: null,
     password: 'Director123!'
   },
@@ -53,6 +57,7 @@ const seedUsers: DemoUser[] = [
     email: 'manager@veloprime.pl',
     fullName: 'Manager Regionu',
     role: 'MANAGER',
+    phone: '+48 600 100 300',
     reportsToUserId: 'demo-director',
     password: 'Manager123!'
   },
@@ -61,6 +66,7 @@ const seedUsers: DemoUser[] = [
     email: 'handlowiec@veloprime.pl',
     fullName: 'Handlowiec VeloPrime',
     role: 'SALES',
+    phone: '+48 600 100 400',
     reportsToUserId: 'demo-manager',
     password: 'Sales123!'
   },
@@ -76,6 +82,7 @@ function mapSeedUser(user: DemoUser): AuthBackedUser {
   return {
     ...user,
     isActive: true,
+    phone: user.phone ?? null,
     region: null,
     teamName: null,
     createdAt: new Date().toISOString(),
@@ -97,6 +104,7 @@ function sanitizeAuthUser(user: AuthBackedUser) {
     email: user.email,
     fullName: user.fullName,
     role: user.role,
+    phone: user.phone ?? null,
     reportsToUserId: user.reportsToUserId ?? null,
     isActive: user.isActive,
     region: user.region,
@@ -152,6 +160,7 @@ function mapDbUser(user: {
   fullName: string
   role: UserRole
   isActive: boolean
+  phone: string | null
   region: string | null
   teamName: string | null
   reportsToUserId: string | null
@@ -163,6 +172,7 @@ function mapDbUser(user: {
     email: user.email,
     fullName: user.fullName,
     role: mapDbRole(user.role),
+    phone: user.phone,
     reportsToUserId: user.reportsToUserId ?? null,
     password: user.passwordHash ?? '',
     isActive: user.isActive,
@@ -186,6 +196,7 @@ async function ensureSeedUsersInDb() {
         fullName: user.fullName,
         role: user.role,
         isActive: true,
+        phone: user.phone ?? null,
         reportsToUserId: user.reportsToUserId ?? null,
         passwordHash: hashPassword(user.password),
       },
@@ -195,6 +206,7 @@ async function ensureSeedUsersInDb() {
         fullName: user.fullName,
         role: user.role,
         isActive: true,
+        phone: user.phone ?? null,
         reportsToUserId: user.reportsToUserId ?? null,
         passwordHash: hashPassword(user.password),
       },
@@ -265,6 +277,7 @@ export async function createAuthUser(input: {
   fullName: string
   email: string
   role: UserRoleKey
+  phone?: string | null
   region?: string
   teamName?: string
   reportsToUserId?: string | null
@@ -283,6 +296,7 @@ export async function createAuthUser(input: {
         fullName: input.fullName.trim(),
         role: input.role,
         isActive: true,
+        phone: input.phone?.trim() || null,
         region: input.region?.trim() || null,
         teamName: input.teamName?.trim() || null,
         reportsToUserId: input.reportsToUserId ?? null,
@@ -303,6 +317,7 @@ export async function createAuthUser(input: {
     email: normalizedEmail,
     fullName: input.fullName.trim(),
     role: input.role,
+    phone: input.phone?.trim() || null,
     reportsToUserId: input.reportsToUserId ?? null,
     password,
     isActive: true,

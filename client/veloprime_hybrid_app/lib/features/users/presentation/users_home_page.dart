@@ -30,6 +30,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
 
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _regionController = TextEditingController();
   final TextEditingController _teamController = TextEditingController();
@@ -47,6 +48,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _regionController.dispose();
     _teamController.dispose();
@@ -92,6 +94,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
       final result = await widget.repository.createUser({
         'fullName': _fullNameController.text.trim(),
         'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
         'password': _passwordController.text,
         'role': _role,
         'region': _regionController.text.trim(),
@@ -105,6 +108,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
 
       _fullNameController.clear();
       _emailController.clear();
+      _phoneController.clear();
       _passwordController.clear();
       _regionController.clear();
       _teamController.clear();
@@ -341,6 +345,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                 children: [
                                   _FormFieldShell(width: 320, child: TextField(controller: _fullNameController, decoration: veloPrimeInputDecoration('Imię i nazwisko'))),
                                   _FormFieldShell(width: 280, child: TextField(controller: _emailController, decoration: veloPrimeInputDecoration('Email'))),
+                                  _FormFieldShell(width: 220, child: TextField(controller: _phoneController, decoration: veloPrimeInputDecoration('Telefon'))),
                                   _FormFieldShell(width: 280, child: TextField(controller: _passwordController, decoration: veloPrimeInputDecoration('Hasło startowe (opcjonalnie)'))),
                                   _FormFieldShell(
                                     width: 220,
@@ -423,7 +428,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                         const SizedBox(height: 10),
                                         Text(user.fullName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                                         const SizedBox(height: 4),
-                                        Text('${user.email} • ${_roleLabel(user.role)}', style: const TextStyle(color: VeloPrimePalette.muted)),
+                                        Text('${user.email} • ${user.phone ?? 'Brak telefonu'} • ${_roleLabel(user.role)}', style: const TextStyle(color: VeloPrimePalette.muted)),
                                         const SizedBox(height: 10),
                                         Wrap(
                                           spacing: 12,

@@ -7,6 +7,7 @@ export type ManagedUser = {
   id: string
   fullName: string
   email: string
+  phone: string | null
   role: UserRoleKey
   isActive: boolean
   region: string | null
@@ -19,6 +20,7 @@ export type ManagedUser = {
 type CreateManagedUserInput = {
   fullName: string
   email: string
+  phone?: string
   role: UserRoleKey
   password?: string
   region?: string
@@ -49,6 +51,7 @@ export async function listManagedUsers() {
       id: user.sub,
       fullName: user.fullName,
       email: user.email,
+      phone: user.phone ?? null,
       role: user.role,
       isActive: user.isActive,
       region: user.region,
@@ -70,6 +73,7 @@ export async function listPotentialSupervisors(role: UserRoleKey) {
 
 export async function createManagedUser(input: CreateManagedUserInput) {
   const normalizedEmail = input.email.trim().toLowerCase()
+  const normalizedPhone = input.phone?.trim() ?? ''
   const reportsToUserId = normalizeSupervisorId(input.reportsToUserId)
   const users = await listManagedUsers()
 
@@ -79,6 +83,10 @@ export async function createManagedUser(input: CreateManagedUserInput) {
 
   if (!normalizedEmail || !normalizedEmail.includes('@')) {
     return { ok: false as const, error: 'Podaj poprawny adres email.' }
+  }
+
+  if (!normalizedPhone) {
+    return { ok: false as const, error: 'Podaj numer telefonu użytkownika.' }
   }
 
   if (users.some((user) => user.email === normalizedEmail)) {
@@ -108,6 +116,7 @@ export async function createManagedUser(input: CreateManagedUserInput) {
   const result = await createAuthUser({
     fullName: input.fullName,
     email: normalizedEmail,
+    phone: normalizedPhone,
     role: input.role,
     password: input.password,
     region: input.region,
@@ -121,6 +130,7 @@ export async function createManagedUser(input: CreateManagedUserInput) {
       id: result.user.sub,
       fullName: result.user.fullName,
       email: result.user.email,
+      phone: result.user.phone ?? null,
       role: result.user.role,
       isActive: result.user.isActive,
       region: result.user.region,
@@ -146,6 +156,7 @@ export async function toggleManagedUserStatus(userId: string) {
       id: user.sub,
       fullName: user.fullName,
       email: user.email,
+      phone: user.phone ?? null,
       role: user.role,
       isActive: user.isActive,
       region: user.region,

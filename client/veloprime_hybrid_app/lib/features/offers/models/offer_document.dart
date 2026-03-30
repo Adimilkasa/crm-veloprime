@@ -127,12 +127,36 @@ class OfferDocumentInternalSnapshot {
   }
 }
 
+class OfferDocumentAdvisorSnapshot {
+  const OfferDocumentAdvisorSnapshot({
+    required this.fullName,
+    required this.email,
+    required this.phone,
+    required this.role,
+  });
+
+  final String fullName;
+  final String? email;
+  final String? phone;
+  final String role;
+
+  factory OfferDocumentAdvisorSnapshot.fromJson(Map<String, dynamic> json) {
+    return OfferDocumentAdvisorSnapshot(
+      fullName: json['fullName'] as String? ?? '',
+      email: json['email'] as String?,
+      phone: json['phone'] as String?,
+      role: json['role'] as String? ?? 'SALES',
+    );
+  }
+}
+
 class OfferDocumentPayloadData {
   const OfferDocumentPayloadData({
     required this.versionId,
     required this.versionNumber,
     required this.createdAt,
     required this.customer,
+    required this.advisor,
     required this.internal,
   });
 
@@ -140,6 +164,7 @@ class OfferDocumentPayloadData {
   final int versionNumber;
   final String createdAt;
   final OfferDocumentCustomerSnapshot customer;
+  final OfferDocumentAdvisorSnapshot advisor;
   final OfferDocumentInternalSnapshot internal;
 
   factory OfferDocumentPayloadData.fromJson(Map<String, dynamic> json) {
@@ -148,6 +173,7 @@ class OfferDocumentPayloadData {
       versionNumber: json['versionNumber'] as int? ?? 0,
       createdAt: json['createdAt'] as String? ?? '',
       customer: OfferDocumentCustomerSnapshot.fromJson(json['customer'] as Map<String, dynamic>? ?? const {}),
+      advisor: OfferDocumentAdvisorSnapshot.fromJson(json['advisor'] as Map<String, dynamic>? ?? const {}),
       internal: OfferDocumentInternalSnapshot.fromJson(json['internal'] as Map<String, dynamic>? ?? const {}),
     );
   }
