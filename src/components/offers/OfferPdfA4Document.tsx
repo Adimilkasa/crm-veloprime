@@ -86,6 +86,23 @@ function buildGalleryDescription(variant: 'details' | 'interior' | 'exterior') {
   return 'Zewnętrzne ujęcia nadwozia z różnych perspektyw, budujące finalne wrażenie modelu.'
 }
 
+function buildContactLine(customer: OfferPdfPayload['customer']) {
+  const parts = [customer.customerEmail, customer.customerPhone].filter(Boolean)
+
+  if (parts.length === 0) {
+    return 'Dane kontaktowe zostaną potwierdzone na etapie rozmowy handlowej.'
+  }
+
+  return parts.join(' • ')
+}
+
+function buildOfferNarrative(payload: OfferPdfPayload) {
+  const financingSummary = payload.customer.financingSummary ?? payload.customer.financingVariant ?? 'warunki ustalane indywidualnie'
+  const modelName = payload.customer.modelName ?? payload.customer.title ?? 'tej konfiguracji'
+
+  return `Konfiguracja ${modelName} została przygotowana dla ${payload.customer.customerName}. Punkt wyjścia do rozmowy stanowi cena końcowa ${payload.customer.finalGrossLabel} brutto oraz scenariusz finansowania: ${financingSummary}.`
+}
+
 function Page({ children }: { children: ReactNode }) {
   return <section className="pdf-a4-page">{children}</section>
 }
@@ -143,6 +160,16 @@ export function OfferPdfA4Document({
   const interiorImages = assets.images.interior.slice(0, 3)
   const exteriorImages = assets.images.exterior.slice(0, 3)
   const notes = payload.customer.notes?.trim() ?? ''
+  const offerHeadline = payload.customer.modelName ?? payload.customer.title ?? 'Oferta VeloPrime'
+  const financingSummary = payload.customer.financingSummary ?? payload.customer.financingVariant ?? 'Warunki ustalane indywidualnie'
+  const contactLine = buildContactLine(payload.customer)
+  const coverBriefItems = [
+    { label: 'Dla klienta', value: payload.customer.customerName },
+    { label: 'Kontakt', value: contactLine },
+    { label: 'Konfiguracja', value: payload.customer.selectedColorName ?? 'Kolor bazowy' },
+    { label: 'Finansowanie', value: financingSummary },
+  ]
+  const galleryImageCount = detailImages.length + interiorImages.length + exteriorImages.length
 
   return (
     <section
@@ -172,8 +199,9 @@ export function OfferPdfA4Document({
 
         <div className="pdf-a4-cover-layout">
           <div className="pdf-a4-cover-copy">
+            <div className="pdf-a4-offer-kicker">Dokument handlowy • konfiguracja gotowa do rozmowy</div>
             <div className="pdf-a4-eyebrow">{payload.customer.offerNumber}</div>
-            <h1 className="pdf-a4-hero-title">{payload.customer.modelName ?? payload.customer.title}</h1>
+            <h1 className="pdf-a4-hero-title">{offerHeadline}</h1>
             <p className="pdf-a4-hero-description">
               Oferta przygotowana dla {payload.customer.customerName} z wybraną konfiguracją, finansowaniem i zestawem materiałów produktowych VeloPrime.
             </p>
@@ -183,17 +211,34 @@ export function OfferPdfA4Document({
               <span className="pdf-a4-chip">Kolor: {payload.customer.selectedColorName ?? 'Bazowy'}</span>
               <span className="pdf-a4-chip">Finansowanie: {payload.customer.financingVariant ?? 'Indywidualnie ustalane'}</span>
             </div>
+
+            <div className="pdf-a4-cover-brief-grid">
+              {coverBriefItems.map((item) => (
+                <article key={item.label} className="pdf-a4-brief-card">
+                  <div className="pdf-a4-brief-label">{item.label}</div>
+                  <div className="pdf-a4-brief-value">{item.value}</div>
+                </article>
+              ))}
+            </div>
           </div>
 
           <div className="pdf-a4-hero-stage">
-            {heroImage ? (
-              /* eslint-disable-next-line @next/next/no-img-element -- html2pdf wymaga prostego img w klonowanym dokumencie */
-              <img src={heroImage} alt={payload.customer.modelName ?? 'Oferta samochodu'} className="pdf-a4-hero-image" />
-            ) : (
-              <div className="pdf-a4-hero-image pdf-a4-hero-image--placeholder">
-                Grafika modelu będzie dostępna po przypisaniu kompletu materiałów do tej konfiguracji.
+            <div className="pdf-a4-hero-panel">
+              {heroImage ? (
+                /* eslint-disable-next-line @next/next/no-img-element -- html2pdf wymaga prostego img w klonowanym dokumencie */
+                <img src={heroImage} alt={payload.customer.modelName ?? 'Oferta samochodu'} className="pdf-a4-hero-image" />
+              ) : (
+                <div className="pdf-a4-hero-image pdf-a4-hero-image--placeholder">
+                  Grafika modelu będzie dostępna po przypisaniu kompletu materiałów do tej konfiguracji.
+                </div>
+              )}
+
+              <div className="pdf-a4-hero-caption">
+                <div className="pdf-a4-card-label pdf-a4-card-label--gold">Wybrana konfiguracja</div>
+                <div className="pdf-a4-hero-caption-title">{payload.customer.selectedColorName ?? offerHeadline}</div>
+                <div className="pdf-a4-hero-caption-copy">{financingSummary}</div>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -201,10 +246,12 @@ export function OfferPdfA4Document({
           <div className="pdf-a4-price-card pdf-a4-price-card--gross">
             <div className="pdf-a4-card-label">Cena końcowa brutto</div>
             <div className="pdf-a4-price-value">{payload.customer.finalGrossLabel}</div>
+            <div className="pdf-a4-price-subtext">Po uwzględnieniu rabatu {payload.customer.discountLabel} ({payload.customer.discountPercentLabel}).</div>
           </div>
           <div className="pdf-a4-price-card pdf-a4-price-card--net">
             <div className="pdf-a4-card-label">Cena końcowa netto</div>
             <div className="pdf-a4-price-value">{payload.customer.finalNetLabel}</div>
+            <div className="pdf-a4-price-subtext">Oferta pozostawia przestrzeń do omówienia finansowania i warunków finalnych.</div>
           </div>
         </div>
 
@@ -221,10 +268,20 @@ export function OfferPdfA4Document({
           <article className="pdf-a4-info-card pdf-a4-info-card--cover pdf-a4-info-card--green">
             <div className="pdf-a4-card-label pdf-a4-card-label--green">Konfiguracja</div>
             <div className="pdf-a4-info-list">
-              <div><span>Model:</span> {payload.customer.modelName ?? 'Nie określono'}</div>
+              <div><span>Model:</span> {offerHeadline}</div>
               <div><span>Kolor:</span> {payload.customer.selectedColorName ?? 'Bazowy'}</div>
               <div><span>Finansowanie:</span> {payload.customer.financingSummary ?? payload.customer.financingVariant ?? 'Warunki ustalane indywidualnie'}</div>
               <div><span>Ważność oferty:</span> {formatDate(payload.customer.validUntil)}</div>
+            </div>
+          </article>
+
+          <article className="pdf-a4-info-card pdf-a4-info-card--cover pdf-a4-info-card--bronze">
+            <div className="pdf-a4-card-label pdf-a4-card-label--gold">Oferta i terminy</div>
+            <div className="pdf-a4-info-list">
+              <div><span>Numer:</span> {payload.customer.offerNumber}</div>
+              <div><span>Wersja:</span> {payload.versionNumber}</div>
+              <div><span>Wygenerowano:</span> {formatDate(payload.createdAt)}</div>
+              <div><span>Kontakt:</span> {contactLine}</div>
             </div>
           </article>
         </div>
@@ -237,7 +294,7 @@ export function OfferPdfA4Document({
           description="Najważniejsze parametry handlowe przygotowane dla tej wersji dokumentu, wraz z prezentacją warunków finansowych."
         />
 
-        <div className="pdf-a4-summary-grid pdf-a4-summary-grid--single">
+        <div className="pdf-a4-summary-grid pdf-a4-summary-grid--deal">
           <aside className="pdf-a4-info-card pdf-a4-info-card--summary pdf-a4-info-card--summary-wide">
             <div className="pdf-a4-card-label pdf-a4-card-label--gold">Podsumowanie ceny</div>
             <div className="pdf-a4-info-list pdf-a4-info-list--tight">
@@ -250,6 +307,17 @@ export function OfferPdfA4Document({
               <div><span>Cena końcowa netto</span><strong>{payload.customer.finalNetLabel}</strong></div>
             </div>
           </aside>
+
+          <article className="pdf-a4-info-card pdf-a4-info-card--bronze pdf-a4-story-card">
+            <div className="pdf-a4-card-label pdf-a4-card-label--gold">Narracja oferty</div>
+            <h3 className="pdf-a4-story-title">Konfiguracja przygotowana do rozmowy z klientem</h3>
+            <p className="pdf-a4-story-copy">{buildOfferNarrative(payload)}</p>
+            <div className="pdf-a4-story-tags">
+              <span className="pdf-a4-chip">Model: {offerHeadline}</span>
+              <span className="pdf-a4-chip">Kolor: {payload.customer.selectedColorName ?? 'Bazowy'}</span>
+              <span className="pdf-a4-chip">Ważność: {formatDate(payload.customer.validUntil)}</span>
+            </div>
+          </article>
         </div>
 
         <div className="pdf-a4-financing-block">
@@ -284,16 +352,32 @@ export function OfferPdfA4Document({
             <div className="pdf-a4-disclaimer">{payload.customer.financingDisclaimer}</div>
           ) : null}
 
-          {notes ? (
+          <div className="pdf-a4-note-grid">
             <div className="pdf-a4-notes-box">
               <div className="pdf-a4-card-label pdf-a4-card-label--gold">Uwagi do oferty</div>
-              <p>{notes}</p>
+              <p>{notes || 'Ta wersja dokumentu jest gotowym punktem wyjścia do rozmowy, doprecyzowania warunków i finalizacji decyzji zakupowej.'}</p>
             </div>
-          ) : null}
+            <div className="pdf-a4-notes-box pdf-a4-notes-box--soft">
+              <div className="pdf-a4-card-label pdf-a4-card-label--green">Zakres rozmowy z klientem</div>
+              <p>Dokument zbiera konfigurację, poziom ceny końcowej i proponowany scenariusz finansowania. Finalne warunki mogą zostać doprecyzowane w trakcie spotkania lub dalszych uzgodnień.</p>
+            </div>
+          </div>
         </div>
       </Page>
 
       <Page>
+        <SectionHeading
+          eyebrow="Materiały sprzedażowe"
+          title={`Galeria modelu ${offerHeadline}`}
+          description="Zestaw materiałów produktowych do rozmowy z klientem, prezentacji samochodu i domknięcia decyzji zakupowej."
+        />
+
+        {galleryImageCount === 0 ? (
+          <div className="pdf-a4-gallery-empty">
+            Materiały modelu nie są jeszcze przypisane do tej konfiguracji. Dokument zachowuje układ PDF, ale galeria zostanie uzupełniona po dodaniu assetów produktowych.
+          </div>
+        ) : null}
+
         <GallerySection
           title={buildGalleryTitle(payload.customer.modelName, 'details')}
           description={buildGalleryDescription('details')}

@@ -532,6 +532,21 @@ textarea:focus-visible {
   flex-direction: column;
 }
 
+.pdf-a4-offer-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 1px solid rgba(212, 168, 79, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 249, 236, 0.88);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8e6a18;
+}
+
 .pdf-a4-hero-title {
   margin-top: 12px;
   font-size: 34px;
@@ -565,6 +580,36 @@ textarea:focus-visible {
   margin-top: 20px;
 }
 
+.pdf-a4-cover-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.pdf-a4-brief-card {
+  border: 1px solid rgba(17, 17, 17, 0.05);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 14px 16px;
+  box-shadow: 0 14px 30px rgba(31, 31, 31, 0.04);
+}
+
+.pdf-a4-brief-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8b8578;
+}
+
+.pdf-a4-brief-value {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #171d23;
+}
+
 .pdf-a4-chip {
   display: inline-flex;
   align-items: center;
@@ -583,6 +628,13 @@ textarea:focus-visible {
   border-radius: 22px;
   min-height: 92px;
   padding: 16px 20px;
+}
+
+.pdf-a4-price-subtext {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #5f5a4f;
 }
 
 .pdf-a4-price-card--gross {
@@ -636,11 +688,47 @@ textarea:focus-visible {
   min-height: 118mm;
 }
 
+.pdf-a4-hero-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 118mm;
+  border: 1px solid #e7dece;
+  border-radius: 30px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 241, 230, 0.96) 100%);
+  padding: 14px;
+  box-shadow: 0 20px 48px rgba(31, 31, 31, 0.06);
+}
+
 .pdf-a4-hero-image {
   display: block;
   width: 100%;
   height: 100%;
+  min-height: 82mm;
+  max-height: 92mm;
   object-fit: contain;
+}
+
+.pdf-a4-hero-caption {
+  margin-top: 12px;
+  border: 1px solid rgba(17, 17, 17, 0.05);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.84);
+  padding: 14px 16px;
+}
+
+.pdf-a4-hero-caption-title {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #17191c;
+}
+
+.pdf-a4-hero-caption-copy {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #5b646d;
 }
 
 .pdf-a4-cover-prices {
@@ -652,7 +740,7 @@ textarea:focus-visible {
 
 .pdf-a4-cover-bottom-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-top: 12px;
 }
@@ -700,6 +788,10 @@ textarea:focus-visible {
   grid-template-columns: 1fr;
 }
 
+.pdf-a4-summary-grid--deal {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+
 .pdf-a4-info-card {
   border: 1px solid #ece5d7;
   border-radius: 24px;
@@ -729,6 +821,11 @@ textarea:focus-visible {
 .pdf-a4-info-card--violet {
   border-color: #d8c9f1;
   background: linear-gradient(180deg, #f9f6ff 0%, #ebe3fb 100%);
+}
+
+.pdf-a4-info-card--bronze {
+  border-color: #e8dbc2;
+  background: linear-gradient(180deg, #fffdf9 0%, #f5eee2 100%);
 }
 
 .pdf-a4-info-list {
@@ -775,6 +872,33 @@ textarea:focus-visible {
 
 .pdf-a4-summary-footer > div + div {
   margin-top: 8px;
+}
+
+.pdf-a4-story-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-a4-story-title {
+  margin-top: 12px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #17191c;
+}
+
+.pdf-a4-story-copy {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #4e555d;
+}
+
+.pdf-a4-story-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
 }
 
 .pdf-a4-financing-block {
@@ -825,6 +949,18 @@ textarea:focus-visible {
   padding: 16px 20px;
 }
 
+.pdf-a4-note-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pdf-a4-notes-box--soft {
+  background: linear-gradient(180deg, #fbfefc 0%, #f0f6f2 100%);
+  border-color: #d7e8dd;
+}
+
 .pdf-a4-notes-box p {
   margin-top: 8px;
   font-size: 14px;
@@ -841,6 +977,17 @@ textarea:focus-visible {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 12px;
+}
+
+.pdf-a4-gallery-empty {
+  margin-top: 14px;
+  border: 1px dashed #d9cdb5;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #fffaf0 0%, #f8f2e3 100%);
+  padding: 18px 22px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #6b5730;
 }
 
 .pdf-a4-gallery-card {
@@ -900,7 +1047,9 @@ textarea:focus-visible {
 
 .pdf-export-mode #offer-pdf-document .pdf-a4-cover-prices,
 .pdf-export-mode #offer-pdf-document .pdf-a4-cover-bottom-grid,
+.pdf-export-mode #offer-pdf-document .pdf-a4-cover-brief-grid,
 .pdf-export-mode #offer-pdf-document .pdf-a4-financing-grid,
+.pdf-export-mode #offer-pdf-document .pdf-a4-note-grid,
 .pdf-export-mode #offer-pdf-document .pdf-a4-summary-grid {
   gap: 3mm;
 }
@@ -910,6 +1059,14 @@ textarea:focus-visible {
 }
 
 .pdf-export-mode #offer-pdf-document .pdf-a4-cover-bottom-grid {
+  margin-top: 3mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-cover-brief-grid {
+  margin-top: 3mm;
+}
+
+.pdf-export-mode #offer-pdf-document .pdf-a4-note-grid {
   margin-top: 3mm;
 }
 

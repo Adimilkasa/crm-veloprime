@@ -113,6 +113,16 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
             ...assets.exteriorImages,
             ...assets.detailImages,
           ].cast<String?>().firstWhere((item) => item != null, orElse: () => null);
+            final contactParts = [customer.customerEmail, customer.customerPhone]
+              .whereType<String>()
+              .where((item) => item.trim().isNotEmpty)
+              .toList();
+            final contactLine = contactParts.isEmpty ? 'Kontakt do potwierdzenia' : contactParts.join(' • ');
+            final commercialSummary = customer.financingSummary != null && customer.financingSummary!.trim().isNotEmpty
+              ? customer.financingSummary!
+              : customer.financingVariant ?? 'Warunki ustalane indywidualnie';
+            final offerNarrative = 'Dokument zbiera konfigurację ${customer.modelName ?? document.title} '
+              'dla ${customer.customerName}, poziom ceny końcowej i proponowany scenariusz rozmowy o finansowaniu: $commercialSummary.';
           final generatedPdfUrl = document.version?.pdfUrl == null || document.version!.pdfUrl!.isEmpty
               ? null
               : _toAbsoluteAssetUrl(document.version!.pdfUrl!);
@@ -156,6 +166,17 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                       heroImageUrl: heroImage,
                       dateFormat: _dateFormat,
                     ),
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _PreviewMetricCard(label: 'Model', value: customer.modelName ?? document.title),
+                        _PreviewMetricCard(label: 'Kolor', value: customer.selectedColorName ?? 'Bazowy'),
+                        _PreviewMetricCard(label: 'Kontakt', value: contactLine),
+                        _PreviewMetricCard(label: 'Finansowanie', value: commercialSummary),
+                      ],
+                    ),
                     if (generatedPdfUrl != null || specPdfUrl != null) ...[
                       const SizedBox(height: 20),
                       _PreviewSectionCard(
@@ -194,6 +215,26 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         final isWide = constraints.maxWidth >= 980;
                         final left = Column(
                           children: [
+                            _PreviewSectionCard(
+                              title: 'Skrot handlowy',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    offerNarrative,
+                                    style: const TextStyle(color: Colors.black87, height: 1.6),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _PreviewInfoGrid(items: [
+                                    _PreviewInfoItem('Numer oferty', customer.offerNumber),
+                                    _PreviewInfoItem('Kontakt', contactLine),
+                                    _PreviewInfoItem('Konfiguracja', '${customer.modelName ?? '-'} • ${customer.selectedColorName ?? 'Bazowy'}'),
+                                    _PreviewInfoItem('Waznosc', _formatNullableDate(customer.validUntil) ?? '-'),
+                                  ]),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
                             _PreviewSectionCard(
                               title: 'Dane dokumentu',
                               child: _PreviewInfoGrid(items: [
@@ -234,14 +275,19 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                   ]),
                                   if (customer.financingDisclaimer != null && customer.financingDisclaimer!.isNotEmpty) ...[
                                     const SizedBox(height: 12),
-                                    Text(
-                                      customer.financingDisclaimer!,
-                                      style: const TextStyle(color: Colors.black54),
+                                    _PreviewCalloutBox(
+                                      title: 'Disclaimer finansowania',
+                                      value: customer.financingDisclaimer!,
+                                      tint: const Color(0xFFF7F1E1),
                                     ),
                                   ],
                                   const SizedBox(height: 12),
-                                  Text(
-                                    customer.notes?.isNotEmpty == true ? customer.notes! : 'Brak dodatkowych notatek w dokumencie.',
+                                  _PreviewCalloutBox(
+                                    title: 'Uwagi do oferty',
+                                    value: customer.notes?.isNotEmpty == true
+                                        ? customer.notes!
+                                        : 'Brak dodatkowych notatek w dokumencie. Ten snapshot jest gotowym punktem wyjścia do rozmowy handlowej.',
+                                    tint: const Color(0xFFF3EFE7),
                                   ),
                                 ],
                               ),
@@ -249,13 +295,23 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                             const SizedBox(height: 16),
                             _PreviewSectionCard(
                               title: 'Materiały modelu',
-                              child: _AssetGallery(
-                                heroImageUrl: heroImage,
-                                imageUrls: [
-                                  ...assets.premiumImages,
-                                  ...assets.exteriorImages,
-                                  ...assets.interiorImages,
-                                  ...assets.detailImages,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Galeria wspiera rozmowę z klientem i pokazuje finalny kierunek konfiguracji w stylu zgodnym z webowym PDF.',
+                                    style: const TextStyle(color: Colors.black54, height: 1.55),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _AssetGallery(
+                                    heroImageUrl: heroImage,
+                                    imageUrls: [
+                                      ...assets.premiumImages,
+                                      ...assets.exteriorImages,
+                                      ...assets.interiorImages,
+                                      ...assets.detailImages,
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -536,6 +592,71 @@ class _PreviewPill extends StatelessWidget {
         border: Border.all(color: VeloPrimePalette.lineStrong),
       ),
       child: Text('$label: $value'),
+    );
+  }
+}
+
+class _PreviewMetricCard extends StatelessWidget {
+  const _PreviewMetricCard({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFCFAF4), Color(0xFFF4EEE2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: VeloPrimePalette.lineStrong),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: VeloPrimePalette.muted)),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, height: 1.35)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewCalloutBox extends StatelessWidget {
+  const _PreviewCalloutBox({
+    required this.title,
+    required this.value,
+    required this.tint,
+  });
+
+  final String title;
+  final String value;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: VeloPrimePalette.lineStrong),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: VeloPrimePalette.muted)),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(height: 1.55, color: Colors.black87)),
+        ],
+      ),
     );
   }
 }
