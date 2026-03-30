@@ -137,7 +137,11 @@ function isPrismaSchemaMismatch(error: unknown) {
   return typeof error === 'object'
     && error !== null
     && 'code' in error
-    && (error as { code?: string }).code === 'P2022'
+    && ['P2021', 'P2022'].includes((error as { code?: string }).code ?? '')
+}
+
+function canUseFileLeadStorageFallback(error: unknown) {
+  return process.env.NODE_ENV !== 'production' && isPrismaSchemaMismatch(error)
 }
 
 function splitFullName(fullName: string) {
@@ -598,7 +602,7 @@ export async function listManagedLeads(session: AuthSession) {
         .filter((lead) => canViewLead(session, lead, users))
         .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
     } catch (error) {
-      if (!isPrismaSchemaMismatch(error)) {
+      if (!canUseFileLeadStorageFallback(error)) {
         throw error
       }
 

@@ -95,7 +95,6 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
         kind: kind,
         label: result.label,
         value: result.value,
-        currentPayload: _payload,
       );
 
       if (!mounted) {

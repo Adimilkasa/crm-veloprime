@@ -169,7 +169,6 @@ export async function getOfferAssetBundle(modelName: string | null | undefined):
   }
 
   const folderPath = path.join(process.cwd(), 'grafiki', config.folderName)
-  const files = await readdir(folderPath, { withFileTypes: true })
   const images: OfferAssetImageGroup = {
     premium: [],
     details: [],
@@ -178,27 +177,33 @@ export async function getOfferAssetBundle(modelName: string | null | undefined):
     other: [],
   }
 
-  for (const file of files) {
-    if (!file.isFile()) {
-      continue
+  try {
+    const files = await readdir(folderPath, { withFileTypes: true })
+
+    for (const file of files) {
+      if (!file.isFile()) {
+        continue
+      }
+
+      const group = classifyImageFile(file.name)
+      images[group].push(buildPublicAssetUrl('grafiki', config.folderName, file.name))
     }
 
-    const group = classifyImageFile(file.name)
-    images[group].push(buildPublicAssetUrl('grafiki', config.folderName, file.name))
-  }
-
-  for (const key of Object.keys(images) as Array<keyof OfferAssetImageGroup>) {
-    images[key].sort((left, right) => left.localeCompare(right, 'pl'))
-  }
-
-  if (config.preferredPremiumFileName) {
-    const preferredPremiumUrl = buildPublicAssetUrl('grafiki', config.folderName, config.preferredPremiumFileName)
-    const preferredIndex = images.premium.indexOf(preferredPremiumUrl)
-
-    if (preferredIndex > 0) {
-      const [preferredImage] = images.premium.splice(preferredIndex, 1)
-      images.premium.unshift(preferredImage)
+    for (const key of Object.keys(images) as Array<keyof OfferAssetImageGroup>) {
+      images[key].sort((left, right) => left.localeCompare(right, 'pl'))
     }
+
+    if (config.preferredPremiumFileName) {
+      const preferredPremiumUrl = buildPublicAssetUrl('grafiki', config.folderName, config.preferredPremiumFileName)
+      const preferredIndex = images.premium.indexOf(preferredPremiumUrl)
+
+      if (preferredIndex > 0) {
+        const [preferredImage] = images.premium.splice(preferredIndex, 1)
+        images.premium.unshift(preferredImage)
+      }
+    }
+  } catch {
+    // Serverless traces may omit local asset folders; return an empty gallery instead of failing the document snapshot.
   }
 
   return {

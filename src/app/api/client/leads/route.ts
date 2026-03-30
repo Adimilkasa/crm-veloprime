@@ -76,6 +76,7 @@ export async function POST(request: Request) {
     fullName: typeof payload.fullName === 'string' ? payload.fullName : '',
     email: typeof payload.email === 'string' ? payload.email : '',
     phone: typeof payload.phone === 'string' ? payload.phone : '',
+    interestedModel: typeof payload.interestedModel === 'string' ? payload.interestedModel : '',
     region: typeof payload.region === 'string' ? payload.region : '',
     message: typeof payload.message === 'string' ? payload.message : '',
     stageId: typeof payload.stageId === 'string' ? payload.stageId : '',

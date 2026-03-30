@@ -16,6 +16,9 @@ Nie wykonujemy produkcyjnych wdrozen bezposrednio z lokalnego katalogu przez `ve
 5. Wypychamy commit na GitHub.
 6. Vercel wdraza wersje z GitHub, a nie z lokalnego workspace.
 
+Przy buildzie produkcyjnym, jesli `DATABASE_URL` jest ustawione w srodowisku, uruchamiamy tez `prisma migrate deploy` przed `next build`.
+To zabezpiecza wdrozenia, w ktorych kod wymaga nowej schemy bazy, na przyklad dla trwałych leadow i historii komentarzy.
+
 ## Czego nie robimy
 
 - nie wdrazamy produkcji poleceniem `vercel deploy` z lokalnego katalogu

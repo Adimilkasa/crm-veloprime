@@ -79,7 +79,7 @@ class _LeadCreatePageState extends State<LeadCreatePage> {
         'message': _messageController.text.trim(),
         'stageId': _selectedStageId ?? '',
         'salespersonId': _selectedSalespersonId ?? '',
-      }, stages: widget.stages, salespeople: widget.salespeople);
+      });
 
       if (!mounted) {
         return;

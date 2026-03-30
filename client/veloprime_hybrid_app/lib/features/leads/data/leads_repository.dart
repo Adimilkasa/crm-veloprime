@@ -46,11 +46,7 @@ class LeadsRepository {
     );
   }
 
-  Future<LeadDetailPayload> createLead(
-    Map<String, dynamic> payload, {
-    required List<LeadStageInfo> stages,
-    required List<SalespersonOption> salespeople,
-  }) async {
+  Future<LeadDetailPayload> createLead(Map<String, dynamic> payload) async {
     final json = await _apiClient.postJson('/api/client/leads', payload);
     final lead = json['lead'] as Map<String, dynamic>? ?? const {};
     final leadId = lead['id'] as String? ?? '';
@@ -59,11 +55,7 @@ class LeadsRepository {
       throw Exception('Nie udalo sie odczytac identyfikatora nowego leada.');
     }
 
-    return LeadDetailPayload(
-      lead: ManagedLeadDetail.fromJson(lead),
-      stages: stages,
-      salespeople: salespeople,
-    );
+    return fetchLeadDetail(leadId);
   }
 
   Future<LeadDetailPayload> fetchLeadDetail(String leadId) async {
@@ -122,7 +114,6 @@ class LeadsRepository {
     required String kind,
     String? label,
     required String value,
-    required LeadDetailPayload currentPayload,
   }) async {
     final json = await _apiClient.postJson('/api/client/leads/$leadId/details', {
       'kind': kind,
@@ -134,14 +125,11 @@ class LeadsRepository {
       json['entry'] as Map<String, dynamic>? ?? const {},
     );
 
-    return LeadDetailPayload(
-      lead: currentPayload.lead.copyWith(
-        updatedAt: entry.createdAt.isEmpty ? currentPayload.lead.updatedAt : entry.createdAt,
-        details: [entry, ...currentPayload.lead.details],
-      ),
-      stages: currentPayload.stages,
-      salespeople: currentPayload.salespeople,
-    );
+    if (entry.id.isEmpty) {
+      throw Exception('Nie udalo sie zapisac wpisu historii leada.');
+    }
+
+    return fetchLeadDetail(leadId);
   }
 
   Future<void> createStage({

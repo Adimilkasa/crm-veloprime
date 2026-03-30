@@ -20,3 +20,4 @@ client/veloprime_hybrid_app/.pub-cache/
 client/veloprime_hybrid_app/deploy/msix/artifacts/
 client/veloprime_hybrid_app/deploy/*.zip
 client/veloprime_hybrid_app/deploy/**/*.pfx
+data/leads.json
