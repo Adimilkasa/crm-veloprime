@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v7",
-      "publishedAt": "2026-03-30T00:00:00.000Z",
+      "version": "v8",
+      "publishedAt": "2026-03-31T00:00:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.10.0 with local-first offer workspace, explicit CRM sync, and shared offer asset manifest for preview and PDF flows.",
+      "summary": "Flutter client 0.1.10.1 fixes the Windows update action and aligns the client-reported application version with the published update channel.",
       "priority": "STANDARD"
     }
   ]

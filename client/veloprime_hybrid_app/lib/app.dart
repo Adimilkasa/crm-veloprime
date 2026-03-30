@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/config/client_artifact_versions.dart';
 import 'core/presentation/veloprime_ui.dart';
 import 'core/network/api_client.dart';
 import 'features/auth/data/auth_repository.dart';
@@ -52,9 +53,9 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
       final bootstrap = await _bootstrapRepository.loadBootstrap();
       final comparison = await _updateRepository.compareVersions(
         const ClientVersionPayload(
-          dataVersion: 'v1',
-          assetsVersion: 'v1',
-          applicationVersion: 'v6',
+          dataVersion: ClientArtifactVersions.data,
+          assetsVersion: ClientArtifactVersions.assets,
+          applicationVersion: ClientArtifactVersions.application,
         ),
       );
 

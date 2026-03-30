@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/config/client_artifact_versions.dart';
 import '../models/offer_detail.dart';
 import '../models/offer_document.dart';
 import '../models/offer_finalization.dart';
@@ -66,9 +67,9 @@ class OffersRepository {
     const payload = {
       'offerId': null,
       'versions': {
-        'DATA': 'v1',
-        'ASSETS': 'v1',
-        'APPLICATION': 'v6',
+        'DATA': ClientArtifactVersions.data,
+        'ASSETS': ClientArtifactVersions.assets,
+        'APPLICATION': ClientArtifactVersions.application,
       },
     };
 

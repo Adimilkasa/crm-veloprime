@@ -1,16 +1,105 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/api_config.dart';
 import '../../../core/presentation/veloprime_ui.dart';
 import '../models/update_models.dart';
 
-class UpdateGatePage extends StatelessWidget {
+class UpdateGatePage extends StatefulWidget {
   const UpdateGatePage({super.key, required this.comparison});
 
   final VersionComparisonResult comparison;
 
   @override
+  State<UpdateGatePage> createState() => _UpdateGatePageState();
+}
+
+class _UpdateGatePageState extends State<UpdateGatePage> {
+  bool _isLaunching = false;
+
+  Uri get _appInstallerUri {
+    final baseUri = Uri.parse(ApiConfig.baseUrl);
+    return Uri(
+      scheme: baseUri.scheme,
+      host: baseUri.host,
+      port: baseUri.hasPort ? baseUri.port : null,
+      path: '/download/VeloPrime-CRM-Test.appinstaller',
+    );
+  }
+
+  Uri get _downloadPageUri {
+    final baseUri = Uri.parse(ApiConfig.baseUrl);
+    return Uri(
+      scheme: baseUri.scheme,
+      host: baseUri.host,
+      port: baseUri.hasPort ? baseUri.port : null,
+      path: '/download',
+    );
+  }
+
+  Uri get _msAppInstallerUri {
+    return Uri.parse('ms-appinstaller:?source=${Uri.encodeComponent(_appInstallerUri.toString())}');
+  }
+
+  Future<void> _openUpdate() async {
+    if (_isLaunching) {
+      return;
+    }
+
+    setState(() {
+      _isLaunching = true;
+    });
+
+    try {
+      final openedInInstaller = await launchUrl(
+        _msAppInstallerUri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (openedInInstaller) {
+        return;
+      }
+
+      final openedDownload = await launchUrl(
+        _appInstallerUri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (openedDownload) {
+        return;
+      }
+
+      final openedPage = await launchUrl(
+        _downloadPageUri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!openedPage && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nie udalo sie uruchomic instalatora aktualizacji.')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nie udalo sie uruchomic aktualizacji.\n$error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLaunching = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final pendingItems = comparison.items.where((item) => item.requiresUpdate).toList();
+    final pendingItems = widget.comparison.items.where((item) => item.requiresUpdate).toList();
+    final requiresApplicationUpdate = pendingItems.any((item) => item.artifactType == 'APPLICATION');
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -35,16 +124,18 @@ class UpdateGatePage extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 7),
                         ),
                         const SizedBox(height: 26),
-                        const Text(
-                          'Trwa aktualizacja systemu',
+                        Text(
+                          requiresApplicationUpdate ? 'Aktualizacja jest gotowa' : 'Wymagana synchronizacja systemu',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: VeloPrimePalette.ink),
+                          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: VeloPrimePalette.ink),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
-                          'Wykryto nowsza publikacje centrali. Przed dalsza praca klient lokalny musi zostac zsynchronizowany.',
+                        Text(
+                          requiresApplicationUpdate
+                              ? 'Wykryto nowsza wersje klienta. Uruchom instalator aktualizacji, aby przejsc do najnowszej publikacji.'
+                              : 'Wykryto nowsza publikacje centrali. Przed dalsza praca klient lokalny musi zostac zsynchronizowany.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+                          style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                         ),
                         const SizedBox(height: 26),
                         Container(
@@ -104,16 +195,43 @@ class UpdateGatePage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        const Text(
-                          'To nadal ekran przejsciowy, ale wizualnie jest juz spojny z reszta produktu. Kolejny etap to finalny przebieg aktualizacji z rzeczywistym pobieraniem paczek.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
-                        ),
+                        if (requiresApplicationUpdate) ...[
+                          Text(
+                            'Aktualizacja otworzy Windows App Installer dla adresu ${_appInstallerUri.toString()}. Jesli system nie obsluzy schematu automatycznie, otworzymy bezposredni plik instalatora albo strone pobierania.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+                          ),
+                        ] else ...[
+                          const Text(
+                            'Ta publikacja nie wymaga nowej paczki instalacyjnej, ale wymaga zsynchronizowania danych i zasobow z centrala.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+                          ),
+                        ],
                         const SizedBox(height: 24),
-                        FilledButton.icon(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.arrow_back_rounded),
-                          label: const Text('Wroc do aplikacji'),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 14,
+                          runSpacing: 14,
+                          children: [
+                            if (requiresApplicationUpdate)
+                              FilledButton.icon(
+                                onPressed: _isLaunching ? null : _openUpdate,
+                                icon: _isLaunching
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                                      )
+                                    : const Icon(Icons.system_update_alt_rounded),
+                                label: Text(_isLaunching ? 'Uruchamiamy instalator...' : 'Aktualizuj teraz'),
+                              ),
+                            OutlinedButton.icon(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.arrow_back_rounded),
+                              label: const Text('Wroc do aplikacji'),
+                            ),
+                          ],
                         ),
                       ],
                     ),
