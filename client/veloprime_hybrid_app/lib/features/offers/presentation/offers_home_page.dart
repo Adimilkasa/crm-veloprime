@@ -3,6 +3,9 @@ import 'package:intl/intl.dart';
 
 import '../../../core/presentation/veloprime_ui.dart';
 import '../../bootstrap/models/bootstrap_payload.dart';
+import '../../leads/data/leads_repository.dart';
+import '../../leads/models/lead_models.dart';
+import '../../leads/presentation/lead_create_page.dart';
 import '../data/offers_repository.dart';
 import '../models/offer_detail.dart';
 import 'offer_document_preview_page.dart';
@@ -26,6 +29,7 @@ class OffersHomePage extends StatefulWidget {
     super.key,
     required this.session,
     required this.bootstrap,
+    required this.leadsRepository,
     required this.offersRepository,
     required this.onOpenLeads,
     required this.workspaceLaunchNotifier,
@@ -33,6 +37,7 @@ class OffersHomePage extends StatefulWidget {
 
   final SessionInfo session;
   final BootstrapPayload bootstrap;
+  final LeadsRepository leadsRepository;
   final OffersRepository offersRepository;
   final VoidCallback onOpenLeads;
   final ValueNotifier<OfferWorkspaceLaunchRequest?> workspaceLaunchNotifier;
@@ -43,6 +48,7 @@ class OffersHomePage extends StatefulWidget {
 
 class _OffersHomePageState extends State<OffersHomePage> {
   late List<ManagedOfferSummary> _offers;
+  late List<OfferLeadOption> _leadOptions;
   String? _selectedOfferId;
   OfferDetail? _activeOffer;
   bool _isLoadingOffer = false;
@@ -92,6 +98,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
   void initState() {
     super.initState();
     _offers = List<ManagedOfferSummary>.from(widget.bootstrap.offers);
+    _leadOptions = List<OfferLeadOption>.from(widget.bootstrap.leadOptions);
     _selectedOfferId = _offers.isEmpty ? null : _offers.first.id;
 
     for (final controller in _livePreviewControllers) {
@@ -218,10 +225,10 @@ class _OffersHomePageState extends State<OffersHomePage> {
   List<OfferLeadOption> get _filteredLeadOptions {
     final query = _createLeadSearchQuery.trim().toLowerCase();
     if (query.isEmpty) {
-      return widget.bootstrap.leadOptions;
+      return _leadOptions;
     }
 
-    return widget.bootstrap.leadOptions.where((lead) {
+    return _leadOptions.where((lead) {
       return [lead.label, lead.modelName, lead.contact, lead.ownerName]
           .whereType<String>()
           .any((value) => value.toLowerCase().contains(query));
@@ -452,43 +459,70 @@ class _OffersHomePageState extends State<OffersHomePage> {
     });
   }
 
-  Future<void> _createFreeOffer() async {
-    setState(() {
-      _isSavingOffer = true;
-      _createFeedback = null;
-      _isCreateInlineOpen = false;
-    });
+  OfferLeadOption _mapLeadOption(ManagedLeadDetail lead) {
+    final contact = [lead.email, lead.phone]
+        .whereType<String>()
+        .firstWhere((value) => value.trim().isNotEmpty, orElse: () => '');
 
+    return OfferLeadOption(
+      id: lead.id,
+      label: lead.fullName,
+      modelName: lead.interestedModel,
+      contact: contact.isEmpty ? null : contact,
+      ownerName: lead.salespersonName,
+    );
+  }
+
+  Future<void> _createFreeOffer() async {
     try {
-      final created = await widget.offersRepository.createOffer({
-        'title': '',
-        'customerType': 'PRIVATE',
-      });
+      final overview = await widget.leadsRepository.fetchLeads();
 
       if (!mounted) {
         return;
       }
 
-      _replaceOffer(created);
-      _populateForm(created);
+      final payload = await showDialog<LeadDetailPayload>(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.22),
+        builder: (_) => LeadCreatePage(
+          session: widget.session,
+          repository: widget.leadsRepository,
+          stages: overview.stages,
+          salespeople: overview.salespeople,
+          modal: true,
+        ),
+      );
+
+      if (payload == null || !mounted) {
+        return;
+      }
+
+      final leadOption = _mapLeadOption(payload.lead);
+
       setState(() {
-        _flowMode = _OfferFlowMode.free;
-        _editorFeedback = 'Pomocniczy szkic ręczny został utworzony. Kanoniczny workflow nadal zakłada start oferty z leada.';
+        _leadOptions = [
+          leadOption,
+          ..._leadOptions.where((lead) => lead.id != leadOption.id),
+        ];
+        _isCreateInlineOpen = false;
+        _createLeadSearchQuery = '';
+        _createFeedback = null;
+        _flowMode = _OfferFlowMode.system;
       });
+
+      await _createOfferForLead(
+        payload.lead.id,
+        editorMessage: 'Nowy klient został zapisany w kanbanie i otwarto dla niego ofertę.',
+      );
     } catch (error) {
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _createFeedback = error.toString();
+        _createFeedback = 'Nie udało się utworzyć klienta w pipeline. $error';
+        _editorFeedback = _createFeedback;
       });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSavingOffer = false;
-        });
-      }
     }
   }
 
@@ -1006,7 +1040,7 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Zalogowano jako ${session.fullName} (${session.role}). Standardowa ścieżka pracy zaczyna ofertę z poziomu leada, a ręczny szkic zostaje tylko trybem wyjątkowym poza pipeline.',
+                      'Zalogowano jako ${session.fullName} (${session.role}). Każda nowa oferta startuje z realnego leada w pipeline, także gdy zakładasz klienta bezpośrednio z tego modułu.',
                       style: const TextStyle(color: VeloPrimePalette.muted, height: 1.55),
                     ),
                   ],
@@ -1029,7 +1063,7 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
                       FilledButton.icon(
                         onPressed: isSavingOffer ? null : onCreateFreeOffer,
                         icon: const Icon(Icons.add),
-                        label: Text(isSavingOffer ? 'Tworzenie...' : 'Tryb wyjątkowy: szkic ręczny'),
+                        label: Text(isSavingOffer ? 'Tworzenie...' : 'Nowy klient i oferta'),
                       ),
                     ],
                   ),
@@ -1073,7 +1107,7 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
                     ),
                   _HeaderChip(label: selectedOffer.number),
                   _HeaderChip(label: 'Klient: ${selectedOffer.customerName}'),
-                  _HeaderChip(label: currentFlowMode == _OfferFlowMode.system ? 'Workflow z leada' : 'Tryb wyjątkowy'),
+                  _HeaderChip(label: currentFlowMode == _OfferFlowMode.system ? 'Workflow z leada' : 'Starszy szkic bez leada'),
                   _HeaderChip(label: 'Ważna do: ${_formatNullableDate(selectedOffer.validUntil, dateFormat) ?? 'Bez terminu'}'),
                 ],
               ),
@@ -1208,7 +1242,7 @@ class _OfferEmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 54),
       child: Column(
         children: [
-          const Text('Standardowo zaczynasz od oferty dla klienta z systemu. Ręczny szkic zostawiamy tylko jako tryb wyjątkowy dla pracy poza pipeline.', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, height: 1.6, color: VeloPrimePalette.muted)),
+          const Text('Każda nowa oferta powinna startować z leada. Możesz wybrać klienta z systemu albo utworzyć nowego klienta bez wychodzenia z modułu Ofert / PDF.', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, height: 1.6, color: VeloPrimePalette.muted)),
           const SizedBox(height: 18),
           Wrap(
             spacing: 10,
@@ -1223,7 +1257,7 @@ class _OfferEmptyState extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onCreateFreeOffer,
                 icon: const Icon(Icons.add),
-                label: const Text('Tryb wyjątkowy: szkic ręczny'),
+                label: const Text('Nowy klient i oferta'),
               ),
             ],
           ),

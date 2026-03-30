@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v5",
+      "version": "v6",
       "publishedAt": "2026-03-30T00:00:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.6.0 signed with the trusted VeloPrime test certificate for Windows update delivery.",
+      "summary": "Flutter client 0.1.7.0 with lead-first offer creation, restored spec access, and complete document assets.",
       "priority": "STANDARD"
     }
   ]

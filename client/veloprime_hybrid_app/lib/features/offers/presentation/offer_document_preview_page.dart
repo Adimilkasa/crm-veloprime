@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/presentation/veloprime_ui.dart';
 import '../data/offers_repository.dart';
@@ -33,6 +34,29 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
       offerId: widget.offerId,
       versionId: widget.versionId,
     );
+  }
+
+  Future<void> _openExternalDocument(String url, String label) async {
+    final uri = Uri.tryParse(url);
+
+    if (uri == null) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Niepoprawny link dla dokumentu: $label.')),
+      );
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nie udalo sie otworzyc dokumentu: $label.')),
+      );
+    }
   }
 
   @override
@@ -98,6 +122,9 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               : customer.financingVariant ?? 'Warunki ustalane indywidualnie';
             final offerNarrative = 'Dokument zbiera konfigurację ${customer.modelName ?? document.title} '
               'dla ${customer.customerName}, poziom ceny końcowej i proponowany scenariusz rozmowy o finansowaniu: $commercialSummary.';
+          final specPdfUrl = assets.specPdfUrl == null || assets.specPdfUrl!.isEmpty
+              ? null
+              : _toAbsoluteAssetUrl(assets.specPdfUrl!);
 
           return SingleChildScrollView(
             child: Center(
@@ -115,6 +142,12 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                           icon: const Icon(Icons.arrow_back_rounded),
                           label: const Text('Powrot'),
                         ),
+                        if (specPdfUrl != null)
+                          OutlinedButton.icon(
+                            onPressed: () => _openExternalDocument(specPdfUrl, 'specyfikacja modelu'),
+                            icon: const Icon(Icons.description_outlined),
+                            label: const Text('Otworz specyfikacje PDF'),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -134,6 +167,18 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         _PreviewMetricCard(label: 'Finansowanie', value: commercialSummary),
                       ],
                     ),
+                    if (specPdfUrl != null) ...[
+                      const SizedBox(height: 20),
+                      _PreviewSectionCard(
+                        title: 'Specyfikacja modelu',
+                        child: _LinkedAssetCard(
+                          eyebrow: 'Dokument pomocniczy',
+                          title: 'PDF specyfikacji samochodu',
+                          value: specPdfUrl,
+                          icon: Icons.description_outlined,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     LayoutBuilder(
                       builder: (context, constraints) {

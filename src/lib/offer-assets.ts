@@ -1,10 +1,8 @@
-import { readdir } from 'node:fs/promises'
-import path from 'node:path'
-
 type OfferAssetConfig = {
   folderName: string
   specFileName: string
   preferredPremiumFileName?: string
+  imageFiles: OfferAssetImageGroup
 }
 
 type OfferAssetImageGroup = {
@@ -32,6 +30,13 @@ const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }
       folderName: 'byd-atto-2',
       specFileName: 'byd-atto-2.pdf',
       preferredPremiumFileName: 'premium2.jpg',
+      imageFiles: {
+        premium: ['premium 1.jpg', 'premium1.jpg', 'premium2.jpg'],
+        details: ['detal1.jpg', 'detal2.jpg', 'detal4.jpg', 'detal5.jpg', 'detal7.jpg'],
+        interior: ['wewnatrz2.jpg', 'wewnatrz3.jpg', 'wewnatrz8.jpg', 'wewnatrz9.jpg'],
+        exterior: ['zewnatrz 3.jpg', 'zewnatrz.jpg', 'zewnatrz1.jpg', 'zewnatrz10.jpg', 'zewnatrz3.jpg', 'zewnatrz6.jpg'],
+        other: [],
+      },
     },
   },
   {
@@ -39,6 +44,13 @@ const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }
     config: {
       folderName: 'byd-dolphin-surf',
       specFileName: 'byd-dolphin-surf.pdf',
+      imageFiles: {
+        premium: ['premium 1.jpg', 'premium 2.jpg', 'premium 3.jpg', 'premium 4.jpg'],
+        details: ['detal 1.jpg', 'detal 2.jpg', 'detal 3.jpg', 'detal 4.jpg'],
+        interior: ['wnetrze 1.jpg', 'wnetrze 2.jpg', 'wnetrze 3.jpg'],
+        exterior: ['zewnatrz 1.jpg', 'zewnatrz 2.jpg', 'zewnatrz 4.jpg'],
+        other: [],
+      },
     },
   },
   {
@@ -46,6 +58,13 @@ const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }
     config: {
       folderName: 'Seal',
       specFileName: 'byd-seal.pdf',
+      imageFiles: {
+        premium: ['premium 1.jpg', 'premium 2.jpg', 'premium 3.jpg'],
+        details: ['detal 2.jpg', 'detal 3.jpg', 'detal 4.jpg', 'detal 5.jpg', 'detal.jpg'],
+        interior: ['wnetrze 1.jpg', 'wnetrze 2.jpg', 'wnetrze 3.jpg', 'wnetrze.jpg'],
+        exterior: ['zewnatrz 2.jpg', 'zewnatrz 3.jpg', 'zewnatrz.jpg'],
+        other: [],
+      },
     },
   },
   {
@@ -53,6 +72,13 @@ const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }
     config: {
       folderName: 'Seal 5',
       specFileName: 'byd-seal-5.pdf',
+      imageFiles: {
+        premium: ['premium 1.jpg', 'premium 2.jpg', 'premium.jpg'],
+        details: ['detal 2.jpg', 'detal 3.jpg', 'detal.jpg'],
+        interior: ['wewnatrz 2.jpg', 'wewnatrz 4.jpg', 'wewnatrz 5.jpg', 'wewnatrz.jpg'],
+        exterior: ['zewnatrz 3.jpg', 'zewnatrz 4.jpg', 'zewnatrz 5.jpg', 'zewnatrz.jpg'],
+        other: [],
+      },
     },
   },
   {
@@ -60,6 +86,13 @@ const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }
     config: {
       folderName: 'Seal 6 touring',
       specFileName: 'byd-seal-6-touring.pdf',
+      imageFiles: {
+        premium: ['premium 2.jpg', 'premium.jpg'],
+        details: ['detal 1.jpg', 'detal 2.jpg', 'detal 3.jpg', 'detal 4.jpg', 'detal 5.jpg', 'detal.jpg'],
+        interior: ['wnetrze 1.jpg', 'wnetrze 2.jpg', 'wnetrze.jpg'],
+        exterior: ['zewnatrz (2).jpg', 'zewnatrz 2.jpg', 'zewnatrz 3.jpg', 'zewnatrz 4.jpg', 'zewnatrz 5.jpg', 'zewnatrz.jpg'],
+        other: [],
+      },
     },
   },
   {
@@ -67,6 +100,13 @@ const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }
     config: {
       folderName: 'seal-6-dmi',
       specFileName: 'seal-6-dmi.pdf',
+      imageFiles: {
+        premium: ['premium 3.jpg', 'premium bok.jpg', 'premium przod 2.jpg', 'premium przod.jpg', 'premium przud 4.png', 'premium tył samochodu.jpg'],
+        details: ['klamka led.jpg', 'koło.jpg', 'otwieranie smartfonem.jpg', 'przednie leflektory.jpg', 'szklany dach.jpg'],
+        interior: ['kanapy tylne jasne.jpg', 'kokpit ciemne kanapy.jpg', 'kokpit jasne kanapy 2.jpg', 'kokpit jasne kanapy.jpg', 'przód wnętrze.jpg', 'tylne kanapy ciemne.jpg', 'wyświetlacz.webp'],
+        exterior: ['03、SEAL-6_LHD_Sandstone_Exterior_Rear_download_JPG_5000PX_RGB (1).jpg', 'ładowanie samochodu.jpg'],
+        other: [],
+      },
     },
   },
   {
@@ -74,6 +114,13 @@ const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }
     config: {
       folderName: 'Seal-U',
       specFileName: 'byd-seal-u.pdf',
+      imageFiles: {
+        premium: [],
+        details: ['deta.jpg', 'detal 3.jpg', 'detal 5.webp', 'detal.jpg', 'detal2.jpg'],
+        interior: ['wewnatrz 1.jpg', 'wewnatrz 2.jpg', 'wewnatrz 3.jpg', 'wewnatrz.jpg'],
+        exterior: ['zewnatrz 4.jpg', 'zewnatrz 5.jpg', 'zewnatrz 6.jpg', 'zewnatrz 7.jpg', 'zewnatrz 7.webp', 'zewnatrz.jpg'],
+        other: [],
+      },
     },
   },
   {
@@ -81,6 +128,13 @@ const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }
     config: {
       folderName: 'Seal 7',
       specFileName: 'byd-sealion-7.pdf',
+      imageFiles: {
+        premium: ['premium 1.jpg', 'premium 2.jpg', 'premium 3.jpg'],
+        details: ['Detal 1.jpg', 'detal 2.jpg', 'detal 3.jpg', 'detal 4.jpg', 'detal 5.jpg', 'detal.jpg'],
+        interior: ['Wnetrze 2.jpg', 'Wnetrze 4.jpg', 'wnetrze 3.jpg', 'wnetrze 5.jpg', 'wnetrze 6.jpg', 'wnetrze.jpg'],
+        exterior: ['zewnatrz 2.jpg', 'zewnatrz 3.jpg', 'zewnatrz 4.jpg', 'zewnatrz 5.jpg', 'zewnatrz.jpg', 'zewnatrz5.jpg'],
+        other: [],
+      },
     },
   },
 ]
@@ -96,28 +150,6 @@ function normalizeValue(value: string) {
 
 function buildPublicAssetUrl(...segments: string[]) {
   return `/assets/${segments.map((segment) => encodeURIComponent(segment)).join('/')}`
-}
-
-function classifyImageFile(fileName: string) {
-  const normalized = normalizeValue(fileName)
-
-  if (normalized.includes('premium')) {
-    return 'premium'
-  }
-
-  if (normalized.includes('detal') || normalized.includes('detail')) {
-    return 'details'
-  }
-
-  if (normalized.includes('wewnatrz') || normalized.includes('wnetrze') || normalized.includes('kokpit') || normalized.includes('kanapy')) {
-    return 'interior'
-  }
-
-  if (normalized.includes('zewnatrz') || normalized.includes('przod') || normalized.includes('tyl') || normalized.includes('bok') || normalized.includes('dach')) {
-    return 'exterior'
-  }
-
-  return 'other'
 }
 
 function getAssetConfig(modelName: string | null | undefined) {
@@ -168,42 +200,22 @@ export async function getOfferAssetBundle(modelName: string | null | undefined):
     }
   }
 
-  const folderPath = path.join(process.cwd(), 'grafiki', config.folderName)
   const images: OfferAssetImageGroup = {
-    premium: [],
-    details: [],
-    interior: [],
-    exterior: [],
-    other: [],
+    premium: config.imageFiles.premium.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    details: config.imageFiles.details.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    interior: config.imageFiles.interior.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    exterior: config.imageFiles.exterior.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    other: config.imageFiles.other.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
   }
 
-  try {
-    const files = await readdir(folderPath, { withFileTypes: true })
+  if (config.preferredPremiumFileName) {
+    const preferredPremiumUrl = buildPublicAssetUrl('grafiki', config.folderName, config.preferredPremiumFileName)
+    const preferredIndex = images.premium.indexOf(preferredPremiumUrl)
 
-    for (const file of files) {
-      if (!file.isFile()) {
-        continue
-      }
-
-      const group = classifyImageFile(file.name)
-      images[group].push(buildPublicAssetUrl('grafiki', config.folderName, file.name))
+    if (preferredIndex > 0) {
+      const [preferredImage] = images.premium.splice(preferredIndex, 1)
+      images.premium.unshift(preferredImage)
     }
-
-    for (const key of Object.keys(images) as Array<keyof OfferAssetImageGroup>) {
-      images[key].sort((left, right) => left.localeCompare(right, 'pl'))
-    }
-
-    if (config.preferredPremiumFileName) {
-      const preferredPremiumUrl = buildPublicAssetUrl('grafiki', config.folderName, config.preferredPremiumFileName)
-      const preferredIndex = images.premium.indexOf(preferredPremiumUrl)
-
-      if (preferredIndex > 0) {
-        const [preferredImage] = images.premium.splice(preferredIndex, 1)
-        images.premium.unshift(preferredImage)
-      }
-    }
-  } catch {
-    // Serverless traces may omit local asset folders; return an empty gallery instead of failing the document snapshot.
   }
 
   return {

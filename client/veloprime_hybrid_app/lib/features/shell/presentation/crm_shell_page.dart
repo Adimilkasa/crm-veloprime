@@ -555,6 +555,7 @@ class _CrmShellPageState extends State<CrmShellPage> {
           page: OffersHomePage(
             session: widget.session,
             bootstrap: widget.bootstrap,
+            leadsRepository: widget.leadsRepository,
             offersRepository: widget.offersRepository,
             onOpenLeads: () => _openMainTab(_leadsRoute),
             workspaceLaunchNotifier: _offerWorkspaceLaunchNotifier,
