@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v1",
-      "publishedAt": null,
-      "publishedBy": null,
-      "summary": null,
+      "version": "v2",
+      "publishedAt": "2026-03-30T00:00:00.000Z",
+      "publishedBy": "release",
+      "summary": "Flutter client 0.1.3.0 with lead persistence and PDF snapshot fixes.",
       "priority": "STANDARD"
     }
   ]
