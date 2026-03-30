@@ -63,6 +63,7 @@ type CreateManagedLeadInput = {
   fullName: string
   email?: string
   phone?: string
+  interestedModel?: string
   region?: string
   message?: string
   stageId?: string
@@ -628,6 +629,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
   const fullName = input.fullName.trim()
   const email = input.email?.trim().toLowerCase() || null
   const phone = input.phone?.trim() || null
+  const interestedModel = input.interestedModel?.trim() || null
   const source = input.source.trim() || 'Manual'
 
   if (!fullName) {
@@ -664,7 +666,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
         email,
         phone,
         message: input.message?.trim() || null,
-        interestedModel: null,
+        interestedModel,
         region: input.region?.trim() || null,
         pipelineStage: stage.stageKey,
         managerId: supervisor?.id ?? null,
@@ -700,7 +702,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
     fullName,
     email,
     phone,
-    interestedModel: null,
+    interestedModel,
     region: input.region?.trim() || null,
     stageKey: stage.stageKey,
     message: input.message?.trim() || null,
