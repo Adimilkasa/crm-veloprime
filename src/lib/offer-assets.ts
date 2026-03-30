@@ -1,8 +1,11 @@
+import sharedOfferAssetManifest from '../../client/veloprime_hybrid_app/assets/offers/asset_manifest.json'
+
 type OfferAssetConfig = {
+  aliases: string[]
   folderName: string
   specFileName: string
   preferredPremiumFileName?: string
-  imageFiles: OfferAssetImageGroup
+  images: OfferAssetImageGroup
 }
 
 type OfferAssetImageGroup = {
@@ -23,121 +26,7 @@ export type OfferAssetBundle = {
 
 const LOGO_URL = '/assets/grafiki/LOGO.png?v=20260325-transparent'
 
-const MODEL_ASSET_CONFIGS: Array<{ aliases: string[]; config: OfferAssetConfig }> = [
-  {
-    aliases: ['byd atto 2', 'atto 2'],
-    config: {
-      folderName: 'byd-atto-2',
-      specFileName: 'byd-atto-2.pdf',
-      preferredPremiumFileName: 'premium2.jpg',
-      imageFiles: {
-        premium: ['premium 1.jpg', 'premium1.jpg', 'premium2.jpg'],
-        details: ['detal1.jpg', 'detal2.jpg', 'detal4.jpg', 'detal5.jpg', 'detal7.jpg'],
-        interior: ['wewnatrz2.jpg', 'wewnatrz3.jpg', 'wewnatrz8.jpg', 'wewnatrz9.jpg'],
-        exterior: ['zewnatrz 3.jpg', 'zewnatrz.jpg', 'zewnatrz1.jpg', 'zewnatrz10.jpg', 'zewnatrz3.jpg', 'zewnatrz6.jpg'],
-        other: [],
-      },
-    },
-  },
-  {
-    aliases: ['byd dolphin surf', 'dolphin surf'],
-    config: {
-      folderName: 'byd-dolphin-surf',
-      specFileName: 'byd-dolphin-surf.pdf',
-      imageFiles: {
-        premium: ['premium 1.jpg', 'premium 2.jpg', 'premium 3.jpg', 'premium 4.jpg'],
-        details: ['detal 1.jpg', 'detal 2.jpg', 'detal 3.jpg', 'detal 4.jpg'],
-        interior: ['wnetrze 1.jpg', 'wnetrze 2.jpg', 'wnetrze 3.jpg'],
-        exterior: ['zewnatrz 1.jpg', 'zewnatrz 2.jpg', 'zewnatrz 4.jpg'],
-        other: [],
-      },
-    },
-  },
-  {
-    aliases: ['byd seal excellence', 'byd seal', 'seal excellence', 'seal'],
-    config: {
-      folderName: 'Seal',
-      specFileName: 'byd-seal.pdf',
-      imageFiles: {
-        premium: ['premium 1.jpg', 'premium 2.jpg', 'premium 3.jpg'],
-        details: ['detal 2.jpg', 'detal 3.jpg', 'detal 4.jpg', 'detal 5.jpg', 'detal.jpg'],
-        interior: ['wnetrze 1.jpg', 'wnetrze 2.jpg', 'wnetrze 3.jpg', 'wnetrze.jpg'],
-        exterior: ['zewnatrz 2.jpg', 'zewnatrz 3.jpg', 'zewnatrz.jpg'],
-        other: [],
-      },
-    },
-  },
-  {
-    aliases: ['byd seal 5', 'seal 5'],
-    config: {
-      folderName: 'Seal 5',
-      specFileName: 'byd-seal-5.pdf',
-      imageFiles: {
-        premium: ['premium 1.jpg', 'premium 2.jpg', 'premium.jpg'],
-        details: ['detal 2.jpg', 'detal 3.jpg', 'detal.jpg'],
-        interior: ['wewnatrz 2.jpg', 'wewnatrz 4.jpg', 'wewnatrz 5.jpg', 'wewnatrz.jpg'],
-        exterior: ['zewnatrz 3.jpg', 'zewnatrz 4.jpg', 'zewnatrz 5.jpg', 'zewnatrz.jpg'],
-        other: [],
-      },
-    },
-  },
-  {
-    aliases: ['byd seal 6 touring', 'seal 6 touring'],
-    config: {
-      folderName: 'Seal 6 touring',
-      specFileName: 'byd-seal-6-touring.pdf',
-      imageFiles: {
-        premium: ['premium 2.jpg', 'premium.jpg'],
-        details: ['detal 1.jpg', 'detal 2.jpg', 'detal 3.jpg', 'detal 4.jpg', 'detal 5.jpg', 'detal.jpg'],
-        interior: ['wnetrze 1.jpg', 'wnetrze 2.jpg', 'wnetrze.jpg'],
-        exterior: ['zewnatrz (2).jpg', 'zewnatrz 2.jpg', 'zewnatrz 3.jpg', 'zewnatrz 4.jpg', 'zewnatrz 5.jpg', 'zewnatrz.jpg'],
-        other: [],
-      },
-    },
-  },
-  {
-    aliases: ['byd seal 6 dmi', 'byd seal 6 dm-i', 'seal 6 dmi', 'seal 6 dm-i'],
-    config: {
-      folderName: 'seal-6-dmi',
-      specFileName: 'seal-6-dmi.pdf',
-      imageFiles: {
-        premium: ['premium 3.jpg', 'premium bok.jpg', 'premium przod 2.jpg', 'premium przod.jpg', 'premium przud 4.png', 'premium tył samochodu.jpg'],
-        details: ['klamka led.jpg', 'koło.jpg', 'otwieranie smartfonem.jpg', 'przednie leflektory.jpg', 'szklany dach.jpg'],
-        interior: ['kanapy tylne jasne.jpg', 'kokpit ciemne kanapy.jpg', 'kokpit jasne kanapy 2.jpg', 'kokpit jasne kanapy.jpg', 'przód wnętrze.jpg', 'tylne kanapy ciemne.jpg', 'wyświetlacz.webp'],
-        exterior: ['03、SEAL-6_LHD_Sandstone_Exterior_Rear_download_JPG_5000PX_RGB (1).jpg', 'ładowanie samochodu.jpg'],
-        other: [],
-      },
-    },
-  },
-  {
-    aliases: ['byd seal u', 'seal u', 'seal-u'],
-    config: {
-      folderName: 'Seal-U',
-      specFileName: 'byd-seal-u.pdf',
-      imageFiles: {
-        premium: [],
-        details: ['deta.jpg', 'detal 3.jpg', 'detal 5.webp', 'detal.jpg', 'detal2.jpg'],
-        interior: ['wewnatrz 1.jpg', 'wewnatrz 2.jpg', 'wewnatrz 3.jpg', 'wewnatrz.jpg'],
-        exterior: ['zewnatrz 4.jpg', 'zewnatrz 5.jpg', 'zewnatrz 6.jpg', 'zewnatrz 7.jpg', 'zewnatrz 7.webp', 'zewnatrz.jpg'],
-        other: [],
-      },
-    },
-  },
-  {
-    aliases: ['byd sealion 7', 'sealion 7', 'byd seal 7', 'seal 7'],
-    config: {
-      folderName: 'Seal 7',
-      specFileName: 'byd-sealion-7.pdf',
-      imageFiles: {
-        premium: ['premium 1.jpg', 'premium 2.jpg', 'premium 3.jpg'],
-        details: ['Detal 1.jpg', 'detal 2.jpg', 'detal 3.jpg', 'detal 4.jpg', 'detal 5.jpg', 'detal.jpg'],
-        interior: ['Wnetrze 2.jpg', 'Wnetrze 4.jpg', 'wnetrze 3.jpg', 'wnetrze 5.jpg', 'wnetrze 6.jpg', 'wnetrze.jpg'],
-        exterior: ['zewnatrz 2.jpg', 'zewnatrz 3.jpg', 'zewnatrz 4.jpg', 'zewnatrz 5.jpg', 'zewnatrz.jpg', 'zewnatrz5.jpg'],
-        other: [],
-      },
-    },
-  },
-]
+const MODEL_ASSET_CONFIGS = sharedOfferAssetManifest as OfferAssetConfig[]
 
 function normalizeValue(value: string) {
   return value
@@ -171,7 +60,7 @@ function getAssetConfig(modelName: string | null | undefined) {
 
       if (!bestMatch || normalizedAlias.length > bestMatch.aliasLength) {
         bestMatch = {
-          config: entry.config,
+          config: entry,
           aliasLength: normalizedAlias.length,
         }
       }
@@ -201,11 +90,11 @@ export async function getOfferAssetBundle(modelName: string | null | undefined):
   }
 
   const images: OfferAssetImageGroup = {
-    premium: config.imageFiles.premium.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
-    details: config.imageFiles.details.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
-    interior: config.imageFiles.interior.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
-    exterior: config.imageFiles.exterior.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
-    other: config.imageFiles.other.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    premium: config.images.premium.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    details: config.images.details.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    interior: config.images.interior.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    exterior: config.images.exterior.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
+    other: config.images.other.map((fileName) => buildPublicAssetUrl('grafiki', config.folderName, fileName)),
   }
 
   if (config.preferredPremiumFileName) {

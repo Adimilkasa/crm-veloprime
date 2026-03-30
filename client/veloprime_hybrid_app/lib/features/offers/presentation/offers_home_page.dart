@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -5,6 +7,7 @@ import '../../../core/presentation/veloprime_ui.dart';
 import '../../bootstrap/models/bootstrap_payload.dart';
 import '../../leads/data/leads_repository.dart';
 import '../../leads/models/lead_models.dart';
+import '../data/local_offer_document_snapshot.dart';
 import '../data/offers_repository.dart';
 import '../models/offer_detail.dart';
 import 'offer_document_preview_page.dart';
@@ -48,12 +51,15 @@ class OffersHomePage extends StatefulWidget {
 class _OffersHomePageState extends State<OffersHomePage> {
   late List<ManagedOfferSummary> _offers;
   late List<OfferLeadOption> _leadOptions;
+  final Map<String, OfferDetail> _localDraftOffers = {};
+  final Map<String, String> _localDraftRegions = {};
   String? _selectedOfferId;
   OfferDetail? _activeOffer;
   bool _isLoadingOffer = false;
   bool _isSavingOffer = false;
   bool _isCreatingPdf = false;
   bool _isOpeningPreview = false;
+  bool _isSyncingToCrm = false;
   bool _isCreateInlineOpen = false;
   String _createLeadSearchQuery = '';
   String? _createFeedback;
@@ -83,12 +89,17 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
   static final NumberFormat _plainAmountFormat = NumberFormat.decimalPattern('pl_PL');
 
-  late final List<TextEditingController> _livePreviewControllers = [
+  late final List<TextEditingController> _editorControllers = [
+    _customerNameController,
+    _customerEmailController,
+    _customerPhoneController,
+    _customerRegionController,
     _discountController,
     _financingTermController,
     _financingInputController,
     _buyoutPercentController,
     _validUntilController,
+    _notesController,
   ];
 
   static final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
@@ -100,20 +111,18 @@ class _OffersHomePageState extends State<OffersHomePage> {
     _leadOptions = List<OfferLeadOption>.from(widget.bootstrap.leadOptions);
     _selectedOfferId = _offers.isEmpty ? null : _offers.first.id;
 
-    for (final controller in _livePreviewControllers) {
+    for (final controller in _editorControllers) {
       controller.addListener(_handleLivePreviewChanged);
     }
 
     widget.workspaceLaunchNotifier.addListener(_handleWorkspaceLaunchRequest);
 
-    if (_selectedOfferId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _loadOffer(_selectedOfferId!);
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_selectedOfferId != null) {
+        await _loadOffer(_selectedOfferId!);
+      }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _handleWorkspaceLaunchRequest();
+      await _handleWorkspaceLaunchRequest();
     });
   }
 
@@ -131,7 +140,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
   void dispose() {
     widget.workspaceLaunchNotifier.removeListener(_handleWorkspaceLaunchRequest);
 
-    for (final controller in _livePreviewControllers) {
+    for (final controller in _editorControllers) {
       controller.removeListener(_handleLivePreviewChanged);
     }
 
@@ -149,6 +158,8 @@ class _OffersHomePageState extends State<OffersHomePage> {
   }
 
   void _handleLivePreviewChanged() {
+    _syncActiveLocalDraft();
+
     if (!mounted) {
       return;
     }
@@ -203,6 +214,8 @@ class _OffersHomePageState extends State<OffersHomePage> {
         _financingVariant = '';
       }
     });
+
+    _syncActiveLocalDraft();
   }
 
   ManagedOfferSummary? get _selectedOffer {
@@ -397,7 +410,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
     _customerNameController.text = detail.customerName;
     _customerEmailController.text = detail.customerEmail ?? '';
     _customerPhoneController.text = detail.customerPhone ?? '';
-    _customerRegionController.text = '';
+    _customerRegionController.text = _localDraftRegions[detail.id] ?? '';
     _discountController.text = detail.calculation?.appliedDiscount.toString() ?? '';
     _financingTermController.text = detail.financingTermMonths?.toString() ?? '';
     _financingInputController.text = detail.financingInputValue?.toString() ?? '';
@@ -410,7 +423,42 @@ class _OffersHomePageState extends State<OffersHomePage> {
     _selectedPricingKey = pricingCatalogKey == null || pricingCatalogKey.isEmpty ? null : pricingCatalogKey;
   }
 
+  void _removeLocalDrafts({String? keepOfferId}) {
+    final removedIds = _localDraftOffers.keys.where((offerId) => offerId != keepOfferId).toList();
+    if (removedIds.isEmpty) {
+      return;
+    }
+
+    for (final offerId in removedIds) {
+      _localDraftOffers.remove(offerId);
+      _localDraftRegions.remove(offerId);
+    }
+
+    _offers = _offers.where((offer) => !_isLocalDraftId(offer.id) || offer.id == keepOfferId).toList();
+
+    if (_selectedOfferId != null && removedIds.contains(_selectedOfferId)) {
+      _selectedOfferId = keepOfferId;
+    }
+
+    if (_activeOffer != null && removedIds.contains(_activeOffer!.id)) {
+      _activeOffer = keepOfferId == null ? null : _localDraftOffers[keepOfferId];
+    }
+  }
+
   Future<void> _loadOffer(String offerId) async {
+    final localDraft = _localDraftOffers[offerId];
+    if (localDraft != null) {
+      setState(() {
+        _selectedOfferId = offerId;
+        _activeOffer = localDraft;
+        _populateForm(localDraft);
+        _flowMode = localDraft.leadId != null && localDraft.leadId!.isNotEmpty ? _OfferFlowMode.system : _OfferFlowMode.free;
+        _isLoadingOffer = false;
+        _editorFeedback = null;
+      });
+      return;
+    }
+
     setState(() {
       _selectedOfferId = offerId;
       _isLoadingOffer = true;
@@ -424,6 +472,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
       }
 
       setState(() {
+        _removeLocalDrafts();
         _activeOffer = detail;
         _populateForm(detail);
         _flowMode = detail.leadId != null && detail.leadId!.isNotEmpty ? _OfferFlowMode.system : _OfferFlowMode.free;
@@ -445,31 +494,275 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
   }
 
-  void _replaceOffer(OfferDetail detail) {
+  void _replaceOffer(OfferDetail detail, {String? replacingOfferId}) {
     final summary = _mapDetailToSummary(detail);
+    final previousId = replacingOfferId ?? detail.id;
+    final previousRegion = _localDraftRegions[previousId] ?? '';
 
     setState(() {
+      _removeLocalDrafts(keepOfferId: _isLocalDraftId(detail.id) ? detail.id : null);
+
+      if (_isLocalDraftId(detail.id)) {
+        _localDraftOffers[detail.id] = detail;
+        _localDraftRegions[detail.id] = previousRegion;
+      } else {
+        _localDraftOffers.remove(detail.id);
+        _localDraftRegions.remove(detail.id);
+        if (_isLocalDraftId(previousId) && previousId != detail.id) {
+          _localDraftOffers.remove(previousId);
+          _localDraftRegions.remove(previousId);
+        }
+      }
+
       _offers = [
         summary,
-        ..._offers.where((offer) => offer.id != detail.id),
+        ..._offers.where((offer) => offer.id != detail.id && offer.id != previousId),
       ];
       _selectedOfferId = detail.id;
       _activeOffer = detail;
     });
   }
 
-  OfferLeadOption _mapLeadOption(ManagedLeadDetail lead) {
-    final contact = [lead.email, lead.phone]
-        .whereType<String>()
-        .firstWhere((value) => value.trim().isNotEmpty, orElse: () => '');
+  bool _isLocalDraftId(String offerId) => offerId.startsWith('local-offer-');
 
-    return OfferLeadOption(
-      id: lead.id,
-      label: lead.fullName,
-      modelName: lead.interestedModel,
-      contact: contact.isEmpty ? null : contact,
-      ownerName: lead.salespersonName,
+  OfferDetail _buildLocalFreeOffer() {
+    final now = DateTime.now();
+    final timestamp = now.microsecondsSinceEpoch;
+    final isoNow = now.toIso8601String();
+
+    return OfferDetail(
+      id: 'local-offer-$timestamp',
+      number: 'SZKIC-LOKALNY',
+      status: 'DRAFT',
+      title: 'Nowa oferta PDF',
+      leadId: null,
+      customerName: '',
+      customerEmail: null,
+      customerPhone: null,
+      modelName: null,
+      pricingCatalogKey: null,
+      selectedColorName: null,
+      customerType: 'PRIVATE',
+      ownerName: widget.session.fullName,
+      validUntil: null,
+      totalGross: null,
+      totalNet: null,
+      financingVariant: null,
+      financingTermMonths: null,
+      financingInputValue: null,
+      financingBuyoutPercent: null,
+      notes: null,
+      createdAt: isoNow,
+      updatedAt: isoNow,
+      versions: const [],
+      calculation: null,
     );
+  }
+
+  OfferDetail _buildCurrentEditorSnapshot(OfferDetail offer) {
+    final now = DateTime.now().toIso8601String();
+    final selectedPricing = _selectedPricingOption;
+
+    return OfferDetail(
+      id: offer.id,
+      number: offer.number,
+      status: offer.status,
+      title: _buildOfferTitle(),
+      leadId: offer.leadId,
+      customerName: _customerNameController.text.trim(),
+      customerEmail: _customerEmailController.text.trim().isEmpty ? null : _customerEmailController.text.trim(),
+      customerPhone: _customerPhoneController.text.trim().isEmpty ? null : _customerPhoneController.text.trim(),
+      modelName: selectedPricing != null
+          ? '${selectedPricing.brand} ${selectedPricing.model} ${selectedPricing.version}'.trim()
+          : offer.modelName,
+      pricingCatalogKey: _selectedPricingKey,
+      selectedColorName: offer.selectedColorName,
+      customerType: _customerType,
+      ownerName: offer.ownerName,
+      validUntil: _validUntilController.text.trim().isEmpty ? null : _validUntilController.text.trim(),
+      totalGross: _previewGrossPrice,
+      totalNet: _previewNetPrice,
+      financingVariant: _financingVariant.trim().isEmpty ? null : _financingVariant.trim(),
+      financingTermMonths: _termMonths,
+      financingInputValue: _downPayment,
+      financingBuyoutPercent: _buyoutPercent,
+      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      createdAt: offer.createdAt,
+      updatedAt: now,
+      versions: offer.versions,
+      calculation: offer.calculation,
+    );
+  }
+
+  void _syncActiveLocalDraft() {
+    final offer = _activeOffer;
+    if (offer == null || !_isLocalDraftId(offer.id)) {
+      return;
+    }
+
+    final updatedDraft = _buildCurrentEditorSnapshot(offer);
+    final updatedSummary = _mapDetailToSummary(updatedDraft);
+
+    _localDraftOffers[updatedDraft.id] = updatedDraft;
+    _localDraftRegions[updatedDraft.id] = _customerRegionController.text.trim();
+    _activeOffer = updatedDraft;
+    _offers = [
+      updatedSummary,
+      ..._offers.where((entry) => entry.id != updatedDraft.id),
+    ];
+  }
+
+  OfferDetail _buildLocalOfferForLead(String leadId, {ManagedLeadDetail? leadDetail}) {
+    final now = DateTime.now();
+    final timestamp = now.microsecondsSinceEpoch;
+    final isoNow = now.toIso8601String();
+    final leadOption = _leadOptions.cast<OfferLeadOption?>().firstWhere(
+          (option) => option?.id == leadId,
+          orElse: () => null,
+        );
+    final contactValue = leadOption?.contact?.trim() ?? '';
+    final fallbackEmail = contactValue.contains('@') ? contactValue : null;
+    final fallbackPhone = contactValue.isNotEmpty && !contactValue.contains('@') ? contactValue : null;
+    final customerName = leadDetail?.fullName ?? leadOption?.label ?? '';
+    final modelName = leadDetail?.interestedModel ?? leadOption?.modelName;
+    final ownerName = leadDetail?.salespersonName ?? leadOption?.ownerName ?? widget.session.fullName;
+
+    return OfferDetail(
+      id: 'local-offer-$timestamp',
+      number: 'SZKIC-LOKALNY',
+      status: 'DRAFT',
+      title: modelName?.trim().isNotEmpty == true
+          ? '$modelName • ${customerName.isEmpty ? 'Lead' : customerName}'
+          : 'Nowa oferta PDF',
+      leadId: leadId,
+      customerName: customerName,
+      customerEmail: leadDetail?.email ?? fallbackEmail,
+      customerPhone: leadDetail?.phone ?? fallbackPhone,
+      modelName: modelName,
+      pricingCatalogKey: null,
+      selectedColorName: null,
+      customerType: 'PRIVATE',
+      ownerName: ownerName,
+      validUntil: null,
+      totalGross: null,
+      totalNet: null,
+      financingVariant: null,
+      financingTermMonths: null,
+      financingInputValue: null,
+      financingBuyoutPercent: null,
+      notes: null,
+      createdAt: isoNow,
+      updatedAt: isoNow,
+      versions: const [],
+      calculation: null,
+    );
+  }
+
+  Future<OfferDetail> _saveOfferDraft(OfferDetail offer) {
+    final payload = {
+      ..._buildEditorPayload(),
+      if ((offer.leadId?.trim().isNotEmpty ?? false)) 'leadId': offer.leadId!.trim(),
+    };
+
+    if (_isLocalDraftId(offer.id)) {
+      return widget.offersRepository.createOffer(payload);
+    }
+
+    return widget.offersRepository.updateOffer(
+      offerId: offer.id,
+      payload: payload,
+    );
+  }
+
+  Future<void> _syncActiveOfferToCrm() async {
+    final offer = _activeOffer;
+    if (offer == null || _isSyncingToCrm || _isSavingOffer || _isCreatingPdf || _isOpeningPreview) {
+      return;
+    }
+
+    final currentLeadId = offer.leadId?.trim() ?? '';
+    if (currentLeadId.isNotEmpty) {
+      setState(() {
+        _editorFeedback = 'Ta oferta jest już powiązana z rekordem CRM i pipeline.';
+      });
+      return;
+    }
+
+    final customerName = _customerNameController.text.trim();
+    final customerEmail = _customerEmailController.text.trim();
+    final customerPhone = _customerPhoneController.text.trim();
+    final customerRegion = _customerRegionController.text.trim();
+
+    if (customerName.isEmpty) {
+      setState(() {
+        _editorFeedback = 'Aby zapisać klienta w CRM, podaj imię i nazwisko.';
+      });
+      return;
+    }
+
+    if (customerEmail.isEmpty && customerPhone.isEmpty) {
+      setState(() {
+        _editorFeedback = 'Aby zapisać klienta w CRM, podaj email lub telefon.';
+      });
+      return;
+    }
+
+    final buyoutValidationMessage = _buyoutValidationMessage;
+    if (buyoutValidationMessage != null) {
+      setState(() {
+        _editorFeedback = buyoutValidationMessage;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSyncingToCrm = true;
+      _editorFeedback = 'Zapisujemy ofertę i tworzymy powiązanie z CRM...';
+    });
+
+    try {
+      final saved = await _saveOfferDraft(offer);
+
+      if (!mounted) {
+        return;
+      }
+
+      _replaceOffer(saved, replacingOfferId: offer.id);
+      _populateForm(saved);
+
+      final linkedOffer = await widget.offersRepository.createLeadForOffer(
+        offerId: saved.id,
+        fullName: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        region: customerRegion,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _replaceOffer(linkedOffer, replacingOfferId: saved.id);
+      _populateForm(linkedOffer);
+      setState(() {
+        _flowMode = _OfferFlowMode.system;
+        _editorFeedback = 'Klient został zapisany do CRM i oferta jest już powiązana z pipeline.';
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _editorFeedback = 'Nie udało się zsynchronizować oferty z CRM. $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncingToCrm = false;
+        });
+      }
+    }
   }
 
   Future<void> _createFreeOffer() async {
@@ -480,16 +773,14 @@ class _OffersHomePageState extends State<OffersHomePage> {
     });
 
     try {
-      final created = await widget.offersRepository.createOffer({
-        'title': '',
-        'customerType': 'PRIVATE',
-      });
+      final created = _buildLocalFreeOffer();
 
       if (!mounted) {
         return;
       }
 
       _replaceOffer(created);
+      _localDraftRegions[created.id] = '';
       _populateForm(created);
 
       setState(() {
@@ -497,7 +788,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
         _createLeadSearchQuery = '';
         _createFeedback = null;
         _flowMode = _OfferFlowMode.free;
-        _editorFeedback = 'Nowy szkic oferty został otwarty bez przechodzenia do modułu leadów.';
+        _editorFeedback = 'Nowa oferta została otwarta lokalnie w aplikacji.';
       });
     } catch (error) {
       if (!mounted) {
@@ -524,22 +815,26 @@ class _OffersHomePageState extends State<OffersHomePage> {
     });
 
     try {
-      final created = await widget.offersRepository.createOffer({
-        'leadId': leadId,
-        'title': '',
-        'customerType': 'PRIVATE',
-      });
+      ManagedLeadDetail? leadDetail;
+      try {
+        leadDetail = (await widget.leadsRepository.fetchLeadDetail(leadId)).lead;
+      } catch (_) {
+        leadDetail = null;
+      }
+
+      final created = _buildLocalOfferForLead(leadId, leadDetail: leadDetail);
 
       if (!mounted) {
         return;
       }
 
       _replaceOffer(created);
+      _localDraftRegions[created.id] = leadDetail?.region ?? '';
       _populateForm(created);
       setState(() {
         _flowMode = _OfferFlowMode.system;
         _isCreateInlineOpen = false;
-        _editorFeedback = editorMessage ?? 'Szkic oferty dla wybranego klienta został utworzony w tym samym workspace.';
+        _editorFeedback = editorMessage ?? 'Oferta dla wybranego klienta została otwarta w tym samym workspace.';
       });
     } catch (error) {
       if (!mounted) {
@@ -558,61 +853,14 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
   }
 
-  Future<OfferDetail?> _ensureLeadForOffer(OfferDetail offer) async {
-    final currentLeadId = offer.leadId?.trim() ?? '';
-    if (currentLeadId.isNotEmpty) {
-      return offer;
+  Future<void> _openPreview(ManagedOfferSummary offer, {String? versionId}) async {
+    if (_isOpeningPreview) {
+      return;
     }
 
-    final customerName = _customerNameController.text.trim();
-    final customerEmail = _customerEmailController.text.trim();
-    final customerPhone = _customerPhoneController.text.trim();
-    final customerRegion = _customerRegionController.text.trim();
-
-    if (customerName.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _editorFeedback = 'Aby zapisać klienta w kanbanie, podaj imię i nazwisko.';
-        });
-      }
-      return null;
-    }
-
-    if (customerEmail.isEmpty && customerPhone.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _editorFeedback = 'Aby zapisać klienta w kanbanie, podaj email lub telefon.';
-        });
-      }
-      return null;
-    }
-
-    final linkedOffer = await widget.offersRepository.createLeadForOffer(
-      offerId: offer.id,
-      fullName: customerName,
-      email: customerEmail,
-      phone: customerPhone,
-      region: customerRegion,
-    );
-
-    if (!mounted) {
-      return linkedOffer;
-    }
-
-    _replaceOffer(linkedOffer);
-    _populateForm(linkedOffer);
-    setState(() {
-      _flowMode = _OfferFlowMode.system;
-      _editorFeedback = 'Utworzono leada w kanbanie i przypięto ofertę do pipeline.';
-    });
-
-    return linkedOffer;
-  }
-
-  Future<OfferDetail?> _saveActiveOfferForPreview() async {
-    final offer = _activeOffer;
-    if (offer == null || _isSavingOffer) {
-      return offer;
+    final activeOffer = _activeOffer;
+    if (activeOffer == null) {
+      return;
     }
 
     final buyoutValidationMessage = _buyoutValidationMessage;
@@ -620,66 +868,35 @@ class _OffersHomePageState extends State<OffersHomePage> {
       setState(() {
         _editorFeedback = buyoutValidationMessage;
       });
-      return null;
-    }
-
-    setState(() {
-      _isSavingOffer = true;
-      _editorFeedback = 'Zapisujemy ofertę przed otwarciem podglądu...';
-    });
-
-    try {
-      final saved = await widget.offersRepository.updateOffer(
-        offerId: offer.id,
-        payload: _buildEditorPayload(),
-      );
-
-      if (!mounted) {
-        return saved;
-      }
-
-      _replaceOffer(saved);
-      _populateForm(saved);
-      return _ensureLeadForOffer(saved);
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _editorFeedback = 'Nie udało się zapisać oferty przed podglądem. $error';
-        });
-      }
-      return null;
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSavingOffer = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _openPreview(ManagedOfferSummary offer, {String? versionId}) async {
-    if (_isOpeningPreview) {
       return;
     }
 
-    final savedOffer = versionId == null ? await _saveActiveOfferForPreview() : _activeOffer;
-    if (versionId == null && savedOffer == null) {
-      return;
-    }
+    final previewOffer = versionId == null ? _buildCurrentEditorSnapshot(activeOffer) : activeOffer;
+    final initialDocument = versionId == null
+        ? buildLocalOfferDocumentSnapshot(
+            offer: previewOffer,
+            session: widget.session,
+          )
+        : null;
 
     setState(() {
       _isOpeningPreview = true;
       _editorFeedback = versionId == null
-          ? 'Otwieramy podgląd zapisanej oferty...'
+          ? 'Otwieramy lokalny podgląd oferty bez zapisu do CRM...'
           : 'Otwieramy podgląd dokumentu PDF...';
     });
+
+    if (!mounted) {
+      return;
+    }
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => OfferDocumentPreviewPage(
-          offerId: savedOffer?.id ?? offer.id,
+          offerId: previewOffer.id,
           versionId: versionId,
           repository: widget.offersRepository,
+          initialDocument: initialDocument,
         ),
       ),
     );
@@ -711,35 +928,26 @@ class _OffersHomePageState extends State<OffersHomePage> {
     });
 
     try {
-      final saved = await widget.offersRepository.updateOffer(
-        offerId: offer.id,
-        payload: _buildEditorPayload(),
-      );
+      final saved = await _saveOfferDraft(offer);
 
       if (!mounted) {
         return;
       }
 
-      _replaceOffer(saved);
+      _replaceOffer(saved, replacingOfferId: offer.id);
       _populateForm(saved);
 
-      final offerWithLead = await _ensureLeadForOffer(saved);
-
-      if (offerWithLead == null) {
-        return;
-      }
-
-      final version = await widget.offersRepository.createPdfVersion(offerId: offerWithLead.id);
+      final version = await widget.offersRepository.createPdfVersion(offerId: saved.id);
 
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _editorFeedback = 'Przygotowano wersję PDF ${version.versionNumber} dla ${offerWithLead.number}. Otwieram podgląd dokumentu.';
+        _editorFeedback = 'Przygotowano wersję PDF ${version.versionNumber} dla ${saved.number}. Otwieram podgląd dokumentu.';
       });
 
-      await _openPreview(_mapDetailToSummary(offerWithLead), versionId: version.id);
+      await _openPreview(_mapDetailToSummary(saved), versionId: version.id);
     } catch (error) {
       if (!mounted) {
         return;
@@ -762,6 +970,8 @@ class _OffersHomePageState extends State<OffersHomePage> {
     final activeSummary = _selectedOffer;
     final activeOffer = _activeOffer;
     final isFreeMode = _currentFlowMode == _OfferFlowMode.free;
+    final previewSummary = activeSummary;
+    final activeOfferCrmLabel = activeOffer == null ? null : _offerCrmSyncLabel(activeOffer);
 
     return Material(
       type: MaterialType.transparency,
@@ -780,6 +990,8 @@ class _OffersHomePageState extends State<OffersHomePage> {
                       _InlineOffersWorkspaceHeader(
                         offers: _offers,
                         selectedOfferId: activeSummary?.id,
+                        activeOffer: activeOffer,
+                        activeOfferCrmLabel: activeOfferCrmLabel,
                         session: widget.session,
                         isSavingOffer: _isSavingOffer,
                         dateFormat: _dateFormat,
@@ -863,17 +1075,20 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 pricingOptions: widget.bootstrap.pricingOptions,
                                 selectedPricingKey: _selectedPricingKey,
                                 selectedPricingOption: _selectedPricingOption,
+                                crmSyncLabel: activeOfferCrmLabel ?? _offerCrmSyncLabel(activeOffer),
                                 feedback: _editorFeedback,
                                 isSaving: _isSavingOffer,
                                 isOpeningPreview: _isOpeningPreview,
                                 isCreatingPdf: _isCreatingPdf,
+                                isSyncingToCrm: _isSyncingToCrm,
                                 currencyFormat: _currencyFormat,
                                 plainAmountFormat: _plainAmountFormat,
                                 remainingDiscountBudget: _remainingDiscountBudget,
                                 onCustomerTypeChanged: _handleCustomerTypeChanged,
                                 onFinancingVariantChanged: (value) => setState(() => _financingVariant = value),
                                 onPricingChanged: (value) => setState(() => _selectedPricingKey = value),
-                                onOpenPreview: activeSummary == null || _isSavingOffer ? null : () => _openPreview(activeSummary!),
+                                onSyncToCrm: _syncActiveOfferToCrm,
+                                onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
                                 onCreatePdf: _createPdfForSelected,
                               ),
                             ),
@@ -922,17 +1137,20 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               pricingOptions: widget.bootstrap.pricingOptions,
                               selectedPricingKey: _selectedPricingKey,
                               selectedPricingOption: _selectedPricingOption,
+                              crmSyncLabel: activeOfferCrmLabel ?? _offerCrmSyncLabel(activeOffer),
                               feedback: _editorFeedback,
                               isSaving: _isSavingOffer,
                               isOpeningPreview: _isOpeningPreview,
                               isCreatingPdf: _isCreatingPdf,
+                              isSyncingToCrm: _isSyncingToCrm,
                               currencyFormat: _currencyFormat,
                               plainAmountFormat: _plainAmountFormat,
                               remainingDiscountBudget: _remainingDiscountBudget,
                               onCustomerTypeChanged: _handleCustomerTypeChanged,
                               onFinancingVariantChanged: (value) => setState(() => _financingVariant = value),
                               onPricingChanged: (value) => setState(() => _selectedPricingKey = value),
-                              onOpenPreview: activeSummary == null || _isSavingOffer ? null : () => _openPreview(activeSummary!),
+                              onSyncToCrm: _syncActiveOfferToCrm,
+                              onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
                               onCreatePdf: _createPdfForSelected,
                             ),
                             const SizedBox(height: 18),
@@ -982,10 +1200,25 @@ String _toDateInput(String? value) {
   return '${parsed.year}-$month-$day';
 }
 
+String _offerCrmSyncLabel(OfferDetail offer) {
+  final leadId = offer.leadId?.trim() ?? '';
+  if (leadId.isNotEmpty) {
+    return 'Powiazana z CRM i pipeline';
+  }
+
+  if (offer.id.startsWith('local-offer-')) {
+    return 'Robocza tylko w aplikacji';
+  }
+
+  return 'Zapisana w aplikacji, bez CRM';
+}
+
 class _InlineOffersWorkspaceHeader extends StatelessWidget {
   const _InlineOffersWorkspaceHeader({
     required this.offers,
     required this.selectedOfferId,
+    required this.activeOffer,
+    required this.activeOfferCrmLabel,
     required this.session,
     required this.isSavingOffer,
     required this.dateFormat,
@@ -997,6 +1230,8 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
 
   final List<ManagedOfferSummary> offers;
   final String? selectedOfferId;
+  final OfferDetail? activeOffer;
+  final String? activeOfferCrmLabel;
   final SessionInfo session;
   final bool isSavingOffer;
   final DateFormat dateFormat;
@@ -1031,7 +1266,7 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Zalogowano jako ${session.fullName} (${session.role}). Każda nowa oferta startuje z realnego leada w pipeline, także gdy zakładasz klienta bezpośrednio z tego modułu.',
+                      'Zalogowano jako ${session.fullName} (${session.role}). Robisz jedną ofertę, pokazujesz ją klientowi albo zapisujesz do CRM. Niedokonczona oferta nie wraca po wyjściu z pracy.',
                       style: const TextStyle(color: VeloPrimePalette.muted, height: 1.55),
                     ),
                   ],
@@ -1069,37 +1304,45 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: VeloPrimePalette.bronzeDeep.withValues(alpha: 0.12))),
               ),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (offers.length > 1)
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 320, maxWidth: 440),
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedOffer.id,
-                          decoration: veloPrimeInputDecoration('Aktywna oferta'),
-                        items: offers
-                            .map(
-                              (offer) => DropdownMenuItem<String>(
-                                value: offer.id,
-                                child: Text('${offer.number} • ${offer.customerName}'),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            onSelectOffer(value);
-                          }
-                        },
-                      ),
-                    ),
-                  _HeaderChip(label: selectedOffer.number),
-                  _HeaderChip(label: 'Klient: ${selectedOffer.customerName}'),
-                  _HeaderChip(label: currentFlowMode == _OfferFlowMode.system ? 'Workflow z leada' : 'Starszy szkic bez leada'),
-                  _HeaderChip(label: 'Ważna do: ${_formatNullableDate(selectedOffer.validUntil, dateFormat) ?? 'Bez terminu'}'),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (offers.length > 1)
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minWidth: 320, maxWidth: 440),
+                          child: DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: selectedOfferId,
+                            decoration: veloPrimeInputDecoration('Aktywna oferta'),
+                            hint: const Text('Wybierz ofertę'),
+                            items: offers
+                                .map(
+                                  (offer) => DropdownMenuItem<String>(
+                                    value: offer.id,
+                                    child: Text('${offer.number} • ${offer.customerName}'),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                                    if (value != null) {
+                                      onSelectOffer(value);
+                                    }
+                                  },
+                          ),
+                        ),
+                      _HeaderChip(label: selectedOffer.number),
+                      _HeaderChip(label: 'Klient: ${selectedOffer.customerName}'),
+                      _HeaderChip(label: currentFlowMode == _OfferFlowMode.system ? 'Workflow z leada' : 'Tryb lokalny'),
+                      if (activeOfferCrmLabel != null)
+                        _HeaderChip(label: 'Status CRM: $activeOfferCrmLabel'),
+                      _HeaderChip(label: 'Ważna do: ${_formatNullableDate(selectedOffer.validUntil, dateFormat) ?? 'Bez terminu'}'),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -1233,7 +1476,7 @@ class _OfferEmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 54),
       child: Column(
         children: [
-          const Text('Każda nowa oferta powinna startować z leada. Możesz wybrać klienta z systemu albo utworzyć nowego klienta bez wychodzenia z modułu Ofert / PDF.', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, height: 1.6, color: VeloPrimePalette.muted)),
+          const Text('Możesz zacząć ofertę od istniejącego leada albo utworzyć ją lokalnie dla nowego klienta. Jeśli jej nie dokończysz, następną po prostu zrobisz od nowa.', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, height: 1.6, color: VeloPrimePalette.muted)),
           const SizedBox(height: 18),
           Wrap(
             spacing: 10,
@@ -1277,16 +1520,19 @@ class _OfferEditorWorkspace extends StatelessWidget {
     required this.pricingOptions,
     required this.selectedPricingKey,
     required this.selectedPricingOption,
+    required this.crmSyncLabel,
     required this.feedback,
     required this.isSaving,
     required this.isOpeningPreview,
     required this.isCreatingPdf,
+    required this.isSyncingToCrm,
     required this.currencyFormat,
     required this.plainAmountFormat,
     required this.remainingDiscountBudget,
     required this.onCustomerTypeChanged,
     required this.onFinancingVariantChanged,
     required this.onPricingChanged,
+    required this.onSyncToCrm,
     required this.onOpenPreview,
     required this.onCreatePdf,
   });
@@ -1308,16 +1554,19 @@ class _OfferEditorWorkspace extends StatelessWidget {
   final List<OfferPricingOption> pricingOptions;
   final String? selectedPricingKey;
   final OfferPricingOption? selectedPricingOption;
+  final String crmSyncLabel;
   final String? feedback;
   final bool isSaving;
   final bool isOpeningPreview;
   final bool isCreatingPdf;
+  final bool isSyncingToCrm;
   final NumberFormat currencyFormat;
   final NumberFormat plainAmountFormat;
   final num? remainingDiscountBudget;
   final ValueChanged<String> onCustomerTypeChanged;
   final ValueChanged<String> onFinancingVariantChanged;
   final ValueChanged<String?> onPricingChanged;
+  final VoidCallback? onSyncToCrm;
   final VoidCallback? onOpenPreview;
   final VoidCallback? onCreatePdf;
 
@@ -1397,13 +1646,13 @@ class _OfferEditorWorkspace extends StatelessWidget {
         if (isFreeMode)
           _EditorSection(
             title: 'Sekcja 1 · Klient',
-            subtitle: 'Tryb pomocniczy poza pipeline. Tylko wtedy budujesz klienta ręcznie bez startu z leada.',
+            subtitle: 'Tryb lokalny poza pipeline. Klienta uzupełniasz w aplikacji, a do CRM zapisujesz go dopiero jawnie, kiedy chcesz zsynchronizować ofertę.',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _SectionSubheader(
                   title: 'DANE KONTAKTOWE',
-                  subtitle: 'Ten blok jest wyjątkiem od standardowego workflow. Używaj go tylko wtedy, gdy oferta nie startuje z leada w CRM.',
+                  subtitle: 'Ten blok służy do lokalnej pracy w aplikacji. CRM i pipeline aktualizujesz osobną akcją synchronizacji.',
                 ),
                 const SizedBox(height: 8),
                 _EditorFormBand(
@@ -1413,6 +1662,7 @@ class _OfferEditorWorkspace extends StatelessWidget {
                     spacing: 14,
                     runSpacing: 14,
                     children: [
+                      _EditorInfoTile(label: 'Status CRM', value: crmSyncLabel),
                       _FieldShell(width: 212, child: TextField(controller: customerNameController, decoration: veloPrimeInputDecoration('Imię i nazwisko'))),
                       _FieldShell(width: 170, child: TextField(controller: customerRegionController, decoration: veloPrimeInputDecoration('Miejscowość'))),
                       _FieldShell(width: 212, child: TextField(controller: customerEmailController, decoration: veloPrimeInputDecoration('Email'))),
@@ -1442,6 +1692,7 @@ class _OfferEditorWorkspace extends StatelessWidget {
                     spacing: 12,
                     runSpacing: 12,
                     children: [
+                      _EditorInfoTile(label: 'Status CRM', value: crmSyncLabel),
                       _EditorInfoTile(label: 'Klient', value: offer.customerName),
                       _EditorInfoTile(label: 'Model', value: (offer.modelName ?? '').isNotEmpty ? offer.modelName! : 'Do uzupełnienia'),
                       _EditorInfoTile(label: 'Lead', value: offer.leadId ?? 'Lead systemowy'),
@@ -1635,6 +1886,27 @@ class _OfferEditorWorkspace extends StatelessWidget {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final isStacked = constraints.maxWidth < 760;
+                  final needsCrmSync = (offer.leadId?.trim().isEmpty ?? true);
+                  final syncButton = needsCrmSync
+                      ? OutlinedButton.icon(
+                          onPressed: isSyncingToCrm ? null : onSyncToCrm,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: VeloPrimePalette.bronzeDeep,
+                            side: BorderSide(color: VeloPrimePalette.bronzeDeep.withValues(alpha: 0.34)),
+                            backgroundColor: const Color(0xFFFFF7EA),
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          ),
+                          icon: isSyncingToCrm
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2.1),
+                                )
+                              : const Icon(Icons.cloud_upload_outlined),
+                          label: Text(isSyncingToCrm ? 'Zapisuję do CRM...' : 'Zapisz klienta do CRM'),
+                        )
+                      : null;
                   final previewButton = OutlinedButton.icon(
                     onPressed: isOpeningPreview ? null : onOpenPreview,
                     style: OutlinedButton.styleFrom(
@@ -1678,6 +1950,10 @@ class _OfferEditorWorkspace extends StatelessWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (syncButton != null) ...[
+                          syncButton,
+                          const SizedBox(height: 10),
+                        ],
                         previewButton,
                         const SizedBox(height: 10),
                         pdfButton,
@@ -1687,6 +1963,10 @@ class _OfferEditorWorkspace extends StatelessWidget {
 
                   return Row(
                     children: [
+                      if (syncButton != null) ...[
+                        Expanded(child: syncButton),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(child: previewButton),
                       const SizedBox(width: 12),
                       Expanded(child: pdfButton),
@@ -1882,7 +2162,7 @@ class _OfferResultsPanel extends StatelessWidget {
                   color: summaryGlowSoft,
                   blurRadius: 24,
                 ),
-                BoxShadow(
+                const BoxShadow(
                   color: Color(0x140E2038),
                   blurRadius: 14,
                   offset: Offset(0, 8),

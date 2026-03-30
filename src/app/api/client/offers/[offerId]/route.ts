@@ -1,7 +1,31 @@
 import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
+import { listManagedLeads, type ManagedLead } from '@/lib/lead-management'
 import { getManagedOfferWithCalculation, updateManagedOffer } from '@/lib/offer-management'
+
+function normalizeComparable(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function attachLeadId<T extends { leadId: string | null; customerName: string; customerEmail: string | null; customerPhone: string | null }>(offer: T, leads: ManagedLead[]) {
+  if (offer.leadId) {
+    return offer
+  }
+
+  const normalizedName = normalizeComparable(offer.customerName)
+  const normalizedEmail = normalizeComparable(offer.customerEmail)
+  const normalizedPhone = normalizeComparable(offer.customerPhone)
+  const matchedLead = leads.find((lead) => {
+    const sameEmail = normalizedEmail && normalizeComparable(lead.email) === normalizedEmail
+    const samePhone = normalizedPhone && normalizeComparable(lead.phone) === normalizedPhone
+    const sameName = normalizedName && normalizeComparable(lead.fullName) === normalizedName
+
+    return Boolean(sameEmail || samePhone || (sameName && (!normalizedEmail || !normalizedPhone)))
+  })
+
+  return matchedLead ? { ...offer, leadId: matchedLead.id } : offer
+}
 
 export async function GET(
   _request: Request,
@@ -20,9 +44,11 @@ export async function GET(
     return NextResponse.json({ ok: false, error: 'Nie znaleziono oferty.' }, { status: 404 })
   }
 
+  const offerWithLead = offer.leadId ? offer : attachLeadId(offer, await listManagedLeads(session))
+
   return NextResponse.json({
     ok: true,
-    offer,
+    offer: offerWithLead,
   })
 }
 
@@ -87,9 +113,14 @@ export async function PATCH(
   }
 
   const updatedOffer = await getManagedOfferWithCalculation(session, offerId)
+  const responseOffer = updatedOffer
+    ? updatedOffer.leadId
+      ? updatedOffer
+      : attachLeadId(updatedOffer, await listManagedLeads(session))
+    : result.offer
 
   return NextResponse.json({
     ok: true,
-    offer: updatedOffer ?? result.offer,
+    offer: responseOffer,
   })
 }

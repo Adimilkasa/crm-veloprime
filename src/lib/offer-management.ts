@@ -723,6 +723,33 @@ async function getManagedOffer(session: AuthSession, offerId: string) {
       return null
     }
 
+    const leadLookupFilters = [
+      record.customerId ? { customerId: record.customerId } : null,
+      record.customer.email ? { email: record.customer.email } : null,
+      record.customer.phone ? { phone: record.customer.phone } : null,
+    ].filter(Boolean) as Prisma.LeadWhereInput[]
+
+    if (leadLookupFilters.length > 0) {
+      const linkedLead = await db.lead.findFirst({
+        where: {
+          OR: leadLookupFilters,
+          ...(session.role === 'ADMIN'
+            ? {}
+            : {
+                salespersonId: {
+                  in: Array.from(visibleOwnerIds),
+                },
+              }),
+        },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true },
+      })
+
+      if (linkedLead) {
+        return { ...mapped, leadId: linkedLead.id }
+      }
+    }
+
     const leads = await listManagedLeads(session)
     const matchedLead = matchLeadForOffer(leads, mapped)
 
@@ -1676,6 +1703,13 @@ export async function assignManagedOfferLead(
         salesCatalogItem: true,
         financing: true,
         versions: true,
+      },
+    })
+
+    await db.lead.update({
+      where: { id: lead.id },
+      data: {
+        customerId: customer.id,
       },
     })
 

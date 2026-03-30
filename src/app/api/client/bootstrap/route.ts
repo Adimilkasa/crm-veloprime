@@ -1,9 +1,32 @@
 import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
-import { listManagedLeadStages } from '@/lib/lead-management'
+import { listManagedLeadStages, listManagedLeads, type ManagedLead } from '@/lib/lead-management'
 import { listManagedOffers, listOfferLeadOptions, listOfferPricingOptions, offerStatusOptions } from '@/lib/offer-management'
 import { getPublishedUpdateManifest } from '@/lib/update-management'
+
+function normalizeComparable(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function attachLeadId<T extends { leadId: string | null; customerName: string; customerEmail: string | null; customerPhone: string | null }>(offer: T, leads: ManagedLead[]) {
+  if (offer.leadId) {
+    return offer
+  }
+
+  const normalizedName = normalizeComparable(offer.customerName)
+  const normalizedEmail = normalizeComparable(offer.customerEmail)
+  const normalizedPhone = normalizeComparable(offer.customerPhone)
+  const matchedLead = leads.find((lead) => {
+    const sameEmail = normalizedEmail && normalizeComparable(lead.email) === normalizedEmail
+    const samePhone = normalizedPhone && normalizeComparable(lead.phone) === normalizedPhone
+    const sameName = normalizedName && normalizeComparable(lead.fullName) === normalizedName
+
+    return Boolean(sameEmail || samePhone || (sameName && (!normalizedEmail || !normalizedPhone)))
+  })
+
+  return matchedLead ? { ...offer, leadId: matchedLead.id } : offer
+}
 
 export async function GET() {
   const session = await getSession()
@@ -12,13 +35,16 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: 'Brak aktywnej sesji.' }, { status: 401 })
   }
 
-  const [manifest, offers, leadOptions, pricingOptions, leadStages] = await Promise.all([
+  const [manifest, offers, leads, leadOptions, pricingOptions, leadStages] = await Promise.all([
     getPublishedUpdateManifest(),
     listManagedOffers(session),
+    listManagedLeads(session),
     listOfferLeadOptions(session),
     listOfferPricingOptions(),
     listManagedLeadStages(),
   ])
+
+  const offersWithLeadIds = offers.map((offer) => attachLeadId(offer, leads))
 
   return NextResponse.json({
     ok: true,
@@ -29,7 +55,7 @@ export async function GET() {
       role: session.role,
     },
     manifest,
-    offers,
+    offers: offersWithLeadIds,
     leadOptions,
     pricingOptions,
     leadStages,

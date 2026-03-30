@@ -4,8 +4,8 @@ import path from 'node:path'
 import { NextResponse } from 'next/server'
 
 const ALLOWED_ROOTS = new Map([
-  ['grafiki', path.join(process.cwd(), 'grafiki')],
-  ['spec', path.join(process.cwd(), 'spec')],
+  ['grafiki', path.join(process.cwd(), 'client', 'veloprime_hybrid_app', 'assets', 'offers', 'grafiki')],
+  ['spec', path.join(process.cwd(), 'client', 'veloprime_hybrid_app', 'assets', 'offers', 'spec')],
 ])
 
 function getContentType(filePath: string) {

@@ -43,9 +43,15 @@ export async function POST(
   }
 
   const offer = await getManagedOfferWithCalculation(session, offerId)
+  const responseOffer = offer
+    ? {
+        ...offer,
+        leadId: offer.leadId ?? result.offer.leadId ?? null,
+      }
+    : result.offer
 
   return NextResponse.json({
     ok: true,
-    offer: offer ?? result.offer,
+    offer: responseOffer,
   })
 }

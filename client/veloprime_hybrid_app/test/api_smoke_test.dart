@@ -10,12 +10,16 @@ const runApiSmoke = bool.fromEnvironment('RUN_API_SMOKE');
 void main() {
   group('Flutter API smoke', () {
     test(
-      'login, bootstrap, create offer and fetch PDF snapshot',
+      'login, bootstrap, create offer, sync lead and fetch PDF snapshot',
       () async {
         final apiClient = ApiClient();
         final authRepository = AuthRepository(apiClient);
         final bootstrapRepository = BootstrapRepository(apiClient);
         final offersRepository = OffersRepository(apiClient);
+        final uniqueSuffix = DateTime.now().millisecondsSinceEpoch;
+        final customerName = 'Flutter Smoke Customer $uniqueSuffix';
+        final customerEmail = 'flutter.smoke.customer.$uniqueSuffix@veloprime.pl';
+        final customerPhone = '+48${(100000000 + (uniqueSuffix % 900000000)).toString()}';
 
         await authRepository.login(
           email: 'admin@veloprime.pl',
@@ -28,11 +32,11 @@ void main() {
         expect(bootstrap.session.role, 'ADMIN');
 
         final createdOffer = await offersRepository.createOffer({
-          'title': 'FLUTTER_SMOKE_OFFER',
+          'title': 'FLUTTER_SMOKE_OFFER_$uniqueSuffix',
           'customerType': 'PRIVATE',
-          'customerName': 'Flutter Smoke Customer',
-          'customerEmail': 'flutter.smoke.customer@veloprime.pl',
-          'customerPhone': '+48500111222',
+          'customerName': customerName,
+          'customerEmail': customerEmail,
+          'customerPhone': customerPhone,
           'customerRegion': 'Warszawa',
           'financingVariant': 'kredyt',
           'financingTermMonths': '36',
@@ -43,12 +47,29 @@ void main() {
         });
 
         expect(createdOffer.id, isNotEmpty);
-        expect(createdOffer.title, 'FLUTTER_SMOKE_OFFER');
+        expect(createdOffer.title, 'FLUTTER_SMOKE_OFFER_$uniqueSuffix');
 
         final detail = await offersRepository.fetchOfferDetail(createdOffer.id);
 
         expect(detail.id, createdOffer.id);
         expect(detail.customerName, isNotEmpty);
+        expect(detail.leadId, anyOf(isNull, isEmpty));
+
+        final linkedOffer = await offersRepository.createLeadForOffer(
+          offerId: createdOffer.id,
+          fullName: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+          region: 'Warszawa',
+        );
+
+        expect(linkedOffer.id, createdOffer.id);
+        expect(linkedOffer.leadId, isNotEmpty);
+
+        final linkedDetail = await offersRepository.fetchOfferDetail(createdOffer.id);
+
+        expect(linkedDetail.id, createdOffer.id);
+        expect(linkedDetail.leadId, isNotEmpty);
 
         final version = await offersRepository.createPdfVersion(offerId: createdOffer.id);
 

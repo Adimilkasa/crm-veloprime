@@ -93,6 +93,7 @@ class _LoginPageState extends State<LoginPage> {
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final compact = constraints.maxWidth < 920;
+                      final allowVerticalScroll = compact || constraints.maxHeight < 760;
 
                       final hero = VeloPrimeWorkspacePanel(
                           tint: VeloPrimePalette.bronzeDeep,
@@ -126,7 +127,7 @@ class _LoginPageState extends State<LoginPage> {
                                   VeloPrimeBadge(label: 'Zakres', value: 'Oferty, leady, konta'),
                                 ],
                               ),
-                              const Spacer(),
+                              const SizedBox(height: 28),
                               Container(
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
@@ -221,30 +222,37 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       );
 
-                      if (compact) {
+                      final content = compact
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  height: 520,
+                                  child: hero,
+                                ),
+                                const SizedBox(height: 24),
+                                form,
+                              ],
+                            )
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(child: hero),
+                                const SizedBox(width: 28),
+                                form,
+                              ],
+                            );
+
+                      if (allowVerticalScroll) {
                         return SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(
-                                height: 520,
-                                child: hero,
-                              ),
-                              const SizedBox(height: 24),
-                              form,
-                            ],
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                            child: content,
                           ),
                         );
                       }
 
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(child: hero),
-                          const SizedBox(width: 28),
-                          form,
-                        ],
-                      );
+                      return content;
                     },
                   ),
                 ),

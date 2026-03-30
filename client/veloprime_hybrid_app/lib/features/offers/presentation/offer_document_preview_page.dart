@@ -14,12 +14,14 @@ class OfferDocumentPreviewPage extends StatefulWidget {
     super.key,
     required this.offerId,
     required this.repository,
+    this.initialDocument,
     this.versionId,
   });
 
   final String offerId;
   final String? versionId;
   final OffersRepository repository;
+  final OfferDocumentSnapshot? initialDocument;
 
   @override
   State<OfferDocumentPreviewPage> createState() => _OfferDocumentPreviewPageState();
@@ -33,10 +35,12 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
   @override
   void initState() {
     super.initState();
-    _documentFuture = widget.repository.fetchDocumentSnapshot(
-      offerId: widget.offerId,
-      versionId: widget.versionId,
-    );
+    _documentFuture = widget.initialDocument != null && (widget.versionId == null || widget.versionId!.isEmpty)
+        ? Future.value(widget.initialDocument)
+        : widget.repository.fetchDocumentSnapshot(
+            offerId: widget.offerId,
+            versionId: widget.versionId,
+          );
   }
 
   Future<void> _openBundledDocument(String assetPath, String label) async {
@@ -124,17 +128,8 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
           final customer = document.payload.customer;
           final advisor = document.payload.advisor;
           final localAssets = getLocalOfferAssetBundle(customer.modelName ?? document.title);
-          final galleryImages = [
-            ...localAssets.premiumImages,
-            ...localAssets.exteriorImages,
-            ...localAssets.interiorImages,
-            ...localAssets.detailImages,
-          ].toSet().toList();
-          final heroImageAsset = [
-            ...localAssets.premiumImages,
-            ...localAssets.exteriorImages,
-            ...localAssets.detailImages,
-          ].cast<String?>().firstWhere((item) => item != null, orElse: () => null);
+          final galleryImages = localAssets.galleryImages;
+          final heroImageAsset = localAssets.heroImageAsset;
             final contactParts = [customer.customerEmail, customer.customerPhone]
               .whereType<String>()
               .where((item) => item.trim().isNotEmpty)

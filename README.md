@@ -125,6 +125,15 @@ Przyklad pliku wzorcowego znajduje sie w:
 
 Jesli plik nie istnieje, klient korzysta z wartosci przekazanej przez `--dart-define=VELOPRIME_API_BASE_URL=...` albo z domyslnego `http://127.0.0.1:3000`.
 
+## Wspolny manifest assetow ofert
+
+Definicja grafik i PDF specyfikacji dla ofert jest wspolna dla Fluttera i backendu i znajduje sie w:
+
+- `client/veloprime_hybrid_app/assets/offers/asset_manifest.json`
+
+Flutterowy live preview korzysta z tego manifestu oraz z bundlowanych assetow w `client/veloprime_hybrid_app/assets/offers/`.
+Backendowe URL-e `/assets/grafiki/...` i `/assets/spec/...` sa serwowane z tych samych katalogow klienta Flutter, zeby nie bylo rozjazdu miedzy aplikacja i PDF.
+
 ## Environment
 
 Skopiuj `.env.example` do `.env` i ustaw `DATABASE_URL` przed podpinaniem bazy danych.
