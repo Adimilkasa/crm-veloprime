@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../../core/config/api_config.dart';
 import '../../../core/presentation/veloprime_ui.dart';
 import '../data/offers_repository.dart';
@@ -35,29 +33,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
       offerId: widget.offerId,
       versionId: widget.versionId,
     );
-  }
-
-  Future<void> _openExternalDocument(String url, String label) async {
-    final uri = Uri.tryParse(url);
-
-    if (uri == null) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Niepoprawny link dla dokumentu: $label.')),
-      );
-      return;
-    }
-
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Nie udalo sie otworzyc dokumentu: $label.')),
-      );
-    }
   }
 
   @override
@@ -123,12 +98,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               : customer.financingVariant ?? 'Warunki ustalane indywidualnie';
             final offerNarrative = 'Dokument zbiera konfigurację ${customer.modelName ?? document.title} '
               'dla ${customer.customerName}, poziom ceny końcowej i proponowany scenariusz rozmowy o finansowaniu: $commercialSummary.';
-          final generatedPdfUrl = document.version?.pdfUrl == null || document.version!.pdfUrl!.isEmpty
-              ? null
-              : _toAbsoluteAssetUrl(document.version!.pdfUrl!);
-          final specPdfUrl = assets.specPdfUrl == null || assets.specPdfUrl!.isEmpty
-              ? null
-              : _toAbsoluteAssetUrl(assets.specPdfUrl!);
 
           return SingleChildScrollView(
             child: Center(
@@ -146,18 +115,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                           icon: const Icon(Icons.arrow_back_rounded),
                           label: const Text('Powrot'),
                         ),
-                        if (generatedPdfUrl != null)
-                          FilledButton.icon(
-                            onPressed: () => _openExternalDocument(generatedPdfUrl, 'finalny PDF'),
-                            icon: const Icon(Icons.picture_as_pdf_outlined),
-                            label: const Text('Otworz finalny PDF'),
-                          ),
-                        if (specPdfUrl != null)
-                          OutlinedButton.icon(
-                            onPressed: () => _openExternalDocument(specPdfUrl, 'specyfikacja modelu'),
-                            icon: const Icon(Icons.description_outlined),
-                            label: const Text('Otworz specyfikacje'),
-                          ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -177,38 +134,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         _PreviewMetricCard(label: 'Finansowanie', value: commercialSummary),
                       ],
                     ),
-                    if (generatedPdfUrl != null || specPdfUrl != null) ...[
-                      const SizedBox(height: 20),
-                      _PreviewSectionCard(
-                        title: 'Dokumenty koncowe z webowego workflow',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Sam finalny dokument PDF i PDF specyfikacji modelu pochodza z webowego generatora. Ten ekran zachowuje styl aplikacji, ale pokazuje juz te same artefakty koncowe.',
-                              style: TextStyle(color: Colors.black54, height: 1.55),
-                            ),
-                            const SizedBox(height: 16),
-                            if (generatedPdfUrl != null)
-                              _LinkedAssetCard(
-                                eyebrow: 'Finalny dokument',
-                                title: 'PDF oferty gotowy do pobrania',
-                                value: generatedPdfUrl,
-                                icon: Icons.picture_as_pdf_outlined,
-                              ),
-                            if (generatedPdfUrl != null && specPdfUrl != null)
-                              const SizedBox(height: 12),
-                            if (specPdfUrl != null)
-                              _LinkedAssetCard(
-                                eyebrow: 'Specyfikacja modelu',
-                                title: 'Dolaczony PDF specyfikacji samochodu',
-                                value: specPdfUrl,
-                                icon: Icons.description_outlined,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: 20),
                     LayoutBuilder(
                       builder: (context, constraints) {
@@ -299,7 +224,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Galeria wspiera rozmowę z klientem i pokazuje finalny kierunek konfiguracji w stylu zgodnym z webowym PDF.',
+                                    'Galeria wspiera rozmowę z klientem i pokazuje finalny kierunek konfiguracji bez wychodzenia z aplikacji.',
                                     style: const TextStyle(color: Colors.black54, height: 1.55),
                                   ),
                                   const SizedBox(height: 14),

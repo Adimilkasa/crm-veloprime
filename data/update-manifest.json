@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v3",
+      "version": "v4",
       "publishedAt": "2026-03-30T00:00:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.4.0 with offer lead auto-persistence and refreshed PDF presentation.",
+      "summary": "Flutter client 0.1.5.0 with app-native offer preview and no external web handoff in the PDF screen.",
       "priority": "STANDARD"
     }
   ]
