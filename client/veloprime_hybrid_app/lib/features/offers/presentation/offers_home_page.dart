@@ -533,6 +533,57 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
   }
 
+  Future<OfferDetail?> _ensureLeadForOffer(OfferDetail offer) async {
+    final currentLeadId = offer.leadId?.trim() ?? '';
+    if (currentLeadId.isNotEmpty) {
+      return offer;
+    }
+
+    final customerName = _customerNameController.text.trim();
+    final customerEmail = _customerEmailController.text.trim();
+    final customerPhone = _customerPhoneController.text.trim();
+    final customerRegion = _customerRegionController.text.trim();
+
+    if (customerName.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _editorFeedback = 'Aby zapisać klienta w kanbanie, podaj imię i nazwisko.';
+        });
+      }
+      return null;
+    }
+
+    if (customerEmail.isEmpty && customerPhone.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _editorFeedback = 'Aby zapisać klienta w kanbanie, podaj email lub telefon.';
+        });
+      }
+      return null;
+    }
+
+    final linkedOffer = await widget.offersRepository.createLeadForOffer(
+      offerId: offer.id,
+      fullName: customerName,
+      email: customerEmail,
+      phone: customerPhone,
+      region: customerRegion,
+    );
+
+    if (!mounted) {
+      return linkedOffer;
+    }
+
+    _replaceOffer(linkedOffer);
+    _populateForm(linkedOffer);
+    setState(() {
+      _flowMode = _OfferFlowMode.system;
+      _editorFeedback = 'Utworzono leada w kanbanie i przypięto ofertę do pipeline.';
+    });
+
+    return linkedOffer;
+  }
+
   Future<OfferDetail?> _saveActiveOfferForPreview() async {
     final offer = _activeOffer;
     if (offer == null || _isSavingOffer) {
@@ -564,7 +615,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
       _replaceOffer(saved);
       _populateForm(saved);
-      return saved;
+      return _ensureLeadForOffer(saved);
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -645,18 +696,25 @@ class _OffersHomePageState extends State<OffersHomePage> {
       }
 
       _replaceOffer(saved);
+      _populateForm(saved);
 
-      final version = await widget.offersRepository.createPdfVersion(offerId: offer.id);
+      final offerWithLead = await _ensureLeadForOffer(saved);
+
+      if (offerWithLead == null) {
+        return;
+      }
+
+      final version = await widget.offersRepository.createPdfVersion(offerId: offerWithLead.id);
 
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _editorFeedback = 'Przygotowano wersję PDF ${version.versionNumber} dla ${saved.number}. Otwieram podgląd dokumentu.';
+        _editorFeedback = 'Przygotowano wersję PDF ${version.versionNumber} dla ${offerWithLead.number}. Otwieram podgląd dokumentu.';
       });
 
-      await _openPreview(_mapDetailToSummary(saved), versionId: version.id);
+      await _openPreview(_mapDetailToSummary(offerWithLead), versionId: version.id);
     } catch (error) {
       if (!mounted) {
         return;

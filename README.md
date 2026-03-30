@@ -183,7 +183,7 @@ Podzial zmian na commity opisuje `docs/REPO_CHANGESET_PLAN.md`, a zasady dla art
 - `POST /api/client/offers` - utworzenie nowej oferty z poziomu klienta lokalnego
 - `GET /api/client/offers/:offerId` - szczegoly pojedynczej oferty wraz z kalkulacja dla klienta lokalnego
 - `PATCH /api/client/offers/:offerId` - bezpieczna aktualizacja podstawowych danych oferty z zachowaniem obecnej kalkulacji i konfiguracji
-- `POST /api/client/offers/:offerId/lead` - przypiecie istniejacego leada do oferty z poziomu klienta lokalnego
+- `POST /api/client/offers/:offerId/lead` - przypiecie istniejacego leada albo utworzenie nowego leada z danych oferty z poziomu klienta lokalnego
 - `GET /api/client/offers/:offerId/document` - snapshot dokumentu oferty i assety do lokalnego podgladu PDF
 - `POST /api/client/offers/:offerId/pdf-version` - utworzenie nowej wersji dokumentu PDF oferty po stronie centrali
 - `GET /api/updates/manifest` - pobranie opublikowanych wersji `DATA`, `ASSETS`, `APPLICATION`

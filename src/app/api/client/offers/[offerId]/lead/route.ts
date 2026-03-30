@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
-import { assignManagedOfferLead, getManagedOfferWithCalculation } from '@/lib/offer-management'
+import { assignManagedOfferLead, createLeadForManagedOffer, getManagedOfferWithCalculation } from '@/lib/offer-management'
 
 export async function POST(
   request: Request,
@@ -25,15 +25,18 @@ export async function POST(
 
   const payload = body as Record<string, unknown>
   const leadId = typeof payload.leadId === 'string' ? payload.leadId.trim() : ''
-
-  if (!leadId) {
-    return NextResponse.json({ ok: false, error: 'leadId jest wymagane.' }, { status: 400 })
-  }
-
-  const result = await assignManagedOfferLead(session, {
-    offerId,
-    leadId,
-  })
+  const result = leadId
+    ? await assignManagedOfferLead(session, {
+        offerId,
+        leadId,
+      })
+    : await createLeadForManagedOffer(session, {
+        offerId,
+        fullName: typeof payload.fullName === 'string' ? payload.fullName : undefined,
+        email: typeof payload.email === 'string' ? payload.email : undefined,
+        phone: typeof payload.phone === 'string' ? payload.phone : undefined,
+        region: typeof payload.region === 'string' ? payload.region : undefined,
+      })
 
   if (!result.ok) {
     return NextResponse.json({ ok: false, error: result.error }, { status: 400 })

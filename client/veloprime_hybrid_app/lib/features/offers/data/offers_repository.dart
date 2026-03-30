@@ -22,7 +22,7 @@ class OffersRepository {
       'versions': {
         'DATA': 'v1',
         'ASSETS': 'v1',
-        'APPLICATION': 'v2',
+        'APPLICATION': 'v3',
       },
     };
 
@@ -77,6 +77,22 @@ class OffersRepository {
   }) async {
     final json = await _apiClient.postJson('/api/client/offers/$offerId/lead', {
       'leadId': leadId,
+    });
+    return OfferDetail.fromJson(json['offer'] as Map<String, dynamic>? ?? const {});
+  }
+
+  Future<OfferDetail> createLeadForOffer({
+    required String offerId,
+    required String fullName,
+    String? email,
+    String? phone,
+    String? region,
+  }) async {
+    final json = await _apiClient.postJson('/api/client/offers/$offerId/lead', {
+      'fullName': fullName,
+      'email': email ?? '',
+      'phone': phone ?? '',
+      'region': region ?? '',
     });
     return OfferDetail.fromJson(json['offer'] as Map<String, dynamic>? ?? const {});
   }
