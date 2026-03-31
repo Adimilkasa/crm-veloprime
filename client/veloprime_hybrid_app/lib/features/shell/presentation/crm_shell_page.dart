@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/config/client_artifact_versions.dart';
 import '../../../core/presentation/veloprime_ui.dart';
 import '../../account/data/account_repository.dart';
 import '../../account/presentation/change_password_page.dart';
@@ -725,7 +726,7 @@ class _CrmShellPageState extends State<CrmShellPage> {
                       child: Row(
                         children: [
                           const _ShellBrandBlock(),
-                          const SizedBox(width: 30),
+                          const SizedBox(width: 24),
                           Expanded(
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
@@ -935,79 +936,37 @@ class _ShellBrandBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: 82,
-          height: 58,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0x33FFFFFF), Color(0x12FFFFFF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0x33FFFFFF)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x22102040),
-                blurRadius: 18,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: ClipRect(
-              child: OverflowBox(
-                alignment: Alignment.center,
-                minWidth: 0,
-                minHeight: 0,
-                maxWidth: 2200,
-                maxHeight: 520,
-                child: Transform.scale(
-                  scale: 2.45,
-                  alignment: Alignment.center,
-                  child: Image.asset(
-                    'assets/branding/logo.png',
-                    width: 300,
-                    height: 70,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.center,
-                    filterQuality: FilterQuality.high,
-                  ),
-                ),
-              ),
-            ),
+        const Text(
+          'VELO PRIME',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
           ),
         ),
-        const SizedBox(width: 16),
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'VELO PRIME',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Premium workspace sprzedażowy',
-              style: TextStyle(
-                color: Color(0xBBD8E5FF),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+        const SizedBox(height: 4),
+        const Text(
+          'Premium workspace sprzedażowy',
+          style: TextStyle(
+            color: Color(0xBBD8E5FF),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          ClientArtifactVersions.releaseLabel,
+          style: const TextStyle(
+            color: Color(0x99D8E5FF),
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.2,
+          ),
         ),
       ],
     );
