@@ -13,8 +13,18 @@ Checklist wdrożeniowy dla publicznych linków ofert i wysyłki email z aplikacj
 Na Vercelu ustaw:
 
 - `DATABASE_URL`
-- `RESEND_API_KEY`
 - `OFFER_EMAIL_FROM`
+
+Jeden z providerów wysyłki:
+
+- Zoho SMTP:
+	- `SMTP_HOST`
+	- `SMTP_PORT`
+	- `SMTP_SECURE`
+	- `SMTP_USER`
+	- `SMTP_PASS`
+- albo Resend:
+	- `RESEND_API_KEY`
 
 Bez `DATABASE_URL` build pominie `prisma migrate deploy`, a bez danych mailowych endpoint wysyłki zwróci błąd konfiguracji.
 
@@ -39,6 +49,8 @@ Bez `DATABASE_URL` build pominie `prisma migrate deploy`, a bez danych mailowych
 ## Najczęstsze blokery
 
 - Brak `DATABASE_URL`: migracja nie wykona się podczas buildu.
-- Brak `RESEND_API_KEY` lub `OFFER_EMAIL_FROM`: wysyłka maila zakończy się błędem konfiguracji.
+- Brak `OFFER_EMAIL_FROM`: wysyłka maila zakończy się błędem konfiguracji.
+- Dla Zoho SMTP brakuje któregoś z `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`.
+- Dla Resend brakuje `RESEND_API_KEY`.
 - Brak adresu email klienta na ofercie: aplikacja nie wyśle wiadomości.
 - Wygasła oferta: publiczny link pokaże stan wygasły zamiast pełnego widoku.
