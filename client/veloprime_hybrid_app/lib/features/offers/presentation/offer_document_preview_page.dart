@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../../core/config/api_config.dart';
 import '../../../core/presentation/veloprime_ui.dart';
 import '../data/local_offer_assets.dart';
 import '../data/offers_repository.dart';
@@ -31,6 +33,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
   static final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
 
   late Future<OfferDocumentSnapshot> _documentFuture;
+  bool _isSendingEmail = false;
 
   @override
   void initState() {
@@ -76,6 +79,134 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Nie udalo sie przygotowac dokumentu: $label.\n$error')),
       );
+    }
+  }
+
+  bool _isBundledAsset(String pathOrUrl) {
+    return pathOrUrl.startsWith('assets/');
+  }
+
+  Uri _resolveSourceUri(String pathOrUrl) {
+    final parsed = Uri.parse(pathOrUrl);
+    if (parsed.hasScheme) {
+      return parsed;
+    }
+
+    return Uri.parse(ApiConfig.baseUrl).resolveUri(parsed);
+  }
+
+  Future<void> _openDocumentSource(String pathOrUrl, String label) async {
+    if (_isBundledAsset(pathOrUrl)) {
+      await _openBundledDocument(pathOrUrl, label);
+      return;
+    }
+
+    try {
+      final opened = await launchUrl(_resolveSourceUri(pathOrUrl), mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Nie udalo sie otworzyc dokumentu: $label.')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nie udalo sie uruchomic dokumentu: $label.\n$error')),
+      );
+    }
+  }
+
+  Future<String?> _promptRecipientEmail(String initialValue) async {
+    final controller = TextEditingController(text: initialValue);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Wyślij ofertę na email'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Adres email odbiorcy',
+              hintText: 'klient@firma.pl',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: const Text('Wyślij'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+    return result;
+  }
+
+  Future<void> _sendOfferByEmail(OfferDocumentSnapshot document) async {
+    if (_isSendingEmail) {
+      return;
+    }
+
+    final requestedEmail = await _promptRecipientEmail(document.payload.customer.customerEmail?.trim() ?? '');
+    if (requestedEmail == null) {
+      return;
+    }
+
+    if (requestedEmail.isEmpty || !requestedEmail.contains('@')) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Podaj poprawny adres email odbiorcy.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSendingEmail = true;
+    });
+
+    try {
+      final emailResult = await widget.repository.sendOfferEmail(
+        offerId: document.offerId,
+        versionId: document.version?.id ?? widget.versionId,
+        toEmail: requestedEmail,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Oferta została wysłana na ${emailResult.to}.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nie udało się wysłać oferty na email. $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingEmail = false;
+        });
+      }
     }
   }
 
@@ -127,25 +258,27 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
 
           final customer = document.payload.customer;
           final advisor = document.payload.advisor;
-          final localAssets = getLocalOfferAssetBundle(customer.modelName ?? document.title);
-          final galleryImages = localAssets.galleryImages;
-          final heroImageAsset = localAssets.heroImageAsset;
-            final contactParts = [customer.customerEmail, customer.customerPhone]
+          final fallbackAssets = getLocalOfferAssetBundle(customer.modelName ?? document.title);
+          final resolvedMedia = _ResolvedPreviewMedia.fromDocument(document, fallbackAssets);
+          final galleryImages = resolvedMedia.gallerySources;
+          final heroImageSource = resolvedMedia.heroSource;
+          final specDocumentSource = resolvedMedia.specSource;
+          final canSendEmail = document.version != null;
+          final contactParts = [customer.customerEmail, customer.customerPhone]
               .whereType<String>()
               .where((item) => item.trim().isNotEmpty)
               .toList();
-            final contactLine = contactParts.isEmpty ? 'Kontakt do potwierdzenia' : contactParts.join(' • ');
-            final advisorParts = [advisor.email, advisor.phone]
+          final contactLine = contactParts.isEmpty ? 'Kontakt do potwierdzenia' : contactParts.join(' • ');
+          final advisorParts = [advisor.email, advisor.phone]
               .whereType<String>()
               .where((item) => item.trim().isNotEmpty)
               .toList();
-            final advisorLine = advisorParts.isEmpty ? 'Brak danych kontaktowych opiekuna' : advisorParts.join(' • ');
-            final commercialSummary = customer.financingSummary != null && customer.financingSummary!.trim().isNotEmpty
+          final advisorLine = advisorParts.isEmpty ? 'Brak danych kontaktowych opiekuna' : advisorParts.join(' • ');
+          final commercialSummary = customer.financingSummary != null && customer.financingSummary!.trim().isNotEmpty
               ? customer.financingSummary!
               : customer.financingVariant ?? 'Warunki ustalane indywidualnie';
-            final offerNarrative = 'Dokument zbiera konfigurację ${customer.modelName ?? document.title} '
+          final offerNarrative = 'Dokument zbiera konfigurację ${customer.modelName ?? document.title} '
               'dla ${customer.customerName}, poziom ceny końcowej i proponowany scenariusz rozmowy o finansowaniu: $commercialSummary.';
-          final specPdfAssetPath = localAssets.specPdfAssetPath;
 
           return SingleChildScrollView(
             child: Center(
@@ -163,18 +296,30 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                           icon: const Icon(Icons.arrow_back_rounded),
                           label: const Text('Powrot'),
                         ),
-                        if (specPdfAssetPath != null)
+                        if (specDocumentSource != null)
                           OutlinedButton.icon(
-                            onPressed: () => _openBundledDocument(specPdfAssetPath, 'specyfikacja-modelu'),
+                            onPressed: () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
                             icon: const Icon(Icons.description_outlined),
                             label: const Text('Otworz specyfikacje PDF'),
+                          ),
+                        if (canSendEmail)
+                          FilledButton.icon(
+                            onPressed: _isSendingEmail ? null : () => _sendOfferByEmail(document),
+                            icon: _isSendingEmail
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                                  )
+                                : const Icon(Icons.alternate_email_outlined),
+                            label: Text(_isSendingEmail ? 'Wysyłamy email...' : 'Wyślij na email'),
                           ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     _PreviewHeroCard(
                       document: document,
-                      heroImageAsset: heroImageAsset,
+                      heroImageSource: heroImageSource,
                       dateFormat: _dateFormat,
                     ),
                     const SizedBox(height: 18),
@@ -188,9 +333,9 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         _PreviewMetricCard(label: 'Finansowanie', value: commercialSummary),
                       ],
                     ),
-                    if (specPdfAssetPath != null) ...[
+                    if (specDocumentSource != null) ...[
                       const SizedBox(height: 20),
-                      _PreviewSectionCard(
+                      const _PreviewSectionCard(
                         title: 'Specyfikacja modelu',
                         child: _LinkedAssetCard(
                           eyebrow: 'Dokument pomocniczy',
@@ -298,14 +443,14 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  const Text(
                                     'Galeria wspiera rozmowę z klientem i pokazuje finalny kierunek konfiguracji bez wychodzenia z aplikacji.',
-                                    style: const TextStyle(color: Colors.black54, height: 1.55),
+                                    style: TextStyle(color: Colors.black54, height: 1.55),
                                   ),
                                   const SizedBox(height: 14),
                                   _AssetGallery(
-                                    heroImageAsset: heroImageAsset,
-                                    imageAssets: galleryImages,
+                                    heroImageSource: heroImageSource,
+                                    imageSources: galleryImages,
                                   ),
                                 ],
                               ),
@@ -348,12 +493,12 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
 class _PreviewHeroCard extends StatelessWidget {
   const _PreviewHeroCard({
     required this.document,
-    required this.heroImageAsset,
+    required this.heroImageSource,
     required this.dateFormat,
   });
 
   final OfferDocumentSnapshot document;
-  final String? heroImageAsset;
+  final String? heroImageSource;
   final DateFormat dateFormat;
 
   @override
@@ -386,16 +531,16 @@ class _PreviewHeroCard extends StatelessWidget {
                 _PreviewPill(label: 'Wygenerowano', value: _formatNullableDate(document.payload.createdAt, dateFormat) ?? '-'),
               ],
             ),
-            if (heroImageAsset != null) ...[
+            if (heroImageSource != null) ...[
               const SizedBox(height: 20),
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Image.asset(
-                  heroImageAsset!,
+                child: _PreviewImage(
+                  source: heroImageSource!,
                   height: 280,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const _MissingImagePlaceholder(label: 'Brak podgladu grafiki modelu'),
+                  missingLabel: 'Brak podgladu grafiki modelu',
                 ),
               ),
             ],
@@ -407,18 +552,18 @@ class _PreviewHeroCard extends StatelessWidget {
 
 class _AssetGallery extends StatelessWidget {
   const _AssetGallery({
-    required this.heroImageAsset,
-    required this.imageAssets,
+    required this.heroImageSource,
+    required this.imageSources,
   });
 
-  final String? heroImageAsset;
-  final List<String> imageAssets;
+  final String? heroImageSource;
+  final List<String> imageSources;
 
   @override
   Widget build(BuildContext context) {
-    final thumbnails = imageAssets.where((item) => item != heroImageAsset).take(6).toList();
+    final thumbnails = imageSources.where((item) => item != heroImageSource).take(6).toList();
 
-    if (heroImageAsset == null && thumbnails.isEmpty) {
+    if (heroImageSource == null && thumbnails.isEmpty) {
       return const _MissingImagePlaceholder(label: 'Brak grafik modelu dla tego dokumentu');
     }
 
@@ -427,24 +572,104 @@ class _AssetGallery extends StatelessWidget {
       runSpacing: 10,
       children: thumbnails
           .map(
-            (imageAsset) => ClipRRect(
+            (imageSource) => ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                imageAsset,
+              child: _PreviewImage(
+                source: imageSource,
                 width: 140,
                 height: 100,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 140,
-                  height: 100,
-                  color: const Color(0xFFEDE7DB),
-                  alignment: Alignment.center,
-                  child: const Text('Brak', style: TextStyle(color: Colors.black45)),
-                ),
+                missingLabel: 'Brak',
               ),
             ),
           )
           .toList(),
+    );
+  }
+}
+
+class _ResolvedPreviewMedia {
+  const _ResolvedPreviewMedia({
+    required this.specSource,
+    required this.heroSource,
+    required this.gallerySources,
+  });
+
+  final String? specSource;
+  final String? heroSource;
+  final List<String> gallerySources;
+
+  factory _ResolvedPreviewMedia.fromDocument(OfferDocumentSnapshot document, LocalOfferAssetBundle fallbackAssets) {
+    final documentImages = [
+      ...document.assets.premiumImages,
+      ...document.assets.exteriorImages,
+      ...document.assets.interiorImages,
+      ...document.assets.detailImages,
+    ].where((item) => item.trim().isNotEmpty).toList(growable: false);
+
+    final gallerySources = (documentImages.isNotEmpty ? documentImages : fallbackAssets.galleryImages)
+        .where((item) => item.trim().isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    final heroSource = [
+      ...document.assets.premiumImages,
+      ...document.assets.exteriorImages,
+      ...document.assets.detailImages,
+      if (fallbackAssets.heroImageAsset != null) fallbackAssets.heroImageAsset!,
+    ].where((item) => item.trim().isNotEmpty).cast<String?>().firstWhere((item) => item != null, orElse: () => null);
+
+    return _ResolvedPreviewMedia(
+      specSource: document.assets.specPdfUrl?.trim().isNotEmpty == true ? document.assets.specPdfUrl : fallbackAssets.specPdfAssetPath,
+      heroSource: heroSource,
+      gallerySources: gallerySources,
+    );
+  }
+}
+
+class _PreviewImage extends StatelessWidget {
+  const _PreviewImage({
+    required this.source,
+    required this.width,
+    required this.height,
+    required this.fit,
+    required this.missingLabel,
+  });
+
+  final String source;
+  final double width;
+  final double height;
+  final BoxFit fit;
+  final String missingLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageWidget = source.startsWith('assets/')
+        ? Image.asset(
+            source,
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) => _inlineMissingImage(width, height),
+          )
+        : Image.network(
+            _resolveAbsolutePreviewUrl(source),
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) => _inlineMissingImage(width, height),
+          );
+
+    return imageWidget;
+  }
+
+  Widget _inlineMissingImage(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      color: const Color(0xFFEDE7DB),
+      alignment: Alignment.center,
+      child: Text(missingLabel, style: const TextStyle(color: Colors.black45)),
     );
   }
 }
@@ -695,4 +920,13 @@ String? _formatNullableDate(String? value, [DateFormat? format]) {
   }
 
   return (format ?? DateFormat('dd.MM.yyyy')).format(parsed);
+}
+
+String _resolveAbsolutePreviewUrl(String pathOrUrl) {
+  final parsed = Uri.parse(pathOrUrl);
+  if (parsed.hasScheme) {
+    return parsed.toString();
+  }
+
+  return Uri.parse(ApiConfig.baseUrl).resolveUri(parsed).toString();
 }

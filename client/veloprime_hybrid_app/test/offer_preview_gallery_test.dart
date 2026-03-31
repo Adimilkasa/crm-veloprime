@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:veloprime_hybrid_app/features/bootstrap/models/bootstrap_payload.dart';
 import 'package:veloprime_hybrid_app/features/offers/data/local_offer_assets.dart';
@@ -56,5 +57,11 @@ void main() {
     expect(bundle.galleryImages.length, greaterThanOrEqualTo(4));
     expect(bundle.galleryImages.first, startsWith('assets/offers/grafiki/'));
     expect(bundle.galleryImages, containsAll(snapshot.assets.premiumImages));
+  });
+
+  testWidgets('bundled nested model image is available in root bundle', (tester) async {
+    final bytes = await rootBundle.load('assets/offers/grafiki/byd-atto-2/premium 1.jpg');
+
+    expect(bytes.lengthInBytes, greaterThan(0));
   });
 }
