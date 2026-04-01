@@ -27,6 +27,7 @@ final NumberFormat _moneyFormat = NumberFormat.currency(
 OfferDocumentSnapshot buildLocalOfferDocumentSnapshot({
   required OfferDetail offer,
   required SessionInfo session,
+  SalesCatalogBootstrapInfo? catalog,
 }) {
   final generatedAt = DateTime.now().toIso8601String();
   final calculation = offer.calculation;
@@ -56,7 +57,15 @@ OfferDocumentSnapshot buildLocalOfferDocumentSnapshot({
       ? '${financing.termMonths} mies. / wplata ${_formatMoney(financing.downPaymentAmount)} / wykup ${_formatPercent(financing.buyoutPercent)} / rata od ${_formatMoney(financing.estimatedInstallment)}'
       : offer.financingVariant;
   final modelLabel = offer.modelName?.trim().isNotEmpty == true ? offer.modelName! : offer.title;
-  final localAssets = getLocalOfferAssetBundle(modelLabel);
+  final selectedVersion = catalog?.versions.cast<SalesCatalogVersionInfo?>().firstWhere(
+        (version) => version?.catalogKey == offer.pricingCatalogKey,
+        orElse: () => null,
+      );
+  final localAssets = getLocalOfferAssetBundle(
+    modelName: modelLabel,
+    catalogKey: offer.pricingCatalogKey,
+    powertrainType: selectedVersion?.powertrainType,
+  );
   final advisorName = offer.ownerName.trim().isNotEmpty ? offer.ownerName : session.fullName;
   final advisorEmail = advisorName == session.fullName ? session.email : null;
   final ownerRole = calculation?.ownerRole ?? session.role;
@@ -106,6 +115,7 @@ OfferDocumentSnapshot buildLocalOfferDocumentSnapshot({
       ),
       internal: OfferDocumentInternalSnapshot(
         catalogKey: offer.pricingCatalogKey,
+        powertrainType: selectedVersion?.powertrainType,
         customerType: offer.customerType,
         finalPriceGross: finalPriceGross,
         finalPriceNet: finalPriceNet,

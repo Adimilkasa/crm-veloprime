@@ -15,6 +15,8 @@ export type ModelColorOption = {
 
 export type ModelColorPalette = {
   paletteKey: string
+  brandCode?: string | null
+  modelCode?: string | null
   brand: string
   model: string
   baseColorName: string
@@ -32,6 +34,8 @@ type RawModelColorOption = {
 }
 
 type RawModelColorPalette = {
+  brandCode?: unknown
+  modelCode?: unknown
   brand?: unknown
   model?: unknown
   baseColorName?: unknown
@@ -117,17 +121,16 @@ async function writeColorPalettesFile(palettes: ModelColorPalette[]) {
   )
 }
 
-export async function listColorPalettes() {
+export async function listColorPalettes(): Promise<ModelColorPalette[]> {
   const rawPalettes = await readColorPalettesFile()
 
-  return rawPalettes
-    .map((palette) => {
+  return rawPalettes.reduce<ModelColorPalette[]>((palettes, palette) => {
       const brand = normalizeText(palette.brand)
       const model = normalizeText(palette.model)
       const baseColorName = normalizeText(palette.baseColorName)
 
       if (!brand || !model || !baseColorName) {
-        return null
+        return palettes
       }
 
       const colors = Array.isArray(palette.colors)
@@ -137,17 +140,20 @@ export async function listColorPalettes() {
             .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'pl'))
         : []
 
-      return {
+      palettes.push({
         paletteKey: buildModelColorPaletteKey(brand, model),
+        brandCode: normalizeText(palette.brandCode) || null,
+        modelCode: normalizeText(palette.modelCode) || null,
         brand,
         model,
         baseColorName,
         optionalColorSurchargeGross: normalizeNumber(palette.optionalColorSurchargeGross),
         optionalColorSurchargeNet: normalizeNumber(palette.optionalColorSurchargeNet),
         colors,
-      } satisfies ModelColorPalette
-    })
-    .filter((palette): palette is ModelColorPalette => palette !== null)
+      } satisfies ModelColorPalette)
+
+      return palettes
+    }, [])
 }
 
 export async function findColorPalette(brand: string, model: string) {

@@ -75,6 +75,40 @@ enum OfferColorKind {
   EXTRA_PAID
 }
 
+enum SalesModelStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum PowertrainType {
+  ELECTRIC
+  HYBRID
+  ICE
+}
+
+enum DriveType {
+  FWD
+  RWD
+  AWD
+}
+
+enum SalesPricingStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AssetCategory {
+  PRIMARY
+  EXTERIOR
+  INTERIOR
+  DETAILS
+  PREMIUM
+  SPEC_PDF
+  LOGO
+  OTHER
+}
+
 model User {
   id             String        @id @default(cuid())
   email          String        @unique
@@ -220,6 +254,131 @@ model FinancingSetting {
   isActive            Boolean   @default(true)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+}
+
+model SalesBrand {
+  id         String      @id @default(cuid())
+  code       String      @unique
+  name       String
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  models     SalesModel[]
+
+  @@index([sortOrder])
+}
+
+model SalesModel {
+  id            String                @id @default(cuid())
+  brandId       String
+  brand         SalesBrand            @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  marketingName String?
+  status        SalesModelStatus      @default(ACTIVE)
+  sortOrder     Int                   @default(0)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  versions      SalesVersion[]
+  colors        SalesModelColor[]
+  assetBundle   SalesModelAssetBundle?
+
+  @@unique([brandId, code])
+  @@index([brandId, sortOrder])
+  @@index([status])
+}
+
+model SalesVersion {
+  id                      String               @id @default(cuid())
+  modelId                 String
+  model                   SalesModel           @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  code                    String
+  name                    String
+  year                    Int?
+  powertrainType          PowertrainType
+  driveType               DriveType?
+  systemPowerHp           Int?
+  batteryCapacityKwh      Decimal?             @db.Decimal(8, 2)
+  combustionEnginePowerHp Int?
+  engineDisplacementCc    Int?
+  rangeKm                 Int?
+  notes                   String?
+  sortOrder               Int                  @default(0)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  pricingRecords          SalesVersionPricing[]
+
+  @@unique([modelId, code])
+  @@index([modelId, sortOrder])
+  @@index([powertrainType])
+}
+
+model SalesVersionPricing {
+  id              String             @id @default(cuid())
+  versionId       String
+  version         SalesVersion       @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  listPriceNet    Decimal            @db.Decimal(12, 2)
+  listPriceGross  Decimal            @db.Decimal(12, 2)
+  basePriceNet    Decimal            @db.Decimal(12, 2)
+  basePriceGross  Decimal            @db.Decimal(12, 2)
+  vatRate         Decimal            @default(23.00) @db.Decimal(5, 2)
+  marginPoolNet   Decimal            @db.Decimal(12, 2)
+  marginPoolGross Decimal            @db.Decimal(12, 2)
+  pricingStatus   SalesPricingStatus @default(DRAFT)
+  effectiveFrom   DateTime?
+  effectiveTo     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([versionId, pricingStatus])
+  @@index([effectiveFrom, effectiveTo])
+}
+
+model SalesModelColor {
+  id             String      @id @default(cuid())
+  modelId        String
+  model          SalesModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  finishType     String?
+  isBaseColor    Boolean     @default(false)
+  hasSurcharge   Boolean     @default(false)
+  surchargeNet   Decimal?    @db.Decimal(12, 2)
+  surchargeGross Decimal?    @db.Decimal(12, 2)
+  sortOrder      Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([modelId, code])
+  @@index([modelId, sortOrder])
+}
+
+model SalesModelAssetBundle {
+  id               String          @id @default(cuid())
+  modelId          String          @unique
+  model            SalesModel      @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  assetsVersionTag String?
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  files            SalesAssetFile[]
+}
+
+model SalesAssetFile {
+  id             String                @id @default(cuid())
+  bundleId       String
+  bundle         SalesModelAssetBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  category       AssetCategory
+  powertrainType PowertrainType?
+  fileName       String
+  filePath       String
+  mimeType       String?
+  sortOrder      Int                   @default(0)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([bundleId, category, sortOrder])
+  @@index([bundleId, powertrainType])
 }
 
 model SalesCatalogItem {

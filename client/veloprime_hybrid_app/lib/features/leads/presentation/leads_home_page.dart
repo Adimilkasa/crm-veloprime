@@ -280,25 +280,25 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
         child: _isLoading
             ? const VeloPrimeWorkspaceState(
                 tint: Color(0xFF4E6EF2),
-                eyebrow: 'Lead workspace',
-                title: 'Ladujemy pipeline leadow',
+                eyebrow: 'Leady',
+                title: 'Ładujemy pipeline leadów',
                 message: 'Przygotowujemy kolumny, filtry i aktywne rekordy.',
                 isLoading: true,
               )
             : _error != null
                 ? VeloPrimeWorkspaceState(
                     tint: const Color(0xFFC05621),
-                    eyebrow: 'Lead workspace',
-                    title: 'Nie udalo sie zaladowac leadow',
+                    eyebrow: 'Leady',
+                    title: 'Nie udało się załadować leadów',
                     message: _error!,
                     icon: Icons.warning_amber_rounded,
                   )
                 : overview == null
                     ? const VeloPrimeWorkspaceState(
                         tint: Color(0xFF4E6EF2),
-                        eyebrow: 'Lead workspace',
-                        title: 'Brak danych leadow',
-                        message: 'Po synchronizacji lub dodaniu pierwszego kontaktu pipeline pojawi sie tutaj.',
+                        eyebrow: 'Leady',
+                        title: 'Brak leadów',
+                        message: 'Po synchronizacji lub dodaniu pierwszego kontaktu pipeline pojawi się tutaj.',
                         icon: Icons.inbox_outlined,
                       )
                     : CustomScrollView(
@@ -330,7 +330,7 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                             ),
                                             SizedBox(height: 10),
                                             Text(
-                                              'Leady mają być szybkie w obsłudze. Najpierw ustaw zakres widoku, potem przejdź do konkretnego klienta lub przejdź się pomiędzy etapami bez utraty kontekstu.',
+                                              'Ustaw zakres widoku, a potem przejdź do konkretnego klienta lub etapu sprzedaży.',
                                               style: TextStyle(color: Color(0xFF66729C), height: 1.55, fontSize: 14),
                                             ),
                                           ],

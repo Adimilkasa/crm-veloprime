@@ -192,6 +192,7 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
               leadsRepository: _leadsRepository,
               offersRepository: _offersRepository,
               pricingRepository: _pricingRepository,
+              updateRepository: _updateRepository,
               usersRepository: _usersRepository,
               onRefreshBootstrap: _refreshBootstrap,
             ),

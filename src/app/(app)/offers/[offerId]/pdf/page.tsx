@@ -31,7 +31,11 @@ export default async function OfferPdfPage({
   }
 
   const payload = document.payload
-  const assets = await getOfferAssetBundle(payload.customer.modelName)
+  const assets = await getOfferAssetBundle({
+    modelName: payload.customer.modelName,
+    catalogKey: payload.internal.catalogKey,
+    powertrainType: payload.internal.powertrainType,
+  })
   const host = requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host') ?? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL ?? 'localhost:3000'
   const protocol = requestHeaders.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
   const origin = `${protocol}://${host}`

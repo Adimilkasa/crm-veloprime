@@ -139,7 +139,7 @@ class _LeadCreatePageState extends State<LeadCreatePage> {
                       ),
                       SizedBox(height: 14),
                       Text(
-                        'Na starcie zbieramy tylko dane potrzebne do rozpoczecia pracy handlowej. Model samochodu pozostaje decyzja na etapie przygotowania oferty.',
+                        'Zbierz podstawowe dane kontaktowe, aby szybko rozpocząć pracę z nowym leadem.',
                         style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                       ),
                     ],

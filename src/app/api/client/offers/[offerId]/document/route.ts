@@ -23,7 +23,11 @@ export async function GET(
     return NextResponse.json({ ok: false, error: 'Nie znaleziono dokumentu oferty.' }, { status: 404 })
   }
 
-  const assets = await getOfferAssetBundle(document.payload.customer.modelName)
+  const assets = await getOfferAssetBundle({
+    modelName: document.payload.customer.modelName,
+    catalogKey: document.payload.internal.catalogKey,
+    powertrainType: document.payload.internal.powertrainType,
+  })
 
   return NextResponse.json({
     ok: true,

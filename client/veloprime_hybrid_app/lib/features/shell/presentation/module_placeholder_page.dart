@@ -146,12 +146,12 @@ class ModulePlaceholderPage extends StatelessWidget {
                     VeloPrimeSectionEyebrow(label: 'Status modułu', color: accentColor),
                     const SizedBox(height: 18),
                     const Text(
-                      'Modul pozostaje widoczny w glownych zakladkach CRM.',
+                      'Moduł jest dostępny w głównej nawigacji CRM.',
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink),
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'To nie jest zastapienie starego ukladu innym produktem. Zakladka ma swoje stale miejsce i jest gotowa do dalszej rozbudowy zgodnie z pierwotnym planem.',
+                      'Ta sekcja będzie rozwijana w kolejnych etapach. Na ten moment możesz kontynuować pracę w aktywnych modułach systemu.',
                       style: TextStyle(color: VeloPrimePalette.muted, height: 1.55),
                     ),
                     const SizedBox(height: 18),
@@ -159,9 +159,9 @@ class ModulePlaceholderPage extends StatelessWidget {
                       spacing: 12,
                       runSpacing: 12,
                       children: const [
-                        _PlaceholderPill(label: 'Status', value: 'W planie produktu'),
-                        _PlaceholderPill(label: 'Nawigacja', value: 'Zakladka glowna CRM'),
-                        _PlaceholderPill(label: 'Cel', value: 'Bez zmiany architektury produktu'),
+                        _PlaceholderPill(label: 'Status', value: 'W przygotowaniu'),
+                        _PlaceholderPill(label: 'Nawigacja', value: 'Zakładka główna CRM'),
+                        _PlaceholderPill(label: 'Rekomendacja', value: 'Pracuj w aktywnych modułach'),
                       ],
                     ),
                   ],

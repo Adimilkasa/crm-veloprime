@@ -90,6 +90,24 @@ class ApiClient {
     return _decodeJson(response);
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required Map<String, String> fields,
+    required String fileField,
+    required String filePath,
+    String? fileName,
+  }) async {
+    final request = http.MultipartRequest('POST', _buildUri(path))
+      ..headers.addAll(_buildHeaders())
+      ..fields.addAll(fields)
+      ..files.add(await http.MultipartFile.fromPath(fileField, filePath, filename: fileName));
+
+    final streamedResponse = await _httpClient.send(request);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    return _decodeJson(response);
+  }
+
   Uri _buildUri(String path) {
     return Uri.parse('${ApiConfig.baseUrl}$path');
   }

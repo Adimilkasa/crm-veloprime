@@ -28,6 +28,14 @@ Jeden z providerów wysyłki:
 
 Bez `DATABASE_URL` build pominie `prisma migrate deploy`, a bez danych mailowych endpoint wysyłki zwróci błąd konfiguracji.
 
+## Tryb lokalny deweloperski
+
+W lokalnym środowisku developerskim, jeśli nie ustawiono SMTP ani Resend, system zapisuje próbne wiadomości do katalogu `.mail-outbox/` w root repozytorium.
+
+- Ten fallback działa tylko poza produkcją.
+- Opcjonalnie można nadpisać katalog zmienną `EMAIL_DEV_OUTBOX_DIR`.
+- Domyślny adres nadawcy w tym trybie to `oferty@veloprime.local`, chyba że ustawiono `OFFER_EMAIL_FROM`.
+
 ## Kolejność wdrożenia
 
 1. Zweryfikuj lokalnie `npm run build`.

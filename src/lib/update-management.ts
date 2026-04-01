@@ -4,9 +4,17 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { AuthSession } from '@/lib/auth'
+import { getSalesCatalogBootstrap } from '@/lib/sales-catalog-management'
 
 export type UpdateArtifactType = 'DATA' | 'ASSETS' | 'APPLICATION'
 export type UpdatePriority = 'CRITICAL' | 'STANDARD'
+
+export type PublishedArtifactSnapshot = {
+  source: 'DATABASE' | 'LEGACY' | 'MIXED' | 'STATIC'
+  generatedAt: string
+  stats: Record<string, number>
+  notes: string[]
+}
 
 export type PublishedVersion = {
   artifactType: UpdateArtifactType
@@ -15,6 +23,7 @@ export type PublishedVersion = {
   publishedBy: string | null
   summary: string | null
   priority: UpdatePriority
+  snapshot: PublishedArtifactSnapshot | null
 }
 
 export type UpdateManifest = {
@@ -29,6 +38,7 @@ export type VersionComparisonResult = {
   publishedVersion: string
   priority: UpdatePriority
   requiresUpdate: boolean
+  snapshot: PublishedArtifactSnapshot | null
 }
 
 const UPDATE_DATA_DIR = path.join(process.cwd(), 'data')
@@ -50,6 +60,7 @@ function buildSeedManifest(): UpdateManifest {
       publishedBy: null,
       summary: null,
       priority: artifactType === 'DATA' ? 'CRITICAL' : 'STANDARD',
+      snapshot: null,
     })),
   }
 }
@@ -78,6 +89,44 @@ function normalizePublishedVersion(input: Partial<PublishedVersion>, artifactTyp
     publishedBy: typeof input.publishedBy === 'string' ? input.publishedBy : null,
     summary: typeof input.summary === 'string' ? input.summary : null,
     priority: input.priority === 'CRITICAL' ? 'CRITICAL' : 'STANDARD',
+    snapshot: normalizePublishedArtifactSnapshot(input.snapshot),
+  }
+}
+
+function normalizePublishedArtifactSnapshot(input: unknown): PublishedArtifactSnapshot | null {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return null
+  }
+
+  const snapshot = input as Record<string, unknown>
+  const source = snapshot.source
+  const generatedAt = typeof snapshot.generatedAt === 'string' ? snapshot.generatedAt : null
+  const statsInput = snapshot.stats
+
+  if ((source !== 'DATABASE' && source !== 'LEGACY' && source !== 'MIXED' && source !== 'STATIC') || !generatedAt) {
+    return null
+  }
+
+  const stats = statsInput && typeof statsInput === 'object' && !Array.isArray(statsInput)
+    ? Object.entries(statsInput as Record<string, unknown>).reduce<Record<string, number>>((accumulator, [key, value]) => {
+        const parsed = typeof value === 'number' ? value : Number(value)
+
+        if (Number.isFinite(parsed)) {
+          accumulator[key] = parsed
+        }
+
+        return accumulator
+      }, {})
+    : {}
+  const notes = Array.isArray(snapshot.notes)
+    ? snapshot.notes.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : []
+
+  return {
+    source,
+    generatedAt,
+    stats,
+    notes,
   }
 }
 
@@ -127,6 +176,95 @@ function nextVersion(currentVersion: string) {
   return `v${numericPart + 1}`
 }
 
+async function buildArtifactSnapshot(artifactType: UpdateArtifactType): Promise<{ ok: true; snapshot: PublishedArtifactSnapshot } | { ok: false; error: string }> {
+  if (artifactType === 'APPLICATION') {
+    return {
+      ok: true,
+      snapshot: {
+        source: 'STATIC',
+        generatedAt: new Date().toISOString(),
+        stats: {},
+        notes: ['Publikacja APPLICATION nie buduje snapshotu katalogu ani assetów.'],
+      },
+    }
+  }
+
+  const catalog = await getSalesCatalogBootstrap()
+
+  if (artifactType === 'DATA') {
+    if (catalog.stats.pricingRecords === 0) {
+      return { ok: false, error: 'Nie można opublikować DATA bez aktywnego katalogu i cen.' }
+    }
+
+    const bundleSources = new Set(catalog.assetBundles.map((bundle) => bundle.source))
+    const dataSource = bundleSources.size === 0
+      ? 'DATABASE'
+      : bundleSources.size > 1
+        ? 'MIXED'
+        : (catalog.assetBundles[0]?.source ?? 'DATABASE')
+
+    return {
+      ok: true,
+      snapshot: {
+        source: dataSource,
+        generatedAt: new Date().toISOString(),
+        stats: {
+          brands: catalog.stats.brands,
+          models: catalog.stats.models,
+          versions: catalog.stats.versions,
+          pricingRecords: catalog.stats.pricingRecords,
+          colorPalettes: catalog.stats.colorPalettes,
+          colors: catalog.stats.colors,
+        },
+        notes: [
+          dataSource == 'MIXED' || dataSource == 'LEGACY'
+            ? 'Bootstrap katalogu nadal korzysta częściowo z fallbacku legacy.'
+            : 'Bootstrap katalogu korzysta z nowego modelu danych.',
+        ],
+      },
+    }
+  }
+
+  if (catalog.stats.assetBundles === 0) {
+    return { ok: false, error: 'Nie można opublikować ASSETS bez dostępnych pakietów materiałów.' }
+  }
+
+  const categoryTotals = catalog.assetBundles.reduce<Record<string, number>>((accumulator, bundle) => {
+    for (const [category, count] of Object.entries(bundle.categories)) {
+      accumulator[category] = (accumulator[category] ?? 0) + count
+    }
+
+    return accumulator
+  }, {})
+  const bundleSources = new Set(catalog.assetBundles.map((bundle) => bundle.source))
+
+  return {
+    ok: true,
+    snapshot: {
+      source: bundleSources.size > 1 ? 'MIXED' : (catalog.assetBundles[0]?.source ?? 'STATIC'),
+      generatedAt: new Date().toISOString(),
+      stats: {
+        assetBundles: catalog.stats.assetBundles,
+        assetFiles: catalog.stats.assetFiles,
+        primaryImages: categoryTotals.PRIMARY ?? 0,
+        exteriorImages: categoryTotals.EXTERIOR ?? 0,
+        interiorImages: categoryTotals.INTERIOR ?? 0,
+        detailImages: categoryTotals.DETAILS ?? 0,
+        premiumImages: categoryTotals.PREMIUM ?? 0,
+        specPdfFiles: categoryTotals.SPEC_PDF ?? 0,
+        genericSpecBundles: catalog.assetBundles.filter((bundle) => bundle.hasGenericSpecPdf).length,
+        electricSpecBundles: catalog.assetBundles.filter((bundle) => bundle.specPowertrains.includes('ELECTRIC')).length,
+        hybridSpecBundles: catalog.assetBundles.filter((bundle) => bundle.specPowertrains.includes('HYBRID')).length,
+      },
+      notes: [
+        bundleSources.size > 1
+          ? 'Pakiety assetów pochodzą z więcej niż jednego źródła.'
+          : `Pakiety assetów pochodzą z: ${catalog.assetBundles[0]?.source ?? 'STATIC'}.`,
+      ],
+    },
+  }
+}
+
 export async function getPublishedUpdateManifest() {
   return readStore()
 }
@@ -140,6 +278,7 @@ export async function compareClientVersions(clientVersions: ClientVersionPayload
     publishedVersion: entry.version,
     priority: entry.priority,
     requiresUpdate: clientVersions[entry.artifactType] !== entry.version,
+    snapshot: entry.snapshot,
   })) satisfies VersionComparisonResult[]
 }
 
@@ -155,6 +294,12 @@ export async function publishUpdate(
     return { ok: false as const, error: 'Tylko administrator lub dyrektor moga publikowac aktualizacje.' }
   }
 
+  const artifactSnapshot = await buildArtifactSnapshot(input.artifactType)
+
+  if (!artifactSnapshot.ok) {
+    return { ok: false as const, error: artifactSnapshot.error, status: 400 }
+  }
+
   const manifest = await readStore()
   const nextVersions = manifest.versions.map((entry) => {
     if (entry.artifactType !== input.artifactType) {
@@ -168,6 +313,7 @@ export async function publishUpdate(
       publishedBy: session.fullName,
       summary: input.summary?.trim() || null,
       priority: input.priority ?? entry.priority,
+      snapshot: artifactSnapshot.snapshot,
     }
   })
 

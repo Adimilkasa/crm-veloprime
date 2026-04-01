@@ -34,6 +34,7 @@ class OfferCalculationDetails {
     required this.baseColorName,
     required this.selectedColorName,
     required this.colorSurchargeGross,
+    required this.colorSurchargeNet,
     required this.listPriceGross,
     required this.basePriceGross,
     required this.marginPoolGross,
@@ -52,6 +53,7 @@ class OfferCalculationDetails {
   final String? baseColorName;
   final String? selectedColorName;
   final num colorSurchargeGross;
+  final num colorSurchargeNet;
   final num? listPriceGross;
   final num? basePriceGross;
   final num? marginPoolGross;
@@ -71,6 +73,7 @@ class OfferCalculationDetails {
       baseColorName: json['baseColorName'] as String?,
       selectedColorName: json['selectedColorName'] as String?,
       colorSurchargeGross: json['colorSurchargeGross'] as num? ?? 0,
+      colorSurchargeNet: json['colorSurchargeNet'] as num? ?? 0,
       listPriceGross: json['listPriceGross'] as num?,
       basePriceGross: json['basePriceGross'] as num?,
       marginPoolGross: json['marginPoolGross'] as num?,

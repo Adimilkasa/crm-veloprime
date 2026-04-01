@@ -92,6 +92,7 @@ class OfferDocumentCustomerSnapshot {
 class OfferDocumentInternalSnapshot {
   const OfferDocumentInternalSnapshot({
     required this.catalogKey,
+    required this.powertrainType,
     required this.customerType,
     required this.finalPriceGross,
     required this.finalPriceNet,
@@ -103,6 +104,7 @@ class OfferDocumentInternalSnapshot {
   });
 
   final String? catalogKey;
+  final String? powertrainType;
   final String customerType;
   final num? finalPriceGross;
   final num? finalPriceNet;
@@ -115,6 +117,7 @@ class OfferDocumentInternalSnapshot {
   factory OfferDocumentInternalSnapshot.fromJson(Map<String, dynamic> json) {
     return OfferDocumentInternalSnapshot(
       catalogKey: json['catalogKey'] as String?,
+      powertrainType: json['powertrainType'] as String?,
       customerType: json['customerType'] as String? ?? '',
       finalPriceGross: json['finalPriceGross'] as num?,
       finalPriceNet: json['finalPriceNet'] as num?,

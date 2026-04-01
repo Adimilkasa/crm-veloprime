@@ -114,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               const SizedBox(height: 16),
                               const Text(
-                                'Oferty, leady, konta i polityka cenowa pozostaja zsynchronizowane z backendem, ale codzienna praca dostaje lzejszy, bardziej nowoczesny interfejs produktu.',
+                                'Leady, oferty, użytkownicy i polityka cenowa pozostają dostępne w jednym środowisku pracy.',
                                 style: TextStyle(fontSize: 16, color: VeloPrimePalette.muted, height: 1.6),
                               ),
                               const SizedBox(height: 28),
@@ -122,9 +122,9 @@ class _LoginPageState extends State<LoginPage> {
                                 spacing: 14,
                                 runSpacing: 14,
                                 children: const [
-                                  VeloPrimeBadge(label: 'Tryb', value: 'Desktop workflow'),
-                                  VeloPrimeBadge(label: 'Zrodlo prawdy', value: 'Centrala VeloPrime'),
-                                  VeloPrimeBadge(label: 'Zakres', value: 'Oferty, leady, konta'),
+                                  VeloPrimeBadge(label: 'Tryb', value: 'Aplikacja desktopowa'),
+                                  VeloPrimeBadge(label: 'Dane', value: 'Centrala VeloPrime'),
+                                  VeloPrimeBadge(label: 'Zakres', value: 'Sprzedaż i administracja'),
                                 ],
                               ),
                               const SizedBox(height: 28),
@@ -143,7 +143,7 @@ class _LoginPageState extends State<LoginPage> {
                                   border: Border.all(color: VeloPrimePalette.bronzeDeep.withValues(alpha: 0.12)),
                                 ),
                                 child: const Text(
-                                  'Po zalogowaniu klient pobierze bootstrap, sesje i aktualne konfiguracje pracy lokalnej.',
+                                  'Po zalogowaniu aplikacja pobierze aktualną konfigurację i przygotuje środowisko pracy.',
                                   style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                                 ),
                               ),
@@ -168,7 +168,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               const SizedBox(height: 10),
                               const Text(
-                                'Po zalogowaniu klient pobierze bootstrap, sesje i wersje danych wymagane do pracy lokalnej.',
+                                'Zaloguj się, aby uruchomić aplikację na aktualnych danych systemowych.',
                                 style: TextStyle(color: VeloPrimePalette.muted, height: 1.5),
                               ),
                               const SizedBox(height: 24),

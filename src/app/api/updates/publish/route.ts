@@ -59,7 +59,8 @@ export async function POST(request: Request) {
   })
 
   if (!result.ok) {
-    return NextResponse.json(result, { status: 403 })
+    const status = 'status' in result && typeof result.status === 'number' ? result.status : 403
+    return NextResponse.json(result, { status })
   }
 
   return NextResponse.json(result)

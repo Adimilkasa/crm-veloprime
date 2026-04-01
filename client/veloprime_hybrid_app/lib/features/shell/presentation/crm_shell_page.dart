@@ -15,6 +15,8 @@ import '../../offers/data/offers_repository.dart';
 import '../../offers/presentation/offers_home_page.dart';
 import '../../pricing/data/pricing_repository.dart';
 import '../../pricing/presentation/pricing_home_page.dart';
+import '../../update/data/update_repository.dart';
+import '../../update/presentation/update_admin_page.dart';
 import '../../users/data/users_repository.dart';
 import '../../users/presentation/users_home_page.dart';
 import 'module_placeholder_page.dart';
@@ -66,7 +68,7 @@ final _backgroundPresets = <_BackgroundPreset>[
   _BackgroundPreset(
     key: 'Błękitny',
     label: 'Błękitny',
-    description: 'Domyślne tło. Najczystszy, spokojny błękit dla całego workspace.',
+    description: 'Domyślne tło. Najczystszy, spokojny błękit dla całej aplikacji.',
     assetPath: 'assets/backgrounds/Błękitny.png',
     overlayGradient: const LinearGradient(
       colors: [Color(0xAAFCFEFF), Color(0x7AEAF4FF), Color(0x8FCFDBF3)],
@@ -294,7 +296,7 @@ final _backgroundPresets = <_BackgroundPreset>[
   _BackgroundPreset(
     key: 'propozycja',
     label: 'propozycja',
-    description: 'Dodatkowy wariant roboczy z folderu screeny, gotowy do porównania.',
+    description: 'Alternatywny wariant tła o bardziej wyrazistym kontraście.',
     assetPath: 'assets/backgrounds/propozycja.png',
     overlayGradient: const LinearGradient(
       colors: [Color(0x8EFFFDFE), Color(0x66CFDCF5), Color(0x73B2C4E6)],
@@ -322,6 +324,7 @@ class CrmShellPage extends StatefulWidget {
     required this.leadsRepository,
     required this.offersRepository,
     required this.pricingRepository,
+    required this.updateRepository,
     required this.usersRepository,
     required this.onRefreshBootstrap,
   });
@@ -333,6 +336,7 @@ class CrmShellPage extends StatefulWidget {
   final LeadsRepository leadsRepository;
   final OffersRepository offersRepository;
   final PricingRepository pricingRepository;
+  final UpdateRepository updateRepository;
   final UsersRepository usersRepository;
   final Future<void> Function() onRefreshBootstrap;
 
@@ -349,6 +353,7 @@ class _CrmShellPageState extends State<CrmShellPage> {
   static const String _offersRoute = 'offers';
   static const String _commissionsRoute = 'commissions';
   static const String _pricingRoute = 'pricing';
+  static const String _updatesRoute = 'updates';
   static const String _accountRoute = 'account';
   static const String _usersRoute = 'users';
 
@@ -422,6 +427,10 @@ class _CrmShellPageState extends State<CrmShellPage> {
     _openDestination(_usersRoute);
   }
 
+  void _openUpdatesPage() {
+    _openDestination(_updatesRoute);
+  }
+
   Future<void> _openOffersWorkspaceForLead(OfferWorkspaceLaunchRequest request) async {
     _offerWorkspaceLaunchNotifier.value = request;
     _openMainTab(_offersRoute);
@@ -437,6 +446,8 @@ class _CrmShellPageState extends State<CrmShellPage> {
         return const Color(0xFF2F855A);
       case 'Polityka cenowa':
         return const Color(0xFF8B5E34);
+      case 'Publikacje':
+        return VeloPrimePalette.violet;
       case 'Leady':
         return VeloPrimePalette.sea;
       case 'Klienci':
@@ -493,15 +504,15 @@ class _CrmShellPageState extends State<CrmShellPage> {
           eyebrow: 'Baza klientów',
           label: 'Klienci',
           description:
-              'Centralne miejsce dla relacji, historii kontaktu i dalszej obsługi po leadzie.',
+              'Docelowe miejsce dla historii współpracy, relacji i obsługi klienta.',
           icon: Icons.groups_2_outlined,
           selectedIcon: Icons.groups_2,
           accentColor: VeloPrimePalette.olive,
           page: ModulePlaceholderPage(
             eyebrow: 'Klienci',
-            title: 'Zakładka klientów pozostaje osobnym modułem CRM.',
+            title: 'Moduł klientów jest w przygotowaniu.',
             subtitle:
-                'To jest dokładnie miejsce dla modułu klientów w głównej strukturze systemu. Nie chowam go pod inną sekcją ani nie zastępuję ekranem konta.',
+                'Docelowo w tym miejscu znajdziesz pełną bazę klientów i historię współpracy. Na teraz możesz kontynuować pracę w leadach lub ofertach.',
             icon: Icons.groups_2_outlined,
             accentColor: VeloPrimePalette.olive,
             primaryAction: FilledButton.icon(
@@ -512,7 +523,7 @@ class _CrmShellPageState extends State<CrmShellPage> {
             secondaryAction: OutlinedButton.icon(
                 onPressed: () => _openMainTab(_offersRoute),
               icon: const Icon(Icons.description_outlined),
-              label: const Text('Przejdź do Ofert PDF'),
+              label: const Text('Przejdź do ofert'),
             ),
           ),
         ),
@@ -521,21 +532,21 @@ class _CrmShellPageState extends State<CrmShellPage> {
           eyebrow: 'Oferta modelowa',
           label: 'Samochody',
           description:
-              'Flota, modele i baza produktowa utrzymane jako osobna warstwa systemu sprzedażowego.',
+              'Docelowe miejsce dla katalogu modeli, wersji i materiałów produktowych.',
           icon: Icons.directions_car_outlined,
           selectedIcon: Icons.directions_car,
           accentColor: VeloPrimePalette.rose,
           page: ModulePlaceholderPage(
             eyebrow: 'Samochody',
-            title: 'Zakładka samochodów pozostaje osobnym modułem CRM.',
+            title: 'Moduł samochodów jest w przygotowaniu.',
             subtitle:
-                'To stałe miejsce dla floty i oferty modelowej w głównej nawigacji. Zachowuję strukturę starego CRM zamiast przepinać to do innych ekranów.',
+                'Docelowo tutaj będzie pełny katalog modeli, stanów i materiałów produktowych. Obecnie możesz pracować z ofertami lub dashboardem.',
             icon: Icons.directions_car_outlined,
             accentColor: VeloPrimePalette.rose,
             primaryAction: FilledButton.icon(
               onPressed: () => _openMainTab(_offersRoute),
               icon: const Icon(Icons.description_outlined),
-              label: const Text('Przejdź do Ofert PDF'),
+              label: const Text('Przejdź do ofert'),
             ),
             secondaryAction: OutlinedButton.icon(
               onPressed: () => _openMainTab(_dashboardRoute),
@@ -549,7 +560,7 @@ class _CrmShellPageState extends State<CrmShellPage> {
           eyebrow: 'Oferta PDF',
           label: 'Oferty / PDF',
           description:
-              'Workspace do konfiguracji, kalkulacji i finalizacji dokumentu ofertowego bez rozbijania pracy na kilka ekranów.',
+              'Miejsce do przygotowania, kalkulacji i finalizacji oferty dla klienta.',
           icon: Icons.description_outlined,
           selectedIcon: Icons.description,
           accentColor: VeloPrimePalette.bronzeDeep,
@@ -570,7 +581,7 @@ class _CrmShellPageState extends State<CrmShellPage> {
             eyebrow: 'Prowizje',
             label: 'Prowizje',
             description:
-                'Docelowe miejsce dla konfiguracji prowizji dyrektora i managera per model, zgodnie ze struktura CRM online.',
+                'Konfiguracja prowizji zespołu według ról, modeli i zasad sprzedaży.',
             icon: Icons.percent_outlined,
             selectedIcon: Icons.percent,
             accentColor: const Color(0xFF2F855A),
@@ -580,13 +591,13 @@ class _CrmShellPageState extends State<CrmShellPage> {
               embeddedInShell: true,
             ),
           ),
-        if (widget.session.role == 'ADMIN' || widget.session.role == 'DIRECTOR')
+        if (widget.session.role == 'ADMIN')
           _ShellDestination(
             route: _pricingRoute,
             eyebrow: 'Polityka cenowa',
             label: 'Polityka cenowa',
             description:
-                'Osobny modul polityki cenowej, z ktorego korzysta generator ofert i kalkulacje w calym CRM.',
+                'Miejsce zarządzania katalogiem cen i danymi modeli dla ofert.',
             icon: Icons.request_quote_outlined,
             selectedIcon: Icons.request_quote,
             accentColor: const Color(0xFF8B5E34),
@@ -625,6 +636,21 @@ class _CrmShellPageState extends State<CrmShellPage> {
             page: UsersHomePage(
               repository: widget.usersRepository,
               embeddedInShell: true,
+            ),
+          ),
+        if (widget.session.role == 'ADMIN')
+          _ShellDestination(
+            route: _updatesRoute,
+            eyebrow: 'Publikacje',
+            label: 'Publikacje',
+            description: 'Publikacja wersji DATA, ASSETS i APPLICATION oraz kontrola manifestu aktualizacji.',
+            icon: Icons.publish_outlined,
+            selectedIcon: Icons.publish,
+            accentColor: VeloPrimePalette.violet,
+            page: UpdateAdminPage(
+              repository: widget.updateRepository,
+              embeddedInShell: true,
+              onManifestChanged: widget.onRefreshBootstrap,
             ),
           ),
       ];
@@ -787,6 +813,15 @@ class _CrmShellPageState extends State<CrmShellPage> {
                                       ),
                                       if (widget.session.role == 'ADMIN')
                                         const PopupMenuItem<String>(
+                                          value: 'updates',
+                                          child: _MoreMenuTile(
+                                            icon: Icons.publish_outlined,
+                                            label: 'Publikacje',
+                                            iconColor: VeloPrimePalette.violet,
+                                          ),
+                                        ),
+                                      if (widget.session.role == 'ADMIN')
+                                        const PopupMenuItem<String>(
                                           value: 'users',
                                           child: _MoreMenuTile(
                                             icon: Icons
@@ -799,6 +834,9 @@ class _CrmShellPageState extends State<CrmShellPage> {
                                     onSelected: (value) {
                                       if (value == 'account') {
                                         _openAccountPage();
+                                      }
+                                      if (value == 'updates') {
+                                        _openUpdatesPage();
                                       }
                                       if (value == 'users') {
                                         _openUsersPage();
@@ -951,7 +989,7 @@ class _ShellBrandBlock extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Premium workspace sprzedażowy',
+          'CRM sprzedażowy',
           style: TextStyle(
             color: Color(0xBBD8E5FF),
             fontSize: 12,

@@ -40,14 +40,22 @@ class _LocalOfferAssetConfig {
     required this.aliases,
     required this.folderName,
     required this.specFileName,
+    required this.specFileNameByPowertrain,
     required this.imageFiles,
   });
 
   factory _LocalOfferAssetConfig.fromJson(Map<String, dynamic> json) {
+    final rawSpecByPowertrain = json['specFileNameByPowertrain'];
+
     return _LocalOfferAssetConfig(
       aliases: _readStringList(json['aliases']),
       folderName: json['folderName'] as String? ?? '',
       specFileName: json['specFileName'] as String? ?? '',
+      specFileNameByPowertrain: rawSpecByPowertrain is Map<String, dynamic>
+          ? rawSpecByPowertrain.map(
+              (key, value) => MapEntry(key.trim().toUpperCase(), value is String ? value : ''),
+            )
+          : const {},
       imageFiles: _LocalOfferAssetImageGroup.fromJson(json['images'] as Map<String, dynamic>? ?? const {}),
     );
   }
@@ -55,6 +63,7 @@ class _LocalOfferAssetConfig {
   final List<String> aliases;
   final String folderName;
   final String specFileName;
+  final Map<String, String> specFileNameByPowertrain;
   final _LocalOfferAssetImageGroup imageFiles;
 }
 
@@ -153,6 +162,31 @@ String _assetPath(String category, String folder, String fileName) {
   return '$_assetRoot/$category/$folder/$fileName';
 }
 
+String? _extractModelHintFromCatalogKey(String? catalogKey) {
+  if (catalogKey == null || catalogKey.trim().isEmpty) {
+    return null;
+  }
+
+  final parts = catalogKey.split('::');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  return parts[1].trim().isEmpty ? null : parts[1].trim();
+}
+
+String? _resolveSpecFileName(_LocalOfferAssetConfig config, String? powertrainType) {
+  final normalizedPowertrain = powertrainType?.trim().toUpperCase();
+  if (normalizedPowertrain != null && normalizedPowertrain.isNotEmpty) {
+    final mapped = config.specFileNameByPowertrain[normalizedPowertrain];
+    if (mapped != null && mapped.trim().isNotEmpty) {
+      return mapped.trim();
+    }
+  }
+
+  return config.specFileName.trim().isEmpty ? null : config.specFileName.trim();
+}
+
 _LocalOfferAssetConfig? _getAssetConfig(String? modelName) {
   if (!_isAssetManifestLoaded) {
     throw StateError('Offer asset manifest is not initialized. Call initializeLocalOfferAssets() before using offer assets.');
@@ -183,8 +217,12 @@ _LocalOfferAssetConfig? _getAssetConfig(String? modelName) {
   return bestConfig;
 }
 
-LocalOfferAssetBundle getLocalOfferAssetBundle(String? modelName) {
-  final config = _getAssetConfig(modelName);
+LocalOfferAssetBundle getLocalOfferAssetBundle({
+  String? modelName,
+  String? catalogKey,
+  String? powertrainType,
+}) {
+  final config = _getAssetConfig(modelName ?? _extractModelHintFromCatalogKey(catalogKey));
   if (config == null) {
     return const LocalOfferAssetBundle(
       specPdfAssetPath: null,
@@ -195,8 +233,10 @@ LocalOfferAssetBundle getLocalOfferAssetBundle(String? modelName) {
     );
   }
 
+  final specFileName = _resolveSpecFileName(config, powertrainType);
+
   return LocalOfferAssetBundle(
-    specPdfAssetPath: '$_assetRoot/spec/${config.specFileName}',
+    specPdfAssetPath: specFileName == null ? null : '$_assetRoot/spec/$specFileName',
     premiumImages: config.imageFiles.premium.map((fileName) => _assetPath('grafiki', config.folderName, fileName)).toList(),
     detailImages: config.imageFiles.details.map((fileName) => _assetPath('grafiki', config.folderName, fileName)).toList(),
     interiorImages: config.imageFiles.interior.map((fileName) => _assetPath('grafiki', config.folderName, fileName)).toList(),

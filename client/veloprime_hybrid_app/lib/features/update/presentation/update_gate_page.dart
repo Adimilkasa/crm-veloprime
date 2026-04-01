@@ -132,8 +132,8 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
                         const SizedBox(height: 12),
                         Text(
                           requiresApplicationUpdate
-                              ? 'Wykryto nowsza wersje klienta. Uruchom instalator aktualizacji, aby przejsc do najnowszej publikacji.'
-                              : 'Wykryto nowsza publikacje centrali. Przed dalsza praca klient lokalny musi zostac zsynchronizowany.',
+                              ? 'Wykryto nowszą wersję aplikacji. Zainstaluj aktualizację, aby kontynuować pracę.'
+                              : 'Wykryto nowszą publikację danych systemowych. Aplikacja musi zsynchronizować się przed dalszą pracą.',
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                         ),
@@ -149,7 +149,7 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const VeloPrimeSectionEyebrow(label: 'Pakiety do synchronizacji', color: VeloPrimePalette.sea),
+                              const VeloPrimeSectionEyebrow(label: 'Elementy do aktualizacji', color: VeloPrimePalette.sea),
                               const SizedBox(height: 16),
                               ...pendingItems.map(
                                 (item) => Padding(
@@ -178,7 +178,7 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
                                               Text(item.artifactType, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                                               const SizedBox(height: 6),
                                               Text(
-                                                'Lokalnie: ${item.currentVersion ?? 'brak'} | Centrala: ${item.publishedVersion}',
+                                                'Lokalnie: ${item.currentVersion ?? 'brak'} • Dostępna wersja: ${item.publishedVersion}',
                                                 style: const TextStyle(color: VeloPrimePalette.muted, height: 1.5),
                                               ),
                                             ],

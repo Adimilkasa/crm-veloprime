@@ -126,13 +126,13 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Wyślij ofertę na email'),
+          title: const Text('Wyślij ofertę e-mailem'),
           content: TextField(
             controller: controller,
             autofocus: true,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              labelText: 'Adres email odbiorcy',
+              labelText: 'Adres e-mail odbiorcy',
               hintText: 'klient@firma.pl',
             ),
           ),
@@ -223,9 +223,9 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
           if (snapshot.connectionState != ConnectionState.done) {
             return const VeloPrimeWorkspaceState(
               tint: VeloPrimePalette.sea,
-              eyebrow: 'Podglad dokumentu',
-              title: 'Ladujemy snapshot dokumentu',
-              message: 'Przygotowujemy podglad sekcji, parametrow i materialow.',
+              eyebrow: 'Podgląd oferty',
+              title: 'Przygotowujemy podgląd oferty',
+              message: 'Ładujemy dokument, parametry i materiały modelu.',
               isLoading: true,
             );
           }
@@ -233,14 +233,14 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
           if (snapshot.hasError) {
             return VeloPrimeWorkspaceState(
               tint: VeloPrimePalette.rose,
-              eyebrow: 'Podglad dokumentu',
-              title: 'Nie udalo sie pobrac snapshotu dokumentu',
+              eyebrow: 'Podgląd oferty',
+              title: 'Nie udało się pobrać dokumentu',
               message: '${snapshot.error}',
               icon: Icons.warning_amber_rounded,
               action: OutlinedButton.icon(
                 onPressed: () => Navigator.of(context).pop(),
                 icon: const Icon(Icons.arrow_back_rounded),
-                label: const Text('Wroc do edycji'),
+                label: const Text('Wróć do edycji'),
               ),
             );
           }
@@ -249,16 +249,20 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
           if (document == null) {
             return const VeloPrimeWorkspaceState(
               tint: VeloPrimePalette.sea,
-              eyebrow: 'Podglad dokumentu',
-              title: 'Brak danych dokumentu',
-              message: 'Snapshot nie zawiera jeszcze gotowych danych do prezentacji.',
+              eyebrow: 'Podgląd oferty',
+              title: 'Brak danych oferty',
+              message: 'Dokument nie zawiera jeszcze kompletu danych do prezentacji.',
               icon: Icons.preview_outlined,
             );
           }
 
           final customer = document.payload.customer;
           final advisor = document.payload.advisor;
-          final fallbackAssets = getLocalOfferAssetBundle(customer.modelName ?? document.title);
+          final fallbackAssets = getLocalOfferAssetBundle(
+            modelName: customer.modelName ?? document.title,
+            catalogKey: document.payload.internal.catalogKey,
+            powertrainType: document.payload.internal.powertrainType,
+          );
           final resolvedMedia = _ResolvedPreviewMedia.fromDocument(document, fallbackAssets);
           final galleryImages = resolvedMedia.gallerySources;
           final heroImageSource = resolvedMedia.heroSource;
@@ -268,12 +272,12 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               .whereType<String>()
               .where((item) => item.trim().isNotEmpty)
               .toList();
-          final contactLine = contactParts.isEmpty ? 'Kontakt do potwierdzenia' : contactParts.join(' • ');
+          final contactLine = contactParts.isEmpty ? 'Dane kontaktowe do uzupełnienia' : contactParts.join(' • ');
           final advisorParts = [advisor.email, advisor.phone]
               .whereType<String>()
               .where((item) => item.trim().isNotEmpty)
               .toList();
-          final advisorLine = advisorParts.isEmpty ? 'Brak danych kontaktowych opiekuna' : advisorParts.join(' • ');
+          final advisorLine = advisorParts.isEmpty ? 'Dane kontaktowe opiekuna do uzupełnienia' : advisorParts.join(' • ');
           final commercialSummary = customer.financingSummary != null && customer.financingSummary!.trim().isNotEmpty
               ? customer.financingSummary!
               : customer.financingVariant ?? 'Warunki ustalane indywidualnie';
@@ -294,13 +298,13 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         OutlinedButton.icon(
                           onPressed: () => Navigator.of(context).pop(),
                           icon: const Icon(Icons.arrow_back_rounded),
-                          label: const Text('Powrot'),
+                          label: const Text('Powrót'),
                         ),
                         if (specDocumentSource != null)
                           OutlinedButton.icon(
                             onPressed: () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
                             icon: const Icon(Icons.description_outlined),
-                            label: const Text('Otworz specyfikacje PDF'),
+                            label: const Text('Otwórz specyfikację PDF'),
                           ),
                         if (canSendEmail)
                           FilledButton.icon(
@@ -312,7 +316,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                     child: CircularProgressIndicator(strokeWidth: 2.2),
                                   )
                                 : const Icon(Icons.alternate_email_outlined),
-                            label: Text(_isSendingEmail ? 'Wysyłamy email...' : 'Wyślij na email'),
+                            label: Text(_isSendingEmail ? 'Wysyłamy ofertę...' : 'Wyślij ofertę'),
                           ),
                       ],
                     ),
@@ -340,7 +344,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         child: _LinkedAssetCard(
                           eyebrow: 'Dokument pomocniczy',
                           title: 'PDF specyfikacji samochodu',
-                          value: 'Plik jest wbudowany w aplikacje i otwiera sie lokalnie bez przechodzenia przez WWW.',
+                          value: 'Dokument otwiera się lokalnie w aplikacji.',
                           icon: Icons.description_outlined,
                         ),
                       ),
@@ -352,7 +356,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         final left = Column(
                           children: [
                             _PreviewSectionCard(
-                              title: 'Skrot handlowy',
+                              title: 'Skrót oferty',
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -365,7 +369,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                     _PreviewInfoItem('Numer oferty', customer.offerNumber),
                                     _PreviewInfoItem('Kontakt', contactLine),
                                     _PreviewInfoItem('Konfiguracja', '${customer.modelName ?? '-'} • ${customer.selectedColorName ?? 'Bazowy'}'),
-                                    _PreviewInfoItem('Waznosc', _formatNullableDate(customer.validUntil) ?? '-'),
+                                    _PreviewInfoItem('Ważność', _formatNullableDate(customer.validUntil) ?? '-'),
                                   ]),
                                 ],
                               ),
@@ -380,7 +384,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                 _PreviewInfoItem('Telefon', customer.customerPhone ?? '-'),
                                 _PreviewInfoItem('Model', customer.modelName ?? '-'),
                                 _PreviewInfoItem('Kolor', customer.selectedColorName ?? '-'),
-                                _PreviewInfoItem('Wazna do', _formatNullableDate(customer.validUntil) ?? '-'),
+                                _PreviewInfoItem('Ważna do', _formatNullableDate(customer.validUntil) ?? '-'),
                                 _PreviewInfoItem('Utworzono', _formatNullableDate(customer.createdAt, _dateFormat) ?? '-'),
                               ]),
                             ),
@@ -412,7 +416,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                   if (customer.financingDisclaimer != null && customer.financingDisclaimer!.isNotEmpty) ...[
                                     const SizedBox(height: 12),
                                     _PreviewCalloutBox(
-                                      title: 'Disclaimer finansowania',
+                                      title: 'Warunki finansowania',
                                       value: customer.financingDisclaimer!,
                                       tint: const Color(0xFFF7F1E1),
                                     ),
@@ -422,7 +426,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                     title: 'Uwagi do oferty',
                                     value: customer.notes?.isNotEmpty == true
                                         ? customer.notes!
-                                        : 'Brak dodatkowych notatek w dokumencie. Ten snapshot jest gotowym punktem wyjścia do rozmowy handlowej.',
+                                        : 'Brak dodatkowych uwag do oferty.',
                                     tint: const Color(0xFFF3EFE7),
                                   ),
                                   const SizedBox(height: 12),
@@ -509,7 +513,7 @@ class _PreviewHeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            const VeloPrimeSectionEyebrow(label: 'Podglad dokumentu', color: VeloPrimePalette.sea),
+            const VeloPrimeSectionEyebrow(label: 'Podgląd oferty', color: VeloPrimePalette.sea),
             const SizedBox(height: 12),
             Text(
               document.title,
@@ -540,7 +544,7 @@ class _PreviewHeroCard extends StatelessWidget {
                   height: 280,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  missingLabel: 'Brak podgladu grafiki modelu',
+                  missingLabel: 'Podgląd grafiki modelu jest niedostępny',
                 ),
               ),
             ],

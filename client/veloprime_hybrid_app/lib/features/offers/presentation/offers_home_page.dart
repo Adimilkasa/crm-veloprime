@@ -79,7 +79,10 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
   String _customerType = 'PRIVATE';
   String _financingVariant = '';
+  String? _selectedBrandCode;
+  String? _selectedModelCode;
   String? _selectedPricingKey;
+  String? _selectedColorName;
 
   static final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'pl_PL',
@@ -178,14 +181,14 @@ class _OffersHomePageState extends State<OffersHomePage> {
     if (request.offerId != null && request.offerId!.isNotEmpty) {
       await _openExistingOfferInWorkspace(
         request.offerId!,
-        editorMessage: 'Oferta ${request.leadName} została otwarta w głównym workspace Ofert / PDF.',
+        editorMessage: 'Oferta ${request.leadName} jest gotowa do dalszej pracy.',
       );
       return;
     }
 
     await _createOfferForLead(
       request.leadId,
-      editorMessage: 'Szkic oferty dla ${request.leadName} został otwarty w workspace Ofert / PDF.',
+      editorMessage: 'Przygotowaliśmy szkic oferty dla ${request.leadName}.',
     );
   }
 
@@ -199,7 +202,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
     setState(() {
       _isCreateInlineOpen = false;
       _createFeedback = null;
-      _editorFeedback = editorMessage ?? 'Oferta została otwarta w workspace Ofert / PDF.';
+      _editorFeedback = editorMessage ?? 'Oferta została otwarta.';
     });
   }
 
@@ -232,6 +235,165 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
 
     return widget.bootstrap.pricingOptions.where((option) => option.key == _selectedPricingKey).cast<OfferPricingOption?>().firstWhere((option) => option != null, orElse: () => null);
+  }
+
+  SalesCatalogBootstrapInfo? get _catalog => widget.bootstrap.catalog;
+
+  Set<String> get _catalogPricingKeys => widget.bootstrap.pricingOptions.map((option) => option.key).toSet();
+
+  SalesCatalogVersionInfo? get _selectedCatalogVersion {
+    final catalog = _catalog;
+    final pricingKey = _selectedPricingKey;
+    if (catalog == null || pricingKey == null || pricingKey.isEmpty) {
+      return null;
+    }
+
+    return catalog.versions.cast<SalesCatalogVersionInfo?>().firstWhere(
+          (version) => version?.catalogKey == pricingKey,
+          orElse: () => null,
+        );
+  }
+
+  List<SalesCatalogModelInfo> get _availableCatalogModels {
+    final catalog = _catalog;
+    final brandCode = _selectedBrandCode;
+    if (catalog == null || brandCode == null || brandCode.isEmpty) {
+      return const [];
+    }
+
+    return catalog.models.where((model) => model.brandCode == brandCode && model.status != 'ARCHIVED').toList()
+      ..sort((left, right) => left.sortOrder.compareTo(right.sortOrder));
+  }
+
+  List<SalesCatalogVersionInfo> get _availableCatalogVersions {
+    final catalog = _catalog;
+    final brandCode = _selectedBrandCode;
+    final modelCode = _selectedModelCode;
+    if (catalog == null || brandCode == null || modelCode == null) {
+      return const [];
+    }
+
+    return catalog.versions
+        .where(
+          (version) =>
+              version.brandCode == brandCode &&
+              version.modelCode == modelCode &&
+              _catalogPricingKeys.contains(version.catalogKey),
+        )
+        .toList()
+      ..sort((left, right) {
+        final yearDiff = (right.year ?? 0).compareTo(left.year ?? 0);
+        if (yearDiff != 0) {
+          return yearDiff;
+        }
+
+        return left.name.compareTo(right.name);
+      });
+  }
+
+  SalesCatalogColorPaletteInfo? get _selectedColorPalette {
+    final catalog = _catalog;
+    final selectedPricing = _selectedPricingOption;
+    final selectedVersion = _selectedCatalogVersion;
+    final brandCode = selectedVersion?.brandCode ?? _selectedBrandCode;
+    final modelCode = selectedVersion?.modelCode ?? _selectedModelCode;
+    if (catalog == null) {
+      return null;
+    }
+
+    final paletteByCode = catalog.colorPalettes.cast<SalesCatalogColorPaletteInfo?>().firstWhere(
+          (palette) {
+            if (palette == null || modelCode == null || modelCode.isEmpty) {
+              return false;
+            }
+
+            final paletteModelCode = palette.modelCode;
+            if (paletteModelCode == null || paletteModelCode.isEmpty) {
+              return false;
+            }
+
+            final brandMatches = brandCode == null || brandCode.isEmpty || palette.brandCode == null || palette.brandCode == brandCode;
+            return brandMatches && paletteModelCode == modelCode;
+          },
+          orElse: () => null,
+        );
+
+    if (paletteByCode != null) {
+      return paletteByCode;
+    }
+
+    if (selectedPricing == null) {
+      return null;
+    }
+
+    return catalog.colorPalettes.cast<SalesCatalogColorPaletteInfo?>().firstWhere(
+          (palette) => palette?.brand == selectedPricing.brand && palette?.model == selectedPricing.model,
+          orElse: () => null,
+        );
+  }
+
+  List<SalesCatalogColorOptionInfo> get _availableColorOptions {
+    final palette = _selectedColorPalette;
+    if (palette == null) {
+      return const [];
+    }
+
+    return [...palette.colors]..sort((left, right) => left.sortOrder.compareTo(right.sortOrder));
+  }
+
+  SalesCatalogColorOptionInfo? get _selectedColorOption {
+    final colors = _availableColorOptions;
+    if (colors.isEmpty) {
+      return null;
+    }
+
+    final selectedColorName = _selectedColorName;
+    if (selectedColorName == null || selectedColorName.isEmpty) {
+      return colors.firstWhere((color) => color.isBase, orElse: () => colors.first);
+    }
+
+    return colors.cast<SalesCatalogColorOptionInfo?>().firstWhere(
+          (color) => color?.name == selectedColorName,
+          orElse: () => colors.firstWhere((color) => color.isBase, orElse: () => colors.first),
+        );
+  }
+
+  num? get _selectedColorSurchargeGross {
+    final palette = _selectedColorPalette;
+    final selectedColor = _selectedColorOption;
+    if (palette == null || selectedColor == null) {
+      return _activeOffer?.calculation?.colorSurchargeGross;
+    }
+
+    if (selectedColor.isBase) {
+      return 0;
+    }
+
+    return selectedColor.surchargeGross ?? palette.optionalColorSurchargeGross ?? 0;
+  }
+
+  num? get _selectedColorSurchargeNet {
+    final palette = _selectedColorPalette;
+    final selectedColor = _selectedColorOption;
+    if (palette == null || selectedColor == null) {
+      return _activeOffer?.calculation?.colorSurchargeNet;
+    }
+
+    if (selectedColor.isBase) {
+      return 0;
+    }
+
+    final surchargeNet = selectedColor.surchargeNet ?? palette.optionalColorSurchargeNet;
+    if (surchargeNet != null) {
+      return surchargeNet;
+    }
+
+    final surchargeGross = selectedColor.surchargeGross ?? palette.optionalColorSurchargeGross;
+    if (surchargeGross == null) {
+      return 0;
+    }
+
+    return surchargeGross / 1.23;
   }
 
   List<OfferLeadOption> get _filteredLeadOptions {
@@ -278,6 +440,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
       'customerPhone': _customerPhoneController.text.trim(),
       'customerRegion': _customerRegionController.text.trim(),
       'pricingCatalogKey': _selectedPricingKey ?? '',
+      'selectedColorName': _selectedColorName ?? '',
       'customerType': _customerType,
       'discountValue': _discountController.text.trim(),
       'financingVariant': _financingVariant.trim(),
@@ -368,7 +531,9 @@ class _OffersHomePageState extends State<OffersHomePage> {
     final selectedPricingPrice = _selectedPricingOption?.listPriceGross;
     final calculationPrice = _activeOffer?.calculation?.finalPriceGross;
     final currentPrice = _activeOffer?.totalGross;
-    final basePrice = selectedPricingPrice ?? calculationPrice ?? currentPrice;
+    final basePrice = selectedPricingPrice != null
+        ? selectedPricingPrice + (_selectedColorSurchargeGross ?? 0)
+        : calculationPrice ?? currentPrice;
     if (basePrice == null) {
       return null;
     }
@@ -379,12 +544,96 @@ class _OffersHomePageState extends State<OffersHomePage> {
   }
 
   num? get _previewNetPrice {
+    final selectedPricingPrice = _selectedPricingOption?.listPriceNet;
+    if (selectedPricingPrice != null) {
+      final discount = _discountValueNet ?? 0;
+      final computed = selectedPricingPrice + (_selectedColorSurchargeNet ?? 0) - discount;
+      return computed < 0 ? 0 : computed;
+    }
+
     final gross = _previewGrossPrice;
     if (gross == null) {
       return _activeOffer?.calculation?.finalPriceNet ?? _activeOffer?.totalNet;
     }
 
     return gross / 1.23;
+  }
+
+  void _normalizeSelectedColorForCurrentSelection() {
+    final colors = _availableColorOptions;
+    if (colors.isEmpty) {
+      _selectedColorName = null;
+      return;
+    }
+
+    final currentColorName = _selectedColorName;
+    final currentColorExists = currentColorName != null && colors.any((color) => color.name == currentColorName);
+    if (currentColorExists) {
+      return;
+    }
+
+    _selectedColorName = colors.firstWhere((color) => color.isBase, orElse: () => colors.first).name;
+  }
+
+  void _syncCatalogSelectionFromPricingKey(String? pricingKey, {String? preferredColorName}) {
+    final catalog = _catalog;
+    _selectedPricingKey = pricingKey == null || pricingKey.isEmpty ? null : pricingKey;
+
+    if (catalog == null || _selectedPricingKey == null) {
+      _selectedBrandCode = null;
+      _selectedModelCode = null;
+      _selectedColorName = preferredColorName;
+      return;
+    }
+
+    final selectedVersion = catalog.versions.cast<SalesCatalogVersionInfo?>().firstWhere(
+          (version) => version?.catalogKey == _selectedPricingKey,
+          orElse: () => null,
+        );
+
+    _selectedBrandCode = selectedVersion?.brandCode;
+    _selectedModelCode = selectedVersion?.modelCode;
+    _selectedColorName = preferredColorName ?? _selectedColorName;
+    _normalizeSelectedColorForCurrentSelection();
+  }
+
+  void _handleBrandChanged(String? brandCode) {
+    setState(() {
+      _selectedBrandCode = brandCode;
+      _selectedModelCode = null;
+      _selectedPricingKey = null;
+      _selectedColorName = null;
+    });
+
+    _syncActiveLocalDraft();
+  }
+
+  void _handleModelChanged(String? modelCode) {
+    setState(() {
+      _selectedModelCode = modelCode;
+      _selectedPricingKey = null;
+      _selectedColorName = null;
+      _normalizeSelectedColorForCurrentSelection();
+    });
+
+    _syncActiveLocalDraft();
+  }
+
+  void _handlePricingChanged(String? pricingKey) {
+    setState(() {
+      _syncCatalogSelectionFromPricingKey(pricingKey);
+    });
+
+    _syncActiveLocalDraft();
+  }
+
+  void _handleColorChanged(String? colorName) {
+    setState(() {
+      _selectedColorName = colorName == null || colorName.isEmpty ? null : colorName;
+      _normalizeSelectedColorForCurrentSelection();
+    });
+
+    _syncActiveLocalDraft();
   }
 
   num? get _estimatedInstallment {
@@ -420,7 +669,10 @@ class _OffersHomePageState extends State<OffersHomePage> {
     _customerType = detail.customerType.isEmpty ? 'PRIVATE' : detail.customerType;
     _financingVariant = detail.financingVariant ?? '';
     final pricingCatalogKey = detail.pricingCatalogKey?.trim();
-    _selectedPricingKey = pricingCatalogKey == null || pricingCatalogKey.isEmpty ? null : pricingCatalogKey;
+    _syncCatalogSelectionFromPricingKey(
+      pricingCatalogKey == null || pricingCatalogKey.isEmpty ? null : pricingCatalogKey,
+      preferredColorName: detail.selectedColorName,
+    );
   }
 
   void _removeLocalDrafts({String? keepOfferId}) {
@@ -532,9 +784,9 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
     return OfferDetail(
       id: 'local-offer-$timestamp',
-      number: 'SZKIC-LOKALNY',
+      number: 'SZKIC',
       status: 'DRAFT',
-      title: 'Nowa oferta PDF',
+      title: 'Nowa oferta',
       leadId: null,
       customerName: '',
       customerEmail: null,
@@ -576,7 +828,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
           ? '${selectedPricing.brand} ${selectedPricing.model} ${selectedPricing.version}'.trim()
           : offer.modelName,
       pricingCatalogKey: _selectedPricingKey,
-      selectedColorName: offer.selectedColorName,
+        selectedColorName: _selectedColorName,
       customerType: _customerType,
       ownerName: offer.ownerName,
       validUntil: _validUntilController.text.trim().isEmpty ? null : _validUntilController.text.trim(),
@@ -629,11 +881,11 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
     return OfferDetail(
       id: 'local-offer-$timestamp',
-      number: 'SZKIC-LOKALNY',
+      number: 'SZKIC',
       status: 'DRAFT',
       title: modelName?.trim().isNotEmpty == true
           ? '$modelName • ${customerName.isEmpty ? 'Lead' : customerName}'
-          : 'Nowa oferta PDF',
+          : 'Nowa oferta',
       leadId: leadId,
       customerName: customerName,
       customerEmail: leadDetail?.email ?? fallbackEmail,
@@ -683,7 +935,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
     final currentLeadId = offer.leadId?.trim() ?? '';
     if (currentLeadId.isNotEmpty) {
       setState(() {
-        _editorFeedback = 'Ta oferta jest już powiązana z rekordem CRM i pipeline.';
+        _editorFeedback = 'Ta oferta jest już powiązana z CRM.';
       });
       return;
     }
@@ -717,7 +969,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
     setState(() {
       _isSyncingToCrm = true;
-      _editorFeedback = 'Zapisujemy ofertę i tworzymy powiązanie z CRM...';
+      _editorFeedback = 'Zapisujemy klienta i ofertę w CRM...';
     });
 
     try {
@@ -746,7 +998,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
       _populateForm(linkedOffer);
       setState(() {
         _flowMode = _OfferFlowMode.system;
-        _editorFeedback = 'Klient został zapisany do CRM i oferta jest już powiązana z pipeline.';
+        _editorFeedback = 'Klient i oferta zostały zapisane w CRM.';
       });
     } catch (error) {
       if (!mounted) {
@@ -768,7 +1020,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
   Future<void> _createFreeOffer() async {
     setState(() {
       _isSavingOffer = true;
-      _createFeedback = 'Tworzymy nowy szkic oferty w aplikacji...';
+      _createFeedback = 'Przygotowujemy nową ofertę...';
       _editorFeedback = null;
     });
 
@@ -788,7 +1040,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
         _createLeadSearchQuery = '';
         _createFeedback = null;
         _flowMode = _OfferFlowMode.free;
-        _editorFeedback = 'Nowa oferta została otwarta lokalnie w aplikacji.';
+        _editorFeedback = 'Nowa oferta jest gotowa do edycji.';
       });
     } catch (error) {
       if (!mounted) {
@@ -811,7 +1063,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
   Future<void> _createOfferForLead(String leadId, {String? editorMessage}) async {
     setState(() {
       _isSavingOffer = true;
-      _createFeedback = 'Tworzymy szkic oferty dla wybranego klienta...';
+      _createFeedback = 'Przygotowujemy ofertę dla wybranego klienta...';
     });
 
     try {
@@ -834,7 +1086,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
       setState(() {
         _flowMode = _OfferFlowMode.system;
         _isCreateInlineOpen = false;
-        _editorFeedback = editorMessage ?? 'Oferta dla wybranego klienta została otwarta w tym samym workspace.';
+        _editorFeedback = editorMessage ?? 'Oferta dla wybranego klienta została otwarta.';
       });
     } catch (error) {
       if (!mounted) {
@@ -876,14 +1128,15 @@ class _OffersHomePageState extends State<OffersHomePage> {
         ? buildLocalOfferDocumentSnapshot(
             offer: previewOffer,
             session: widget.session,
+            catalog: widget.bootstrap.catalog,
           )
         : null;
 
     setState(() {
       _isOpeningPreview = true;
       _editorFeedback = versionId == null
-          ? 'Otwieramy lokalny podgląd oferty bez zapisu do CRM...'
-          : 'Otwieramy podgląd dokumentu PDF...';
+          ? 'Otwieramy podgląd oferty...'
+          : 'Otwieramy dokument PDF...';
     });
 
     if (!mounted) {
@@ -1036,7 +1289,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                           child: VeloPrimeWorkspaceState(
                             tint: VeloPrimePalette.bronzeDeep,
                             eyebrow: 'Oferty',
-                            title: 'Ladujemy aktywna oferte',
+                            title: 'Ładujemy aktywną ofertę',
                             message: 'Przygotowujemy kalkulacje, finansowanie i sekcje dokumentu.',
                             isLoading: true,
                           ),
@@ -1073,8 +1326,15 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 customerType: _customerType,
                                 financingVariant: _financingVariant,
                                 pricingOptions: widget.bootstrap.pricingOptions,
+                                catalog: widget.bootstrap.catalog,
+                                selectedBrandCode: _selectedBrandCode,
+                                selectedModelCode: _selectedModelCode,
                                 selectedPricingKey: _selectedPricingKey,
+                                selectedColorName: _selectedColorName,
                                 selectedPricingOption: _selectedPricingOption,
+                                selectedCatalogModels: _availableCatalogModels,
+                                selectedCatalogVersions: _availableCatalogVersions,
+                                selectedColorOptions: _availableColorOptions,
                                 crmSyncLabel: activeOfferCrmLabel ?? _offerCrmSyncLabel(activeOffer),
                                 feedback: _editorFeedback,
                                 isSaving: _isSavingOffer,
@@ -1086,7 +1346,10 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 remainingDiscountBudget: _remainingDiscountBudget,
                                 onCustomerTypeChanged: _handleCustomerTypeChanged,
                                 onFinancingVariantChanged: (value) => setState(() => _financingVariant = value),
-                                onPricingChanged: (value) => setState(() => _selectedPricingKey = value),
+                                onBrandChanged: _handleBrandChanged,
+                                onModelChanged: _handleModelChanged,
+                                onPricingChanged: _handlePricingChanged,
+                                onColorChanged: _handleColorChanged,
                                 onSyncToCrm: _syncActiveOfferToCrm,
                                 onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
                                 onCreatePdf: _createPdfForSelected,
@@ -1100,6 +1363,9 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 customerType: _customerType,
                                 financingVariant: _financingVariant,
                                 selectedPricingOption: _selectedPricingOption,
+                                selectedColorName: _selectedColorName,
+                                selectedColorSurchargeGross: _selectedColorSurchargeGross,
+                                selectedCatalogVersion: _selectedCatalogVersion,
                                 previewGrossPrice: _previewGrossPrice,
                                 previewNetPrice: _previewNetPrice,
                                 estimatedInstallment: _estimatedInstallment,
@@ -1135,8 +1401,15 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               customerType: _customerType,
                               financingVariant: _financingVariant,
                               pricingOptions: widget.bootstrap.pricingOptions,
+                              catalog: widget.bootstrap.catalog,
+                              selectedBrandCode: _selectedBrandCode,
+                              selectedModelCode: _selectedModelCode,
                               selectedPricingKey: _selectedPricingKey,
+                              selectedColorName: _selectedColorName,
                               selectedPricingOption: _selectedPricingOption,
+                              selectedCatalogModels: _availableCatalogModels,
+                              selectedCatalogVersions: _availableCatalogVersions,
+                              selectedColorOptions: _availableColorOptions,
                               crmSyncLabel: activeOfferCrmLabel ?? _offerCrmSyncLabel(activeOffer),
                               feedback: _editorFeedback,
                               isSaving: _isSavingOffer,
@@ -1148,7 +1421,10 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               remainingDiscountBudget: _remainingDiscountBudget,
                               onCustomerTypeChanged: _handleCustomerTypeChanged,
                               onFinancingVariantChanged: (value) => setState(() => _financingVariant = value),
-                              onPricingChanged: (value) => setState(() => _selectedPricingKey = value),
+                              onBrandChanged: _handleBrandChanged,
+                              onModelChanged: _handleModelChanged,
+                              onPricingChanged: _handlePricingChanged,
+                              onColorChanged: _handleColorChanged,
                               onSyncToCrm: _syncActiveOfferToCrm,
                               onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
                               onCreatePdf: _createPdfForSelected,
@@ -1159,6 +1435,9 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               customerType: _customerType,
                               financingVariant: _financingVariant,
                               selectedPricingOption: _selectedPricingOption,
+                              selectedColorName: _selectedColorName,
+                              selectedColorSurchargeGross: _selectedColorSurchargeGross,
+                              selectedCatalogVersion: _selectedCatalogVersion,
                               previewGrossPrice: _previewGrossPrice,
                               previewNetPrice: _previewNetPrice,
                               estimatedInstallment: _estimatedInstallment,
@@ -1203,14 +1482,14 @@ String _toDateInput(String? value) {
 String _offerCrmSyncLabel(OfferDetail offer) {
   final leadId = offer.leadId?.trim() ?? '';
   if (leadId.isNotEmpty) {
-    return 'Powiazana z CRM i pipeline';
+    return 'Powiązana z CRM';
   }
 
   if (offer.id.startsWith('local-offer-')) {
-    return 'Robocza tylko w aplikacji';
+    return 'Szkic lokalny';
   }
 
-  return 'Zapisana w aplikacji, bez CRM';
+  return 'Zapisana bez powiązania z CRM';
 }
 
 class _InlineOffersWorkspaceHeader extends StatelessWidget {
@@ -1266,7 +1545,7 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Zalogowano jako ${session.fullName} (${session.role}). Robisz jedną ofertę, pokazujesz ją klientowi albo zapisujesz do CRM. Niedokonczona oferta nie wraca po wyjściu z pracy.',
+                      'Zalogowano jako ${session.fullName} (${session.role}). Tutaj przygotujesz ofertę, sprawdzisz warunki i wygenerujesz dokument dla klienta.',
                       style: const TextStyle(color: VeloPrimePalette.muted, height: 1.55),
                     ),
                   ],
@@ -1284,7 +1563,7 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
                       OutlinedButton.icon(
                         onPressed: isSavingOffer ? null : onCreateForSystemCustomer,
                         icon: const Icon(Icons.person_add_alt_1_outlined),
-                        label: const Text('Oferta dla klienta w systemie'),
+                        label: const Text('Oferta dla klienta z CRM'),
                       ),
                       FilledButton.icon(
                         onPressed: isSavingOffer ? null : onCreateFreeOffer,
@@ -1337,7 +1616,7 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
                         ),
                       _HeaderChip(label: selectedOffer.number),
                       _HeaderChip(label: 'Klient: ${selectedOffer.customerName}'),
-                      _HeaderChip(label: currentFlowMode == _OfferFlowMode.system ? 'Workflow z leada' : 'Tryb lokalny'),
+                      _HeaderChip(label: currentFlowMode == _OfferFlowMode.system ? 'Klient z CRM' : 'Nowy klient'),
                       if (activeOfferCrmLabel != null)
                         _HeaderChip(label: 'Status CRM: $activeOfferCrmLabel'),
                       _HeaderChip(label: 'Ważna do: ${_formatNullableDate(selectedOffer.validUntil, dateFormat) ?? 'Bez terminu'}'),
@@ -1388,12 +1667,12 @@ class _InlineLeadPicker extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    VeloPrimeSectionEyebrow(label: 'Workflow z leada'),
+                    VeloPrimeSectionEyebrow(label: 'Klient z CRM'),
                     SizedBox(height: 6),
-                    Text('Wybierz klienta z systemu', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
+                    Text('Wybierz klienta z CRM', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
                     SizedBox(height: 8),
                     Text(
-                      'To jest podstawowa ścieżka pracy zgodna z webem i pipeline handlowym. Najpierw wybierasz leada, dopiero potem konfigurujesz ofertę PDF.',
+                      'Wybierz klienta z CRM, aby od razu przejść do przygotowania oferty.',
                       style: TextStyle(color: VeloPrimePalette.muted, height: 1.55),
                     ),
                   ],
@@ -1476,7 +1755,7 @@ class _OfferEmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 54),
       child: Column(
         children: [
-          const Text('Możesz zacząć ofertę od istniejącego leada albo utworzyć ją lokalnie dla nowego klienta. Jeśli jej nie dokończysz, następną po prostu zrobisz od nowa.', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, height: 1.6, color: VeloPrimePalette.muted)),
+          const Text('Rozpocznij od klienta z CRM albo przygotuj ofertę dla nowego klienta.', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, height: 1.6, color: VeloPrimePalette.muted)),
           const SizedBox(height: 18),
           Wrap(
             spacing: 10,
@@ -1518,8 +1797,15 @@ class _OfferEditorWorkspace extends StatelessWidget {
     required this.customerType,
     required this.financingVariant,
     required this.pricingOptions,
+    required this.catalog,
+    required this.selectedBrandCode,
+    required this.selectedModelCode,
     required this.selectedPricingKey,
+    required this.selectedColorName,
     required this.selectedPricingOption,
+    required this.selectedCatalogModels,
+    required this.selectedCatalogVersions,
+    required this.selectedColorOptions,
     required this.crmSyncLabel,
     required this.feedback,
     required this.isSaving,
@@ -1531,7 +1817,10 @@ class _OfferEditorWorkspace extends StatelessWidget {
     required this.remainingDiscountBudget,
     required this.onCustomerTypeChanged,
     required this.onFinancingVariantChanged,
+    required this.onBrandChanged,
+    required this.onModelChanged,
     required this.onPricingChanged,
+    required this.onColorChanged,
     required this.onSyncToCrm,
     required this.onOpenPreview,
     required this.onCreatePdf,
@@ -1552,8 +1841,15 @@ class _OfferEditorWorkspace extends StatelessWidget {
   final String customerType;
   final String financingVariant;
   final List<OfferPricingOption> pricingOptions;
+  final SalesCatalogBootstrapInfo? catalog;
+  final String? selectedBrandCode;
+  final String? selectedModelCode;
   final String? selectedPricingKey;
+  final String? selectedColorName;
   final OfferPricingOption? selectedPricingOption;
+  final List<SalesCatalogModelInfo> selectedCatalogModels;
+  final List<SalesCatalogVersionInfo> selectedCatalogVersions;
+  final List<SalesCatalogColorOptionInfo> selectedColorOptions;
   final String crmSyncLabel;
   final String? feedback;
   final bool isSaving;
@@ -1565,10 +1861,33 @@ class _OfferEditorWorkspace extends StatelessWidget {
   final num? remainingDiscountBudget;
   final ValueChanged<String> onCustomerTypeChanged;
   final ValueChanged<String> onFinancingVariantChanged;
+  final ValueChanged<String?> onBrandChanged;
+  final ValueChanged<String?> onModelChanged;
   final ValueChanged<String?> onPricingChanged;
+  final ValueChanged<String?> onColorChanged;
   final VoidCallback? onSyncToCrm;
   final VoidCallback? onOpenPreview;
   final VoidCallback? onCreatePdf;
+
+  List<SalesCatalogBrandInfo> get _catalogBrands {
+    final catalog = this.catalog;
+    if (catalog == null) {
+      return const [];
+    }
+
+    return [...catalog.brands]..sort((left, right) => left.sortOrder.compareTo(right.sortOrder));
+  }
+
+  SalesCatalogVersionInfo? get _selectedCatalogVersion {
+    if (selectedPricingKey == null || selectedPricingKey!.isEmpty) {
+      return null;
+    }
+
+    return selectedCatalogVersions.cast<SalesCatalogVersionInfo?>().firstWhere(
+          (version) => version?.catalogKey == selectedPricingKey,
+          orElse: () => null,
+        );
+  }
 
   List<String> get _financingVariants {
     if (customerType == 'BUSINESS') {
@@ -1646,13 +1965,13 @@ class _OfferEditorWorkspace extends StatelessWidget {
         if (isFreeMode)
           _EditorSection(
             title: 'Sekcja 1 · Klient',
-            subtitle: 'Tryb lokalny poza pipeline. Klienta uzupełniasz w aplikacji, a do CRM zapisujesz go dopiero jawnie, kiedy chcesz zsynchronizować ofertę.',
+            subtitle: 'Uzupełnij dane klienta, a gdy oferta będzie gotowa, możesz zapisać ją w CRM.',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _SectionSubheader(
                   title: 'DANE KONTAKTOWE',
-                  subtitle: 'Ten blok służy do lokalnej pracy w aplikacji. CRM i pipeline aktualizujesz osobną akcją synchronizacji.',
+                  subtitle: 'Dane potrzebne do przygotowania oferty i dokumentu PDF.',
                 ),
                 const SizedBox(height: 8),
                 _EditorFormBand(
@@ -1675,19 +1994,19 @@ class _OfferEditorWorkspace extends StatelessWidget {
           )
         else
           _EditorSection(
-            title: 'Sekcja 1 · Workflow z leada',
-            subtitle: 'To jest podstawowa ścieżka pracy. Dane klienta są już powiązane z leadem, więc przechodzisz od razu do konfiguracji oferty.',
+            title: 'Sekcja 1 · Klient z CRM',
+            subtitle: 'Klient jest już powiązany z CRM, więc możesz od razu przejść do przygotowania oferty.',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _SectionSubheader(
                   title: 'POWIĄZANIE Z CRM',
-                  subtitle: 'Ta oferta korzysta z istniejącego leada i zachowuje ten sam kanoniczny proces co webowy generator ofert.',
+                  subtitle: 'Oferta jest przypisana do istniejącego klienta w CRM.',
                 ),
                 const SizedBox(height: 8),
                 _EditorFormBand(
                   title: 'Kontekst klienta',
-                  subtitle: 'Ten blok tylko potwierdza źródło i powiązanie oferty z istniejącym rekordem CRM.',
+                  subtitle: 'Podgląd danych klienta i źródła oferty.',
                   child: Wrap(
                     spacing: 12,
                     runSpacing: 12,
@@ -1716,68 +2035,161 @@ class _OfferEditorWorkspace extends StatelessWidget {
               const SizedBox(height: 8),
               _EditorFormBand(
                 title: 'Profil oferty',
-                subtitle: 'To jest rdzeń konfiguracji. Te trzy pola ustalają scenariusz całej oferty.',
-                child: Wrap(
-                  spacing: 14,
-                  runSpacing: 14,
+                subtitle: 'Najważniejsze ustawienia oferty: klient, finansowanie i model.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _FieldShell(
-                      width: 220,
-                      child: _StyledDropdownField<String>(
-                        initialValue: customerType,
-                        items: const [
-                          DropdownMenuItem(value: 'PRIVATE', child: Text('Klient prywatny')),
-                          DropdownMenuItem(value: 'BUSINESS', child: Text('Firma')),
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 14,
+                      children: [
+                        _FieldShell(
+                          width: 220,
+                          child: _StyledDropdownField<String>(
+                            initialValue: customerType,
+                            items: const [
+                              DropdownMenuItem(value: 'PRIVATE', child: Text('Klient prywatny')),
+                              DropdownMenuItem(value: 'BUSINESS', child: Text('Firma')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                onCustomerTypeChanged(value);
+                              }
+                            },
+                            decoration: veloPrimeInputDecoration('Typ klienta'),
+                          ),
+                        ),
+                        _FieldShell(
+                          width: 280,
+                          child: _StyledDropdownField<String>(
+                            initialValue: _financingVariants.contains(financingVariant) ? financingVariant : null,
+                            items: _financingVariants.map((variant) => DropdownMenuItem<String>(value: variant, child: Text(variant))).toList(),
+                            onChanged: (value) => onFinancingVariantChanged(value ?? ''),
+                            decoration: veloPrimeInputDecoration('Wariant finansowania'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    if (catalog != null) ...[
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 14,
+                        children: [
+                          _FieldShell(
+                            width: 220,
+                            child: _StyledDropdownField<String>(
+                              initialValue: selectedBrandCode,
+                              items: _catalogBrands
+                                  .map((brand) => DropdownMenuItem<String>(value: brand.code, child: Text(brand.name)))
+                                  .toList(),
+                              onChanged: onBrandChanged,
+                              decoration: veloPrimeInputDecoration('Marka'),
+                            ),
+                          ),
+                          _FieldShell(
+                            width: 240,
+                            child: _StyledDropdownField<String>(
+                              initialValue: selectedModelCode,
+                              items: selectedCatalogModels
+                                  .map((model) => DropdownMenuItem<String>(value: model.code, child: Text(model.name)))
+                                  .toList(),
+                              onChanged: selectedBrandCode == null ? null : onModelChanged,
+                              decoration: veloPrimeInputDecoration('Model'),
+                            ),
+                          ),
+                          _FieldShell(
+                            width: 360,
+                            child: _StyledDropdownField<String>(
+                              initialValue: selectedPricingKey,
+                              items: selectedCatalogVersions
+                                  .map(
+                                    (version) => DropdownMenuItem<String>(
+                                      value: version.catalogKey,
+                                      child: Text(
+                                        [
+                                          version.name,
+                                          if (version.powertrainType != null) version.powertrainType,
+                                          if (version.year != null) '${version.year}',
+                                        ].join(' • '),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: selectedModelCode == null ? null : onPricingChanged,
+                              decoration: veloPrimeInputDecoration('Wersja i napęd'),
+                            ),
+                          ),
+                          if (selectedColorOptions.isNotEmpty)
+                            _FieldShell(
+                              width: 260,
+                              child: _StyledDropdownField<String>(
+                                initialValue: selectedColorName,
+                                items: selectedColorOptions
+                                    .map(
+                                      (color) => DropdownMenuItem<String>(
+                                        value: color.name,
+                                        child: Text(
+                                          color.isBase
+                                              ? '${color.name} • bazowy'
+                                              : '${color.name} • dopłata ${currencyFormat.format(color.surchargeGross ?? color.surchargeNet ?? 0)}',
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: onColorChanged,
+                                decoration: veloPrimeInputDecoration('Kolor'),
+                              ),
+                            ),
                         ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            onCustomerTypeChanged(value);
-                          }
-                        },
-                        decoration: veloPrimeInputDecoration('Typ klienta'),
                       ),
-                    ),
-                    _FieldShell(
-                      width: 280,
-                      child: _StyledDropdownField<String>(
-                        initialValue: _financingVariants.contains(financingVariant) ? financingVariant : null,
-                        items: _financingVariants.map((variant) => DropdownMenuItem<String>(value: variant, child: Text(variant))).toList(),
-                        onChanged: (value) => onFinancingVariantChanged(value ?? ''),
-                        decoration: veloPrimeInputDecoration('Wariant finansowania'),
-                      ),
-                    ),
-                    _FieldShell(
-                      width: 360,
-                      child: _StyledDropdownField<String>(
-                        initialValue: selectedPricingKey,
-                        selectedItemBuilder: (context) => pricingOptions
-                            .map(
-                              (option) => Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  option.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                      if (_selectedCatalogVersion != null) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            _EditorInfoTile(label: 'Wybrana wersja', value: _selectedCatalogVersion!.name),
+                            _EditorInfoTile(label: 'Napęd', value: _selectedCatalogVersion!.powertrainType ?? 'Do uzupełnienia'),
+                            _EditorInfoTile(label: 'Moc', value: _selectedCatalogVersion!.powerHp ?? 'Do uzupełnienia'),
+                            if (_selectedCatalogVersion!.batteryCapacityKwh != null)
+                              _EditorInfoTile(label: 'Bateria', value: '${_selectedCatalogVersion!.batteryCapacityKwh} kWh'),
+                          ],
+                        ),
+                      ],
+                    ] else
+                      _FieldShell(
+                        width: 360,
+                        child: _StyledDropdownField<String>(
+                          initialValue: selectedPricingKey,
+                          selectedItemBuilder: (context) => pricingOptions
+                              .map(
+                                (option) => Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    option.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
-                            )
-                            .toList(),
-                        items: pricingOptions
-                            .map(
-                              (option) => DropdownMenuItem<String>(
-                                value: option.key,
-                                child: Text(
-                                  option.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              )
+                              .toList(),
+                          items: pricingOptions
+                              .map(
+                                (option) => DropdownMenuItem<String>(
+                                  value: option.key,
+                                  child: Text(
+                                    option.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: onPricingChanged,
-                        decoration: veloPrimeInputDecoration('Wybierz model samochodu'),
+                              )
+                              .toList(),
+                          onChanged: onPricingChanged,
+                          decoration: veloPrimeInputDecoration('Wybierz model samochodu'),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -1988,6 +2400,9 @@ class _OfferResultsPanel extends StatelessWidget {
     required this.customerType,
     required this.financingVariant,
     required this.selectedPricingOption,
+    required this.selectedCatalogVersion,
+    required this.selectedColorName,
+    required this.selectedColorSurchargeGross,
     required this.previewGrossPrice,
     required this.previewNetPrice,
     required this.estimatedInstallment,
@@ -2006,6 +2421,9 @@ class _OfferResultsPanel extends StatelessWidget {
   final String customerType;
   final String financingVariant;
   final OfferPricingOption? selectedPricingOption;
+  final SalesCatalogVersionInfo? selectedCatalogVersion;
+  final String? selectedColorName;
+  final num? selectedColorSurchargeGross;
   final num? previewGrossPrice;
   final num? previewNetPrice;
   final num? estimatedInstallment;
@@ -2111,7 +2529,7 @@ class _OfferResultsPanel extends StatelessWidget {
                   children: [
                     VeloPrimeSectionEyebrow(label: 'Panel wynikowy'),
                     SizedBox(height: 6),
-                    Text('Podgląd oferty przed PDF', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
+                    Text('Podsumowanie przed PDF', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
                   ],
                 ),
               ),
@@ -2280,7 +2698,7 @@ class _OfferResultsPanel extends StatelessWidget {
             children: [
               Expanded(child: _WorkspaceStat(label: 'Rabat klienta', value: discountValue != null ? currencyFormat.format(discountValue) : 'Brak', compact: true)),
               const SizedBox(width: 12),
-              Expanded(child: _WorkspaceStat(label: 'Status roboczy', value: _statusStyle(offer.status).label, compact: true)),
+              Expanded(child: _WorkspaceStat(label: 'Status oferty', value: _statusStyle(offer.status).label, compact: true)),
             ],
           ),
           const SizedBox(height: 16),
@@ -2307,6 +2725,12 @@ class _OfferResultsPanel extends StatelessWidget {
               children: [
                 _KeyValueLine(label: 'Klient', value: offer.customerName.isEmpty ? 'Do uzupełnienia' : offer.customerName),
                 _KeyValueLine(label: 'Model', value: selectedPricingOption?.label ?? offer.modelName ?? 'Do uzupełnienia'),
+                _KeyValueLine(label: 'Napęd', value: selectedCatalogVersion?.powertrainType ?? selectedPricingOption?.powertrain ?? 'Do uzupełnienia'),
+                _KeyValueLine(label: 'Kolor', value: selectedColorName ?? offer.selectedColorName ?? 'Bazowy'),
+                _KeyValueLine(
+                  label: 'Dopłata za kolor',
+                  value: (selectedColorSurchargeGross ?? 0) > 0 ? currencyFormat.format(selectedColorSurchargeGross) : 'Brak dopłaty',
+                ),
                 _KeyValueLine(label: 'Ważna do', value: _formatNullableDate(validUntil, dateFormat) ?? 'Bez terminu'),
                 _KeyValueLine(label: 'Status oferty', value: _statusStyle(offer.status).label),
               ],
@@ -2494,7 +2918,7 @@ class _StyledDropdownField<T> extends StatelessWidget {
 
   final T? initialValue;
   final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?> onChanged;
+  final ValueChanged<T?>? onChanged;
   final InputDecoration decoration;
   final List<Widget> Function(BuildContext context)? selectedItemBuilder;
 

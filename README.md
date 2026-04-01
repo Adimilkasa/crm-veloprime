@@ -162,6 +162,10 @@ System automatycznie ustawia `Reply-To` na email opiekuna oferty, jezeli konto h
 
 - `docs/SALES_CALCULATION_MODEL.md` - model kalkulacji sprzedaży, hierarchii prowizyjnej i reguł oferty
 - `docs/HYBRID_CLIENT_IMPLEMENTATION_PLAN.md` - etapowy plan przejscia do klienta hybrydowego Windows + Android tablet
+- `docs/REBUILD_PLAN.md` - glowny plan przebudowy systemu i zakres kolejnych etapow
+- `docs/REBUILD_DECISIONS.md` - rejestr decyzji biznesowych i architektonicznych dla przebudowy
+- `docs/REBUILD_BACKLOG.md` - backlog etapow i zadan wykonawczych dla przebudowy
+- `docs/REBUILD_CHECKPOINT.md` - aktualny checkpoint projektu i instrukcja wznowienia pracy po przerwie
 - `docs/DEPLOYMENT_WORKFLOW.md` - zasady wdrozen, w ktorych GitHub jest zrodlem prawdy, a Vercel tylko targetem build/deploy
 - `docs/OFFER_SHARE_EMAIL_ROLLOUT.md` - checklista wdrozenia publicznych linkow ofert i wysylki email z aplikacji
 - `docs/REPO_CHANGESET_PLAN.md` - proponowany podzial aktualnych zmian na male, czytelne commity

@@ -128,8 +128,8 @@ class _UsersHomePageState extends State<UsersHomePage> {
         SnackBar(
           content: Text(
             tempPassword == null || tempPassword.isEmpty
-                ? 'Konto zostalo utworzone.'
-                : 'Konto utworzone. Haslo tymczasowe: $tempPassword',
+                ? 'Konto zostało utworzone.'
+                : 'Konto utworzone. Hasło startowe do przekazania użytkownikowi: $tempPassword',
           ),
         ),
       );
@@ -172,7 +172,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Nowe haslo tymczasowe dla ${user.fullName}: $password')),
+        SnackBar(content: Text('Nowe hasło startowe dla ${user.fullName}: $password')),
       );
     } catch (error) {
       if (!mounted) {
@@ -189,25 +189,25 @@ class _UsersHomePageState extends State<UsersHomePage> {
     final content = _isLoading
         ? const VeloPrimeWorkspaceState(
             tint: accentColor,
-            eyebrow: 'Uzytkownicy',
-            title: 'Ladujemy zespol i role',
-            message: 'Przygotowujemy liste kont, role i relacje raportowania.',
+            eyebrow: 'Użytkownicy',
+            title: 'Ładujemy konta użytkowników',
+            message: 'Przygotowujemy listę użytkowników, ról i przypisań.',
             isLoading: true,
           )
         : _error != null
             ? VeloPrimeWorkspaceState(
                 tint: VeloPrimePalette.rose,
-                eyebrow: 'Uzytkownicy',
-                title: 'Nie udalo sie pobrac danych uzytkownikow',
+                eyebrow: 'Użytkownicy',
+                title: 'Nie udało się pobrać użytkowników',
                 message: _error!,
                 icon: Icons.warning_amber_rounded,
               )
             : overview == null
                 ? const VeloPrimeWorkspaceState(
                     tint: accentColor,
-                    eyebrow: 'Uzytkownicy',
-                    title: 'Brak danych uzytkownikow',
-                    message: 'Konta pojawia sie tutaj po pierwszej synchronizacji lub dodaniu nowego uzytkownika.',
+                    eyebrow: 'Użytkownicy',
+                    title: 'Brak kont użytkowników',
+                    message: 'Po dodaniu pierwszego użytkownika konta pojawią się w tym widoku.',
                     icon: Icons.manage_accounts_outlined,
                   )
                 : SingleChildScrollView(
@@ -224,10 +224,10 @@ class _UsersHomePageState extends State<UsersHomePage> {
                               final copy = const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  VeloPrimeSectionEyebrow(label: 'Uzytkownicy', color: accentColor),
+                                  VeloPrimeSectionEyebrow(label: 'Użytkownicy', color: accentColor),
                                   SizedBox(height: 12),
                                   Text(
-                                    'Administracja kontami bez schodzenia do paneli technicznych.',
+                                    'Administracja kontami w jednym miejscu.',
                                     style: TextStyle(
                                       color: VeloPrimePalette.ink,
                                       fontSize: 38,
@@ -237,7 +237,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                   ),
                                   SizedBox(height: 14),
                                   Text(
-                                    'Tworz konta, resetuj hasla i kontroluj aktywnosc uzytkownikow z jednego miejsca.',
+                                    'Twórz konta, resetuj hasła i zarządzaj dostępem zespołu.',
                                     style: TextStyle(
                                       color: VeloPrimePalette.muted,
                                       fontSize: 15,
@@ -274,12 +274,12 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                           OutlinedButton.icon(
                                             onPressed: widget.onBack,
                                             icon: const Icon(Icons.arrow_back_outlined),
-                                            label: const Text('Powrot'),
+                                            label: const Text('Powrót'),
                                           ),
                                         OutlinedButton.icon(
                                           onPressed: _load,
                                           icon: const Icon(Icons.refresh),
-                                          label: const Text('Odswiez'),
+                                          label: const Text('Odśwież'),
                                         ),
                                       ],
                                     ),
@@ -332,10 +332,10 @@ class _UsersHomePageState extends State<UsersHomePage> {
                             children: [
                               const VeloPrimeSectionEyebrow(label: 'Nowe konto', color: accentColor),
                               const SizedBox(height: 12),
-                              const Text('Nowe konto', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
+                              const Text('Dodaj nowe konto', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
                               const SizedBox(height: 8),
                               const Text(
-                                'Tworzenie uzytkownika pozostaje w tym samym procesie, ale formularz jest teraz osadzony w tej samej warstwie roboczej co leady i oferty.',
+                                'Uzupełnij dane użytkownika i nadaj mu odpowiednią rolę w systemie.',
                                 style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                               ),
                               const SizedBox(height: 16),

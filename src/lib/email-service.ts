@@ -1,3 +1,6 @@
+import { mkdir, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+
 import nodemailer from 'nodemailer'
 import 'server-only'
 
@@ -11,6 +14,7 @@ type SendTransactionalEmailInput = {
 
 type EmailProvider =
   | { kind: 'smtp'; config: SmtpConfig }
+  | { kind: 'dev-outbox'; config: DevOutboxConfig }
   | { kind: 'resend' }
 
 type SmtpConfig = {
@@ -19,6 +23,11 @@ type SmtpConfig = {
   secure: boolean
   user: string
   pass: string
+  from: string
+}
+
+type DevOutboxConfig = {
+  outboxDir: string
   from: string
 }
 
@@ -124,6 +133,22 @@ function resolveSmtpConfig() {
   } satisfies SmtpConfig
 }
 
+function resolveDevOutboxConfig() {
+  if (process.env.NODE_ENV === 'production') {
+    return null
+  }
+
+  const configuredDir = process.env.EMAIL_DEV_OUTBOX_DIR?.trim()
+  const from = resolveFromAddress() ?? 'oferty@veloprime.local'
+
+  return {
+    outboxDir: configuredDir && configuredDir.length > 0
+      ? path.resolve(process.cwd(), configuredDir)
+      : path.join(process.cwd(), '.mail-outbox'),
+    from,
+  } satisfies DevOutboxConfig
+}
+
 function resolveProvider(): EmailProvider | null {
   const smtpConfig = resolveSmtpConfig()
 
@@ -133,6 +158,12 @@ function resolveProvider(): EmailProvider | null {
 
   if (process.env.RESEND_API_KEY) {
     return { kind: 'resend' }
+  }
+
+  const devOutboxConfig = resolveDevOutboxConfig()
+
+  if (devOutboxConfig) {
+    return { kind: 'dev-outbox', config: devOutboxConfig }
   }
 
   return null
@@ -205,6 +236,29 @@ async function sendViaResend(input: SendTransactionalEmailInput) {
   throw new Error(`Nie udało się wysłać maila z ofertą. ${details}`.trim())
 }
 
+async function sendViaDevOutbox(input: SendTransactionalEmailInput, config: DevOutboxConfig) {
+  await mkdir(config.outboxDir, { recursive: true })
+
+  const fileName = `${new Date().toISOString().replaceAll(':', '-')}__${input.to.replace(/[^a-z0-9@._-]+/gi, '_')}.json`
+  const filePath = path.join(config.outboxDir, fileName)
+  const replyTo = normalizeReplyTo(input.replyTo)
+
+  await writeFile(
+    filePath,
+    JSON.stringify({
+      provider: 'dev-outbox',
+      savedAt: new Date().toISOString(),
+      from: config.from,
+      to: input.to,
+      subject: input.subject,
+      replyTo,
+      html: input.html,
+      text: input.text,
+    }, null, 2),
+    'utf8',
+  )
+}
+
 export async function sendTransactionalEmail(input: SendTransactionalEmailInput) {
   const provider = resolveProvider()
 
@@ -214,6 +268,11 @@ export async function sendTransactionalEmail(input: SendTransactionalEmailInput)
 
   if (provider.kind === 'smtp') {
     await sendViaSmtp(input, provider.config)
+    return
+  }
+
+  if (provider.kind === 'dev-outbox') {
+    await sendViaDevOutbox(input, provider.config)
     return
   }
 

@@ -7,6 +7,7 @@ import type { AuthSession } from '@/lib/auth'
 import { db, hasDatabaseUrl } from '@/lib/db'
 import { getActivePricingSheet } from '@/lib/pricing-management'
 import { buildDetailedPricingCatalog, type DetailedPricingCatalogItem } from '@/lib/pricing-catalog'
+import { listSalesCatalogItems, syncLegacyCatalogItemsToDb } from '@/lib/sales-catalog-management'
 import { listManagedUsers } from '@/lib/user-management'
 
 export type CommissionValueType = 'AMOUNT' | 'PERCENT'
@@ -145,70 +146,6 @@ async function ensureUsersInDb(users: Awaited<ReturnType<typeof listManagedUsers
   }
 }
 
-async function syncCatalogItemsToDb(catalogItems: DetailedPricingCatalogItem[]) {
-  if (!db) {
-    return new Map<string, string>()
-  }
-
-  const idsByKey = new Map<string, string>()
-
-  for (const item of catalogItems) {
-    const brandSetting = await db.brandSetting.upsert({
-      where: { brand: item.brand },
-      update: {
-        isActive: true,
-      },
-      create: {
-        brand: item.brand,
-      },
-    })
-
-    const existing = await db.salesCatalogItem.findFirst({
-      where: {
-        brand: item.brand,
-        model: item.model,
-        version: item.version,
-        year: item.year,
-      },
-    })
-
-    const record = existing
-      ? await db.salesCatalogItem.update({
-          where: { id: existing.id },
-          data: {
-            powertrain: item.powertrain,
-            powerHp: item.powerHp,
-            listPriceGross: item.listPriceGross,
-            listPriceNet: item.listPriceNet,
-            basePriceGross: item.basePriceGross,
-            basePriceNet: item.basePriceNet,
-            isActive: true,
-            brandSettingId: brandSetting.id,
-          },
-        })
-      : await db.salesCatalogItem.create({
-          data: {
-            brand: item.brand,
-            model: item.model,
-            version: item.version,
-            year: item.year,
-            powertrain: item.powertrain,
-            powerHp: item.powerHp,
-            listPriceGross: item.listPriceGross,
-            listPriceNet: item.listPriceNet,
-            basePriceGross: item.basePriceGross,
-            basePriceNet: item.basePriceNet,
-            isActive: true,
-            brandSettingId: brandSetting.id,
-          },
-        })
-
-    idsByKey.set(item.key, record.id)
-  }
-
-  return idsByKey
-}
-
 function mapDbRuleToCommissionRule(rule: {
   id: string
   ownerUserId: string
@@ -307,12 +244,10 @@ async function syncCommissionRulesInDb(systemActor = 'System') {
     return buildSeedStore()
   }
 
-  const [pricingSheet, users] = await Promise.all([
-    getActivePricingSheet(),
+  const [catalog, users] = await Promise.all([
+    listSalesCatalogItems(),
     listManagedUsers(),
   ])
-
-  const catalog = buildDetailedPricingCatalog(pricingSheet)
   const eligibleUsers: CommissionOwner[] = users
     .filter(isCommissionOwner)
     .map((user) => ({
@@ -322,7 +257,7 @@ async function syncCommissionRulesInDb(systemActor = 'System') {
     }))
 
   await ensureUsersInDb(users)
-  const catalogIds = await syncCatalogItemsToDb(catalog)
+  const catalogIds = await syncLegacyCatalogItemsToDb(catalog)
 
   const existingRules = await db.salesCommissionRule.findMany({
     include: {

@@ -240,7 +240,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                       label: const Text('Powrót do leadów'),
                                     ),
                                     const SizedBox(height: 18),
-                                    const VeloPrimeSectionEyebrow(label: 'Lead workspace', color: VeloPrimePalette.sea),
+                                    const VeloPrimeSectionEyebrow(label: 'Lead', color: VeloPrimePalette.sea),
                                     const SizedBox(height: 16),
                                     Text(
                                       lead.fullName,
@@ -248,7 +248,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                     ),
                                     const SizedBox(height: 10),
                                     const Text(
-                                      'Widok ma prowadzić od kontaktu i kontekstu do działania: zmiany etapu, historii i szybkiego przejścia do oferty bez ciężkiego, archiwalnego wyglądu.',
+                                      'Najważniejsze informacje o kliencie, etapie sprzedaży i kolejnych krokach w jednym miejscu.',
                                       style: TextStyle(fontSize: 14, height: 1.65, color: VeloPrimePalette.muted),
                                     ),
                                     const SizedBox(height: 16),
@@ -289,7 +289,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                 label: const Text('Powrót do leadów'),
                               ),
                               const SizedBox(height: 18),
-                              const VeloPrimeSectionEyebrow(label: 'Lead workspace', color: VeloPrimePalette.sea),
+                              const VeloPrimeSectionEyebrow(label: 'Lead', color: VeloPrimePalette.sea),
                               const SizedBox(height: 16),
                               Text(
                                 lead.fullName,
@@ -297,7 +297,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                               ),
                               const SizedBox(height: 10),
                               const Text(
-                                'Pełny obraz kontaktu, aktywności i powiązanych ofert w jednym miejscu, ale już w lżejszym układzie do codziennej pracy.',
+                                'Sprawdź kontakt, historię działań i oferty powiązane z tym klientem.',
                                 style: TextStyle(fontSize: 14, height: 1.65, color: VeloPrimePalette.muted),
                               ),
                               const SizedBox(height: 16),
@@ -395,13 +395,13 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                               const SizedBox(height: 16),
                               _DetailCard(
                                 title: 'Oferty klienta',
-                                subtitle: 'Powiązane oferty PDF oraz szybkie przejście do dokumentu.',
+                                subtitle: 'Powiązane oferty i szybkie przejście do dokumentu.',
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     if (lead.linkedOffers.isEmpty)
                                       const Text(
-                                        'Ten lead nie ma jeszcze przypisanej oferty. Możesz od razu utworzyć pierwszy dokument PDF dla tego klienta.',
+                                        'Ten klient nie ma jeszcze przypisanej oferty. Możesz przygotować pierwszą ofertę od razu z tego widoku.',
                                         style: TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF666666)),
                                       )
                                     else

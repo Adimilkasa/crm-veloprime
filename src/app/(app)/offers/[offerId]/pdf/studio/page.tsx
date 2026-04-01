@@ -29,7 +29,11 @@ export default async function OfferPdfStudioPage({
   }
 
   const payload = document.payload
-  const assets = await getOfferAssetBundle(payload.customer.modelName)
+  const assets = await getOfferAssetBundle({
+    modelName: payload.customer.modelName,
+    catalogKey: payload.internal.catalogKey,
+    powertrainType: payload.internal.powertrainType,
+  })
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f3efe6_0%,#ece7db_100%)] px-4 py-8 text-[#17191c]">

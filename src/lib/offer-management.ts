@@ -11,8 +11,7 @@ import { sendTransactionalEmail } from '@/lib/email-service'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
 import { createManagedLead, listManagedLeads, listManagedLeadStages, logManagedLeadActivity, type ManagedLead } from '@/lib/lead-management'
 import { calculateOfferSummary, type OfferCalculationSummary, type OfferCustomerType } from '@/lib/offer-calculations'
-import { buildDetailedPricingCatalog, type DetailedPricingCatalogItem } from '@/lib/pricing-catalog'
-import { getActivePricingSheet } from '@/lib/pricing-management'
+import { findSalesCatalogItemByKey, listSalesCatalogItems, listSalesModelColorPalettes, syncLegacyCatalogItemsToDb, type SalesCatalogRuntimeItem } from '@/lib/sales-catalog-management'
 import { listManagedUsers, type ManagedUser } from '@/lib/user-management'
 
 export type OfferStatus = 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
@@ -54,6 +53,7 @@ export type OfferCustomerSnapshot = {
 
 export type OfferInternalSnapshot = {
   catalogKey: string | null
+  powertrainType?: string | null
   customerType: OfferCustomerType
   listPriceGross: number | null
   listPriceNet: number | null
@@ -356,8 +356,8 @@ function buildOfferEmailContent(input: {
   const validityLabel = input.validUntil
     ? new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium' }).format(new Date(input.validUntil))
     : 'bez określonej daty końcowej'
-  const advisorContact = [input.advisorEmail, input.advisorPhone].filter(Boolean).join(' • ') || 'Skontaktuj się bezpośrednio z opiekunem oferty.'
-  const financingLabel = input.financingSummary ?? 'Warunki finansowania są opisane w pełnej ofercie online.'
+  const advisorContact = [input.advisorEmail, input.advisorPhone].filter(Boolean).join(' • ') || 'W razie pytań skontaktuj się z opiekunem oferty.'
+  const financingLabel = input.financingSummary ?? 'Szczegóły finansowania znajdziesz w pełnej wersji oferty online.'
   const heroMarkup = input.heroImageUrl
     ? `<img src="${input.heroImageUrl}" alt="${input.modelName}" style="display:block;width:100%;max-width:520px;height:auto;border-radius:24px;object-fit:cover;" />`
     : ''
@@ -367,9 +367,9 @@ function buildOfferEmailContent(input: {
       <div style="max-width:640px;margin:0 auto;background:linear-gradient(180deg,#ffffff 0%,#f9fbff 100%);border:1px solid rgba(20,33,61,0.08);border-radius:28px;overflow:hidden;box-shadow:0 24px 70px rgba(17,32,67,0.12);">
         <div style="padding:28px 28px 16px;background:linear-gradient(135deg,#17325f 0%,#214b87 100%);color:#ffffff;">
           <img src="${input.logoUrl}" alt="VeloPrime" style="display:block;height:34px;width:auto;max-width:180px;" />
-          <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:rgba(255,255,255,0.66);">Oferta indywidualna</div>
+          <div style="margin-top:18px;font-size:11px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:rgba(255,255,255,0.66);">Twoja oferta</div>
           <h1 style="margin:14px 0 0;font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.03em;">${input.modelName}</h1>
-          <p style="margin:14px 0 0;font-size:15px;line-height:1.8;color:rgba(255,255,255,0.8);">Przygotowaliśmy aktywną ofertę online dla ${input.customerName}. Link poniżej prowadzi do pełnego widoku oferty wraz z galerią, finansowaniem i danymi opiekuna.</p>
+          <p style="margin:14px 0 0;font-size:15px;line-height:1.8;color:rgba(255,255,255,0.8);">Przygotowaliśmy ofertę dla ${input.customerName}. Pod poniższym linkiem znajdziesz pełną konfigurację samochodu, warunki finansowania i dane opiekuna.</p>
         </div>
         <div style="padding:24px 28px 0;">${heroMarkup}</div>
         <div style="padding:28px;">
@@ -395,7 +395,7 @@ function buildOfferEmailContent(input: {
 
           <div style="margin-top:24px;text-align:center;">
             <a href="${input.publicUrl}" style="display:inline-block;padding:14px 26px;border-radius:999px;background:linear-gradient(180deg,#e3c986 0%,#d6ad56 100%);color:#1c1711;text-decoration:none;font-size:15px;font-weight:700;box-shadow:0 16px 34px rgba(212,168,79,0.18);">Otwórz ofertę online</a>
-            <div style="margin-top:14px;font-size:13px;line-height:1.7;color:#667389;">Jeśli przycisk nie działa, skopiuj ten adres: <br /><a href="${input.publicUrl}" style="color:#214b87;word-break:break-all;">${input.publicUrl}</a></div>
+            <div style="margin-top:14px;font-size:13px;line-height:1.7;color:#667389;">Jeśli przycisk nie otwiera oferty, skorzystaj z poniższego linku: <br /><a href="${input.publicUrl}" style="color:#214b87;word-break:break-all;">${input.publicUrl}</a></div>
           </div>
 
           <div style="margin-top:24px;border-top:1px solid rgba(20,33,61,0.08);padding-top:20px;">
@@ -541,7 +541,12 @@ async function getStore() {
   return globalForOffers.crmOffers
 }
 
-function buildOfferVersionSnapshot(offer: ManagedOfferWithCalculation, versionId: string, versionNumber: number): OfferDocumentPayload {
+function buildOfferVersionSnapshot(
+  offer: ManagedOfferWithCalculation,
+  versionId: string,
+  versionNumber: number,
+  catalogItem: SalesCatalogRuntimeItem | null,
+): OfferDocumentPayload {
   const discountAmount = offer.calculation?.appliedDiscount ?? offer.discountValue ?? 0
   const referencePrice = offer.customerType === 'BUSINESS'
     ? offer.calculation?.listPriceNet ?? offer.totalNet ?? 0
@@ -593,6 +598,7 @@ function buildOfferVersionSnapshot(offer: ManagedOfferWithCalculation, versionId
     },
     internal: {
       catalogKey: offer.pricingCatalogKey,
+      powertrainType: catalogItem?.powertrain ?? null,
       customerType: offer.customerType,
       listPriceGross: offer.calculation?.listPriceGross ?? null,
       listPriceNet: offer.calculation?.listPriceNet ?? null,
@@ -630,20 +636,24 @@ async function resolveOfferPricing(input: {
     return null
   }
 
-  const [pricingSheet, commissionRules, users] = await Promise.all([
-    getActivePricingSheet(),
+  const [catalogItem, palettes, commissionRules, users] = await Promise.all([
+    findSalesCatalogItemByKey(input.pricingCatalogKey),
+    listSalesModelColorPalettes(),
     listActiveCommissionRules(),
     listManagedUsers(),
   ])
-
-  const catalogItem = buildDetailedPricingCatalog(pricingSheet).find((item) => item.key === input.pricingCatalogKey)
 
   if (!catalogItem) {
     return { ok: false as const, error: 'Wybrana konfiguracja cenowa nie istnieje w zapisanej polityce cenowej.' }
   }
 
-  const colorPalette = null
-  const resolvedColorName = null
+  const paletteByKey = new Map(
+    palettes
+      .filter((palette): palette is ModelColorPalette => palette !== null)
+      .map((palette) => [palette.paletteKey, palette] as const)
+  )
+  const colorPalette = paletteByKey.get(`${catalogItem.brand.toLowerCase()}::${catalogItem.model.toLowerCase()}`) ?? null
+  const resolvedColorName = input.selectedColorName?.trim() || null
 
   const calculation = calculateOfferSummary({
     catalogItem,
@@ -666,7 +676,7 @@ async function resolveOfferPricing(input: {
 function buildOfferCalculation(
   offer: ManagedOffer,
   references: {
-    catalogByKey: Map<string, DetailedPricingCatalogItem>
+    catalogByKey: Map<string, SalesCatalogRuntimeItem>
     paletteByKey: Map<string, ModelColorPalette>
     users: ManagedUser[]
     commissionRules: Awaited<ReturnType<typeof listActiveCommissionRules>>
@@ -803,15 +813,20 @@ export async function listManagedOffers(session: AuthSession) {
 }
 
 export async function listManagedOffersWithCalculation(session: AuthSession) {
-  const [offers, pricingSheet, commissionRules, users] = await Promise.all([
+  const [offers, catalogItems, palettes, commissionRules, users] = await Promise.all([
     listManagedOffers(session),
-    getActivePricingSheet(),
+    listSalesCatalogItems(),
+    listSalesModelColorPalettes(),
     listActiveCommissionRules(),
     listManagedUsers(),
   ])
 
-  const catalogByKey = new Map(buildDetailedPricingCatalog(pricingSheet).map((item) => [item.key, item]))
-  const paletteByKey = new Map<string, ModelColorPalette>()
+  const catalogByKey = new Map(catalogItems.map((item) => [item.key, item] as const))
+  const paletteByKey = new Map(
+    palettes
+      .filter((palette): palette is ModelColorPalette => palette !== null)
+      .map((palette) => [palette.paletteKey, palette] as const)
+  )
 
   return offers.map((offer) => ({
     ...offer,
@@ -838,14 +853,19 @@ export async function getManagedOfferWithCalculation(session: AuthSession, offer
     } satisfies ManagedOfferWithCalculation
   }
 
-  const [pricingSheet, commissionRules, users] = await Promise.all([
-    getActivePricingSheet(),
+  const [catalogItems, palettes, commissionRules, users] = await Promise.all([
+    listSalesCatalogItems(),
+    listSalesModelColorPalettes(),
     listActiveCommissionRules(),
     listManagedUsers(),
   ])
 
-  const catalogByKey = new Map(buildDetailedPricingCatalog(pricingSheet).map((item) => [item.key, item]))
-  const paletteByKey = new Map<string, ModelColorPalette>()
+  const catalogByKey = new Map(catalogItems.map((item) => [item.key, item] as const))
+  const paletteByKey = new Map(
+    palettes
+      .filter((palette): palette is ModelColorPalette => palette !== null)
+      .map((palette) => [palette.paletteKey, palette] as const)
+  )
 
   return {
     ...offer,
@@ -869,6 +889,8 @@ export async function getOfferDocumentSnapshot(session: AuthSession, offerId: st
     ? offer.versions.find((entry) => entry.id === versionId) ?? null
     : offer.versions[0] ?? null
 
+  const catalogItem = offer.pricingCatalogKey ? await findSalesCatalogItemByKey(offer.pricingCatalogKey) : null
+
   if (version?.payloadJson && version.customerSnapshotJson && version.internalSnapshotJson) {
     return {
       offer,
@@ -880,7 +902,7 @@ export async function getOfferDocumentSnapshot(session: AuthSession, offerId: st
   return {
     offer,
     version,
-    payload: buildOfferVersionSnapshot(offer, version?.id ?? `offer-live-${offer.id}`, version?.versionNumber ?? offer.versions.length),
+      payload: buildOfferVersionSnapshot(offer, version?.id ?? `offer-live-${offer.id}`, version?.versionNumber ?? offer.versions.length, catalogItem),
   }
 }
 
@@ -897,9 +919,9 @@ export async function listOfferLeadOptions(session: AuthSession) {
 }
 
 export async function listOfferPricingOptions() {
-  const pricingSheet = await getActivePricingSheet()
+  const catalogItems = await listSalesCatalogItems()
 
-  return buildDetailedPricingCatalog(pricingSheet).map((item) => ({
+  return catalogItems.map((item) => ({
     key: item.key,
     label: item.label,
     brand: item.brand,
@@ -990,8 +1012,6 @@ export async function createManagedOffer(
   const resolvedOwnerName = lead?.salespersonName ?? ownerUser?.fullName ?? session.fullName
   const resolvedOwnerEmail = ownerUser?.email ?? session.email
   const resolvedOwnerPhone = ownerUser?.phone ?? null
-  const pricingSheet = await getActivePricingSheet()
-  const catalogItems = buildDetailedPricingCatalog(pricingSheet)
   const pricingResult = await resolveOfferPricing({
     pricingCatalogKey: input.pricingCatalogKey?.trim() || undefined,
     customerType,
@@ -1002,22 +1022,6 @@ export async function createManagedOffer(
 
   if (pricingResult && !pricingResult.ok) {
     return pricingResult
-  }
-
-  if (pricingResult && pricingResult.ok) {
-    const financingResult = calculateOfferFinancing({
-      customerType,
-      finalPriceGross: pricingResult.calculation.finalPriceGross,
-      finalPriceNet: pricingResult.calculation.finalPriceNet,
-      termMonths: financingTermMonths,
-      downPaymentInputMode: financingInputMode,
-      downPaymentInputValue: financingInputValue,
-      buyoutPercent: financingBuyoutPercent,
-    })
-
-    if (financingResult && !financingResult.ok) {
-      return financingResult
-    }
   }
 
   const financingResult = pricingResult && pricingResult.ok
@@ -1032,6 +1036,10 @@ export async function createManagedOffer(
       })
     : null
 
+  if (financingResult && !financingResult.ok) {
+    return financingResult
+  }
+
   const financingPersistence = buildFinancingPersistence({
     financingTermMonths,
     financingInputMode,
@@ -1042,7 +1050,8 @@ export async function createManagedOffer(
 
   if (isPrismaOfferStorageEnabled() && db) {
     await ensureUsersInDb(users)
-    const catalogIds = await syncCatalogItemsToDb(catalogItems)
+    const catalogItems = await listSalesCatalogItems()
+    const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
     const customer = lead
       ? await ensureCustomerFromLead(lead, ownerId)
       : await ensureCustomerRecord({
@@ -1251,10 +1260,9 @@ export async function updateManagedOffer(
   })
 
   if (isPrismaOfferStorageEnabled() && db) {
-    const pricingSheet = await getActivePricingSheet()
-    const catalogItems = buildDetailedPricingCatalog(pricingSheet)
     await ensureUsersInDb(await listManagedUsers())
-    const catalogIds = await syncCatalogItemsToDb(catalogItems)
+    const catalogItems = await listSalesCatalogItems()
+    const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
 
     if (!offer.leadId) {
       const offerRecord = await db.offer.findUnique({
@@ -1352,9 +1360,10 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
     return { ok: false as const, error: 'Nie znaleziono oferty.' }
   }
 
+  const catalogItem = offer.pricingCatalogKey ? await findSalesCatalogItemByKey(offer.pricingCatalogKey) : null
   const versionId = `offer-version-${crypto.randomUUID()}`
   const versionNumber = offer.versions.length + 1
-  const payload = buildOfferVersionSnapshot(offer, versionId, versionNumber)
+  const payload = buildOfferVersionSnapshot(offer, versionId, versionNumber, catalogItem)
 
   const nextVersion: OfferVersion = {
     id: versionId,
@@ -1540,7 +1549,11 @@ export async function getPublicOfferDocumentSnapshot(token: string) {
         internalSnapshotJson: (version.internalSnapshotJson as OfferInternalSnapshot | null) ?? payload.internal,
       } satisfies OfferVersion,
       payload,
-      assets: await getOfferAssetBundle(payload.customer.modelName),
+      assets: await getOfferAssetBundle({
+        modelName: payload.customer.modelName,
+        catalogKey: payload.internal.catalogKey,
+        powertrainType: payload.internal.powertrainType,
+      }),
     }
   }
 
@@ -1578,7 +1591,11 @@ export async function getPublicOfferDocumentSnapshot(token: string) {
       shareExpiresAt: version.shareExpiresAt,
       version,
       payload,
-      assets: await getOfferAssetBundle(payload.customer.modelName),
+      assets: await getOfferAssetBundle({
+        modelName: payload.customer.modelName,
+        catalogKey: payload.internal.catalogKey,
+        powertrainType: payload.internal.powertrainType,
+      }),
     }
   }
 
@@ -1617,7 +1634,11 @@ export async function sendManagedOfferEmail(
 
   const modelName = document.payload.customer.modelName ?? document.payload.customer.title ?? document.offer.title
   const publicUrl = `${origin}/oferta/${shareResult.share.token}`
-  const assets = await getOfferAssetBundle(document.payload.customer.modelName)
+  const assets = await getOfferAssetBundle({
+    modelName: document.payload.customer.modelName,
+    catalogKey: document.payload.internal.catalogKey,
+    powertrainType: document.payload.internal.powertrainType,
+  })
   const absoluteLogoUrl = buildAbsoluteUrl(origin, assets.logoUrl)
   const heroImage = assets.images.premium[0] ?? assets.images.exterior[0] ?? assets.images.other[0] ?? null
   const absoluteHeroImage = heroImage ? buildAbsoluteUrl(origin, heroImage) : null
@@ -1833,70 +1854,6 @@ async function ensureUsersInDb(users: ManagedUser[]) {
       },
     })
   }
-}
-
-async function syncCatalogItemsToDb(catalogItems: DetailedPricingCatalogItem[]) {
-  if (!db) {
-    return new Map<string, string>()
-  }
-
-  const idsByKey = new Map<string, string>()
-
-  for (const item of catalogItems) {
-    const brandSetting = await db.brandSetting.upsert({
-      where: { brand: item.brand },
-      update: {
-        isActive: true,
-      },
-      create: {
-        brand: item.brand,
-      },
-    })
-
-    const existing = await db.salesCatalogItem.findFirst({
-      where: {
-        brand: item.brand,
-        model: item.model,
-        version: item.version,
-        year: item.year,
-      },
-    })
-
-    const record = existing
-      ? await db.salesCatalogItem.update({
-          where: { id: existing.id },
-          data: {
-            powertrain: item.powertrain,
-            powerHp: item.powerHp,
-            listPriceGross: item.listPriceGross,
-            listPriceNet: item.listPriceNet,
-            basePriceGross: item.basePriceGross,
-            basePriceNet: item.basePriceNet,
-            isActive: true,
-            brandSettingId: brandSetting.id,
-          },
-        })
-      : await db.salesCatalogItem.create({
-          data: {
-            brand: item.brand,
-            model: item.model,
-            version: item.version,
-            year: item.year,
-            powertrain: item.powertrain,
-            powerHp: item.powerHp,
-            listPriceGross: item.listPriceGross,
-            listPriceNet: item.listPriceNet,
-            basePriceGross: item.basePriceGross,
-            basePriceNet: item.basePriceNet,
-            isActive: true,
-            brandSettingId: brandSetting.id,
-          },
-        })
-
-    idsByKey.set(item.key, record.id)
-  }
-
-  return idsByKey
 }
 
 async function ensureCustomerFromLead(lead: ManagedLead, ownerId: string) {
