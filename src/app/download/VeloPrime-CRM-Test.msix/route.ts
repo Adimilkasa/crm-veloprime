@@ -1,4 +1,4 @@
-const CURRENT_MSIX_VERSION = '0.1.12.4'
+const CURRENT_MSIX_VERSION = '0.1.12.5'
 const GITHUB_RELEASE_URL = `https://github.com/Adimilkasa/crm-veloprime/releases/download/v${CURRENT_MSIX_VERSION}/veloprime_hybrid_app_${CURRENT_MSIX_VERSION}.msix`
 
 export async function GET() {

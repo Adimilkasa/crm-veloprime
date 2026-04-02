@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 export const metadata = {
@@ -8,26 +9,37 @@ export const metadata = {
 const highlights = [
   'Instalator Windows z aktualizacjami przez App Installer',
   'Połączenie z centralnym CRM VeloPrime po zalogowaniu',
-  'Pakiet gotowy do testu na drugim komputerze',
+  'Pakiet gotowy do wdrożenia na komputerach zespołu',
 ]
 
 const steps = [
-  'Pobierz plik instalacyjny App Installer.',
-  'Zaimportuj certyfikat testowy do magazynów Zaufane osoby i Zaufane główne urzędy certyfikacji.',
-  'Uruchom instalację i zaloguj się na konto testowe w aplikacji.',
+  'Pobierz App Installer i certyfikat testowy.',
+  'Zaimportuj certyfikat do magazynów Zaufane osoby i Zaufane główne urzędy certyfikacji.',
+  'Uruchom instalację, a potem zaloguj się do aplikacji VeloPrime CRM.',
+]
+
+const installNotes = [
+  'Aktualizacje aplikacji mogą być instalowane bez pełnej reinstalacji.',
+  'Po zalogowaniu klient pobiera tylko te dane i materiały, które zostały opublikowane centralnie.',
+  'Instalator jest przygotowany pod środowisko Windows i kanał aktualizacji App Installer.',
 ]
 
 export default function DownloadPage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,rgba(212,168,79,0.22),transparent_24%),radial-gradient(circle_at_12%_24%,rgba(255,249,238,0.92),transparent_20%),linear-gradient(180deg,#fcfcfa_0%,#f1ede5_100%)]">
+    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,rgba(212,168,79,0.22),transparent_24%),radial-gradient(circle_at_10%_16%,rgba(255,249,238,0.88),transparent_18%),linear-gradient(180deg,#fbfaf6_0%,#efe7d6_100%)]">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-8 lg:px-10 lg:py-10">
         <header className="flex items-center justify-between rounded-[26px] border border-[rgba(17,17,17,0.05)] bg-white/75 px-5 py-4 shadow-[0_14px_36px_rgba(15,15,15,0.05)] backdrop-blur-xl">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#9d7b27]">
-              VeloPrime CRM
+          <div className="flex items-center gap-4">
+            <div className="overflow-hidden rounded-[18px] border border-[rgba(17,17,17,0.06)] bg-[#111111] shadow-[0_14px_28px_rgba(15,15,15,0.10)]">
+              <Image src="/download/app-icon.png" alt="Ikona VeloPrime CRM" width={54} height={54} className="h-[54px] w-[54px] object-cover" />
             </div>
-            <div className="mt-1 text-sm text-[#5c564a]">
-              Publiczna strona pobierania aplikacji Windows
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#9d7b27]">
+                VeloPrime CRM
+              </div>
+              <div className="mt-1 text-sm text-[#5c564a]">
+                Instalator Windows i kanał aktualizacji aplikacji
+              </div>
             </div>
           </div>
           <Link
@@ -46,10 +58,10 @@ export default function DownloadPage() {
                 Windows App Delivery
               </div>
               <h1 className="mt-5 max-w-[11ch] text-4xl font-semibold leading-[0.98] text-[#181512] md:text-5xl lg:text-6xl">
-                Pobierz aplikację CRM VeloPrime.
+                Zainstaluj VeloPrime CRM na Windows.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-8 text-[#5d574c] md:text-lg">
-                Instalator jest publicznie dostępny bez logowania. Po instalacji aplikacja łączy się z centralnym środowiskiem CRM i pozwala zalogować się na istniejące konto testowe lub administracyjne.
+                Ten ekran prowadzi przez instalację klienta desktopowego, certyfikat testowy i pierwsze uruchomienie. Po instalacji aplikacja korzysta z centralnego środowiska CRM i kanału aktualizacji App Installer.
               </p>
 
               <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row">
@@ -83,17 +95,73 @@ export default function DownloadPage() {
                   </div>
                 ))}
               </div>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {installNotes.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-[22px] border border-[rgba(17,17,17,0.06)] bg-white/82 px-4 py-4 text-sm leading-6 text-[#4c463b] shadow-[0_10px_24px_rgba(15,15,15,0.04)]"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-[30px] border border-[rgba(17,17,17,0.06)] bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(247,243,235,0.92)_100%)] p-6 shadow-[0_22px_56px_rgba(15,15,15,0.06)]">
-              <div className="flex items-start justify-between gap-4">
+              <div className="rounded-[26px] border border-[rgba(17,17,17,0.06)] bg-[linear-gradient(180deg,#171717_0%,#232323_100%)] p-5 shadow-[0_18px_40px_rgba(15,15,15,0.16)]">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.1)] bg-black/30">
+                      <Image src="/download/app-icon.png" alt="Ikona aplikacji VeloPrime CRM" width={64} height={64} className="h-16 w-16 object-cover" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#d8b96f]">
+                        Instalator
+                      </div>
+                      <h2 className="mt-2 text-2xl font-semibold text-white">
+                        VeloPrime CRM
+                      </h2>
+                      <p className="mt-2 max-w-sm text-sm leading-6 text-white/72">
+                        Klient desktopowy dla sprzedaży, katalogu modeli i publikacji materiałów do oferty.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-full border border-[rgba(216,185,111,0.24)] bg-[rgba(216,185,111,0.12)] px-3 py-1 text-xs font-semibold text-[#f2d695]">
+                    Windows
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/6 px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#d8b96f]">
+                      Format
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-white">MSIX + App Installer</div>
+                  </div>
+                  <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/6 px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#d8b96f]">
+                      Aktualizacje
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-white">Kanał automatyczny</div>
+                  </div>
+                  <div className="rounded-[20px] border border-[rgba(255,255,255,0.08)] bg-white/6 px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#d8b96f]">
+                      Środowisko
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-white">Centralny CRM</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-start justify-between gap-4">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">
                     Start testu
                   </div>
-                  <h2 className="mt-3 text-2xl font-semibold text-[#1c1915]">
+                  <h3 className="mt-3 text-2xl font-semibold text-[#1c1915]">
                     Instalacja w 3 krokach
-                  </h2>
+                  </h3>
                 </div>
                 <div className="rounded-full border border-[rgba(201,161,59,0.24)] bg-[rgba(201,161,59,0.12)] px-3 py-1 text-xs font-semibold text-[#8f6b18]">
                   MSIX

@@ -247,6 +247,15 @@ class _PricingHomePageState extends State<PricingHomePage> {
     return null;
   }
 
+  CatalogPricingRecord? get _selectedPricing {
+    for (final pricing in _pricingRecords) {
+      if (pricing.id == _selectedPricingId) {
+        return pricing;
+      }
+    }
+    return null;
+  }
+
   Widget _buildTechnicalToolsPanel() => const SizedBox.shrink();
 
   int _versionCountForModel(String modelId) =>
@@ -934,30 +943,74 @@ class _PricingHomePageState extends State<PricingHomePage> {
                     message: 'Gdy tylko katalog będzie gotowy, pojawi się w tej zakładce.',
                     icon: Icons.car_rental_outlined,
                   )
-                : SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_isMutating)
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 12),
-                            child: LinearProgressIndicator(minHeight: 3),
-                          ),
-                        _buildHeroPanel(workspace),
-                        const SizedBox(height: 14),
-                        _buildCatalogOverviewPanel(),
-                        const SizedBox(height: 14),
-                        _buildSelectionSummaryPanel(),
-                        const SizedBox(height: 14),
-                        _buildBrandsPanel(),
-                        const SizedBox(height: 14),
-                        _buildModelsPanel(),
-                        const SizedBox(height: 14),
-                        _buildActiveVehicleWorkspace(),
-                        const SizedBox(height: 14),
-                        _buildTechnicalToolsPanel(),
-                      ],
-                    ),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth >= 1220;
+
+                      final body = isWide
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 9,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildCatalogOverviewPanel(),
+                                      const SizedBox(height: 12),
+                                      _buildBrandsPanel(),
+                                      const SizedBox(height: 12),
+                                      _buildModelsPanel(),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 11,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildSelectionSummaryPanel(),
+                                      const SizedBox(height: 12),
+                                      _buildActiveVehicleWorkspace(),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildCatalogOverviewPanel(),
+                                const SizedBox(height: 12),
+                                _buildSelectionSummaryPanel(),
+                                const SizedBox(height: 12),
+                                _buildBrandsPanel(),
+                                const SizedBox(height: 12),
+                                _buildModelsPanel(),
+                                const SizedBox(height: 12),
+                                _buildActiveVehicleWorkspace(),
+                              ],
+                            );
+
+                      return SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_isMutating)
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 10),
+                                child: LinearProgressIndicator(minHeight: 3),
+                              ),
+                            _buildHeroPanel(workspace),
+                            const SizedBox(height: 12),
+                            body,
+                            const SizedBox(height: 12),
+                            _buildTechnicalToolsPanel(),
+                          ],
+                        ),
+                      );
+                    },
                   );
 
     if (widget.embeddedInShell) {
@@ -977,7 +1030,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
     return VeloPrimeWorkspacePanel(
       tint: _accentColor,
       radius: 26,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -989,23 +1042,23 @@ class _PricingHomePageState extends State<PricingHomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const VeloPrimeSectionEyebrow(label: 'Polityka cenowa', color: _accentColor),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     const Text(
                       'Katalog samochodów i cen w aplikacji administratora.',
                       style: TextStyle(
                         color: VeloPrimePalette.ink,
-                        fontSize: 28,
+                        fontSize: 24,
                         height: 1.1,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       'Tutaj jednocześnie widzisz istniejące samochody w katalogu i konfigurujesz wybrany model. Marki i modele budują katalog, a karta aktywnego samochodu pozwala uzupełniać wersje, kolory, materiały i ceny.',
                       style: TextStyle(
                         color: VeloPrimePalette.muted.withValues(alpha: 0.92),
-                        fontSize: 13,
-                        height: 1.45,
+                        fontSize: 12,
+                        height: 1.35,
                       ),
                     ),
                   ],
@@ -1013,7 +1066,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -1068,7 +1121,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(22),
@@ -1091,7 +1144,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(height: 1),
                                   Text(
                                     brandModels.isEmpty
                                         ? 'Ta marka nie ma jeszcze żadnych modeli w katalogu.'
@@ -1176,29 +1229,29 @@ class _PricingHomePageState extends State<PricingHomePage> {
     return VeloPrimeWorkspacePanel(
       tint: const Color(0xFF52606D),
       radius: 24,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const VeloPrimeSectionEyebrow(label: 'Aktywny ciąg wyboru', color: Color(0xFF52606D)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           const Text(
             'Najpierw świadomie wybierasz samochód, dopiero potem edytujesz jego dane.',
             style: TextStyle(
               color: VeloPrimePalette.ink,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             _selectionHint(),
             style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: const Color(0xFFF7F3EC),
               borderRadius: BorderRadius.circular(18),
@@ -1209,7 +1262,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
               style: TextStyle(color: VeloPrimePalette.muted, height: 1.5),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1221,17 +1274,17 @@ class _PricingHomePageState extends State<PricingHomePage> {
               _InfoChip(label: 'Pliki materiałów: ${bundle?.files.length ?? 0}'),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             model == null
                 ? 'Dopóki nie wybierzesz modelu, nie dodasz przypadkowo koloru ani materiałów do niewłaściwego samochodu.'
                 : version == null
-                    ? 'Kolory i materiały zapisują się teraz dla modelu ${model.name}. Wybierz jeszcze wersję, jeśli chcesz dopisać ceny.'
-                    : 'Ceny zapiszą się wyłącznie dla wersji ${version.name}, a kolory i materiały pozostają wspólne dla modelu ${model.name}.',
+                    ? 'Kolory i materiały zapisują się teraz dla modelu ${model.name}. Zdjęcia są wspólne dla wszystkich wersji tego modelu, więc dodajesz je tylko raz. Wybierz jeszcze wersję, jeśli chcesz dopisać ceny.'
+                    : 'Ceny zapiszą się wyłącznie dla wersji ${version.name}, a kolory i materiały pozostają wspólne dla modelu ${model.name}. Zdjęć nie musisz dodawać ponownie dla innych wersji tego samego modelu.',
             style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
           ),
           if (model != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _buildCurrentVehicleInventoryPanel(),
           ],
         ],
@@ -1262,7 +1315,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -1279,12 +1332,12 @@ class _PricingHomePageState extends State<PricingHomePage> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             'Model ${model.name} ma już poniższe wersje, kolory, materiały i ceny. Po zapisie nowy rekord zostaje tu od razu widoczny.',
             style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1295,12 +1348,12 @@ class _PricingHomePageState extends State<PricingHomePage> {
               _StatCard(label: 'Ceny wybranej wersji', value: pricingRecords.length.toString()),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _InventorySubsection(
             title: 'Wersje',
             children: buildChips(versions.map(_buildVersionContextLabel).toList(), emptyLabel: 'Brak wersji'),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _InventorySubsection(
             title: 'Kolory',
             children: buildChips(
@@ -1308,7 +1361,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
               emptyLabel: 'Brak kolorów',
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _InventorySubsection(
             title: 'Materiały',
             children: buildChips(
@@ -1316,7 +1369,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
               emptyLabel: 'Brak plików',
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _InventorySubsection(
             title: 'Ceny aktywnej wersji',
             children: buildChips(
@@ -1339,23 +1392,23 @@ class _PricingHomePageState extends State<PricingHomePage> {
     return VeloPrimeWorkspacePanel(
       tint: const Color(0xFF3D405B),
       radius: 24,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const VeloPrimeSectionEyebrow(label: 'Aktywny samochód', color: Color(0xFF3D405B)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             model == null
                 ? 'Wybierz model samochodu, aby przejść do jego konfiguracji.'
                 : [if (brand != null) brand.name, model.name].join(' / '),
             style: const TextStyle(
               color: VeloPrimePalette.ink,
-              fontSize: 22,
+              fontSize: 19,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             model == null
                 ? 'Sekcje wersji, kolorów, materiałów i cen staną się aktywne dopiero po wyborze konkretnego modelu. Dzięki temu każda operacja ma jasny kontekst.'
@@ -1364,7 +1417,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
                     : 'Pracujesz na jednym modelu i jednej wersji. Kolory i materiały dotyczą modelu, a ceny dokładnie wybranej wersji.',
             style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           const Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1376,13 +1429,13 @@ class _PricingHomePageState extends State<PricingHomePage> {
               _InfoChip(label: 'Krok 5: ustaw ceny wersji'),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _buildVersionsPanel(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _buildColorsPanel(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _buildAssetsPanel(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _buildPricingPanel(),
         ],
       ),
@@ -1703,10 +1756,17 @@ class _PricingHomePageState extends State<PricingHomePage> {
           ? 'Najpierw wybierz wersję, aby zarządzać rekordami cenowymi.'
           : 'Pracujesz na wersji ${_buildVersionContextLabel(selectedVersion)}. Ceny netto są źródłem prawdy, a system automatycznie liczy brutto i pulę marżową.',
       actions: [
+        OutlinedButton.icon(
+          onPressed: _isMutating || _isReadOnlyWorkspace || _selectedPricing == null
+              ? null
+              : () => _handleCreateOrEditPricing(pricing: _selectedPricing),
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('Edytuj wybraną cenę'),
+        ),
         FilledButton.icon(
           onPressed: _isMutating || _isReadOnlyWorkspace || versions.isEmpty ? null : () => _handleCreateOrEditPricing(),
           icon: const Icon(Icons.price_change_outlined),
-          label: const Text('Dodaj ceny'),
+          label: const Text('Dodaj nową cenę'),
         ),
       ],
       child: selectedVersion == null
@@ -1714,53 +1774,65 @@ class _PricingHomePageState extends State<PricingHomePage> {
           : pricingRecords.isEmpty
               ? const _EmptySectionState(message: 'Ta wersja nie ma jeszcze żadnego rekordu cenowego.')
               : Column(
-                  children: pricingRecords.map((pricing) {
-                    final selected = pricing.id == _selectedPricingId;
-                    return _SelectableRecordCard(
-                      title: '${_pricingStatusLabel(pricing.pricingStatus)} • ${_formatMoney(pricing.listPriceNet)} netto',
-                      subtitle: 'Bazowa ${_formatMoney(pricing.basePriceNet)} • Pula ${_formatMoney(pricing.marginPoolNet)} • VAT ${pricing.vatRate}%',
-                      selected: selected,
-                      leading: Icon(
-                        pricing.isPublished ? Icons.verified_outlined : Icons.request_quote_outlined,
-                        color: pricing.isPublished ? VeloPrimePalette.olive : const Color(0xFF9C6644),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    ...pricingRecords.map((pricing) {
+                      final selected = pricing.id == _selectedPricingId;
+                      return _SelectableRecordCard(
+                        title: '${_pricingStatusLabel(pricing.pricingStatus)} • ${_formatMoney(pricing.listPriceNet)} netto',
+                        subtitle: 'Bazowa ${_formatMoney(pricing.basePriceNet)} • Pula ${_formatMoney(pricing.marginPoolNet)} • VAT ${pricing.vatRate}%',
+                        selected: selected,
+                        leading: Icon(
+                          pricing.isPublished ? Icons.verified_outlined : Icons.request_quote_outlined,
+                          color: pricing.isPublished ? VeloPrimePalette.olive : const Color(0xFF9C6644),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _selectedPricingId = pricing.id;
+                          });
+                        },
+                        footer: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _InfoChip(label: 'Zaktualizowano ${_formatDate(pricing.updatedAt)}'),
+                            if (pricing.effectiveFrom != null) _InfoChip(label: 'Od ${_formatDate(pricing.effectiveFrom)}'),
+                            if (pricing.effectiveTo != null) _InfoChip(label: 'Do ${_formatDate(pricing.effectiveTo)}'),
+                            _InfoChip(label: 'Brutto ${_formatMoney(pricing.listPriceGross)}'),
+                          ],
+                        ),
+                        trailing: Wrap(
+                          spacing: 4,
+                          children: [
+                            IconButton(
+                              tooltip: 'Edytuj rekord cenowy',
+                              onPressed: _isMutating || _isReadOnlyWorkspace ? null : () => _handleCreateOrEditPricing(pricing: pricing),
+                              icon: const Icon(Icons.edit_outlined),
+                            ),
+                            IconButton(
+                              tooltip: 'Publikuj ceny',
+                              onPressed: _isMutating || _isReadOnlyWorkspace || pricing.isPublished ? null : () => _handlePublishPricing(pricing),
+                              icon: const Icon(Icons.publish_outlined),
+                            ),
+                            IconButton(
+                              tooltip: 'Archiwizuj ceny',
+                              onPressed: _isMutating || _isReadOnlyWorkspace || pricing.isArchived ? null : () => _handleArchivePricing(pricing),
+                              icon: const Icon(Icons.archive_outlined),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        _selectedPricing == null
+                            ? 'Kliknij rekord cenowy, aby włączyć jego edycję. Nie musisz dodawać ceny od nowa, jeśli chcesz tylko poprawić pomyłkę.'
+                            : 'Wybrany rekord cenowy jest gotowy do edycji przyciskiem „Edytuj wybraną cenę”.',
+                        style: const TextStyle(color: VeloPrimePalette.muted, height: 1.35, fontSize: 12),
                       ),
-                      onTap: () {
-                        setState(() {
-                          _selectedPricingId = pricing.id;
-                        });
-                      },
-                      footer: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _InfoChip(label: 'Zaktualizowano ${_formatDate(pricing.updatedAt)}'),
-                          if (pricing.effectiveFrom != null) _InfoChip(label: 'Od ${_formatDate(pricing.effectiveFrom)}'),
-                          if (pricing.effectiveTo != null) _InfoChip(label: 'Do ${_formatDate(pricing.effectiveTo)}'),
-                          _InfoChip(label: 'Brutto ${_formatMoney(pricing.listPriceGross)}'),
-                        ],
-                      ),
-                      trailing: Wrap(
-                        spacing: 4,
-                        children: [
-                          IconButton(
-                            tooltip: 'Edytuj rekord cenowy',
-                            onPressed: _isMutating || _isReadOnlyWorkspace ? null : () => _handleCreateOrEditPricing(pricing: pricing),
-                            icon: const Icon(Icons.edit_outlined),
-                          ),
-                          IconButton(
-                            tooltip: 'Publikuj ceny',
-                            onPressed: _isMutating || _isReadOnlyWorkspace || pricing.isPublished ? null : () => _handlePublishPricing(pricing),
-                            icon: const Icon(Icons.publish_outlined),
-                          ),
-                          IconButton(
-                            tooltip: 'Archiwizuj ceny',
-                            onPressed: _isMutating || _isReadOnlyWorkspace || pricing.isArchived ? null : () => _handleArchivePricing(pricing),
-                            icon: const Icon(Icons.archive_outlined),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                    ),
+                  ],
                 ),
     );
   }
