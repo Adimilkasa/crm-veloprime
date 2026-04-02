@@ -11,7 +11,8 @@ import { sendTransactionalEmail } from '@/lib/email-service'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
 import { createManagedLead, listManagedLeads, listManagedLeadStages, logManagedLeadActivity, type ManagedLead } from '@/lib/lead-management'
 import { calculateOfferSummary, type OfferCalculationSummary, type OfferCustomerType } from '@/lib/offer-calculations'
-import { findSalesCatalogItemByKey, listSalesCatalogItems, listSalesModelColorPalettes, syncLegacyCatalogItemsToDb, type SalesCatalogRuntimeItem } from '@/lib/sales-catalog-management'
+import { syncLegacyCatalogItemsToDb, type SalesCatalogRuntimeItem } from '@/lib/sales-catalog-management'
+import { findPublishedSalesCatalogItemByKey, listPublishedSalesCatalogItems, listPublishedSalesModelColorPalettes } from '@/lib/update-management'
 import { listManagedUsers, type ManagedUser } from '@/lib/user-management'
 
 export type OfferStatus = 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
@@ -637,8 +638,8 @@ async function resolveOfferPricing(input: {
   }
 
   const [catalogItem, palettes, commissionRules, users] = await Promise.all([
-    findSalesCatalogItemByKey(input.pricingCatalogKey),
-    listSalesModelColorPalettes(),
+    findPublishedSalesCatalogItemByKey(input.pricingCatalogKey),
+    listPublishedSalesModelColorPalettes(),
     listActiveCommissionRules(),
     listManagedUsers(),
   ])
@@ -815,8 +816,8 @@ export async function listManagedOffers(session: AuthSession) {
 export async function listManagedOffersWithCalculation(session: AuthSession) {
   const [offers, catalogItems, palettes, commissionRules, users] = await Promise.all([
     listManagedOffers(session),
-    listSalesCatalogItems(),
-    listSalesModelColorPalettes(),
+    listPublishedSalesCatalogItems(),
+    listPublishedSalesModelColorPalettes(),
     listActiveCommissionRules(),
     listManagedUsers(),
   ])
@@ -854,8 +855,8 @@ export async function getManagedOfferWithCalculation(session: AuthSession, offer
   }
 
   const [catalogItems, palettes, commissionRules, users] = await Promise.all([
-    listSalesCatalogItems(),
-    listSalesModelColorPalettes(),
+    listPublishedSalesCatalogItems(),
+    listPublishedSalesModelColorPalettes(),
     listActiveCommissionRules(),
     listManagedUsers(),
   ])
@@ -889,7 +890,7 @@ export async function getOfferDocumentSnapshot(session: AuthSession, offerId: st
     ? offer.versions.find((entry) => entry.id === versionId) ?? null
     : offer.versions[0] ?? null
 
-  const catalogItem = offer.pricingCatalogKey ? await findSalesCatalogItemByKey(offer.pricingCatalogKey) : null
+  const catalogItem = offer.pricingCatalogKey ? await findPublishedSalesCatalogItemByKey(offer.pricingCatalogKey) : null
 
   if (version?.payloadJson && version.customerSnapshotJson && version.internalSnapshotJson) {
     return {
@@ -919,7 +920,7 @@ export async function listOfferLeadOptions(session: AuthSession) {
 }
 
 export async function listOfferPricingOptions() {
-  const catalogItems = await listSalesCatalogItems()
+  const catalogItems = await listPublishedSalesCatalogItems()
 
   return catalogItems.map((item) => ({
     key: item.key,
@@ -1050,7 +1051,7 @@ export async function createManagedOffer(
 
   if (isPrismaOfferStorageEnabled() && db) {
     await ensureUsersInDb(users)
-    const catalogItems = await listSalesCatalogItems()
+    const catalogItems = await listPublishedSalesCatalogItems()
     const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
     const customer = lead
       ? await ensureCustomerFromLead(lead, ownerId)
@@ -1261,7 +1262,7 @@ export async function updateManagedOffer(
 
   if (isPrismaOfferStorageEnabled() && db) {
     await ensureUsersInDb(await listManagedUsers())
-    const catalogItems = await listSalesCatalogItems()
+    const catalogItems = await listPublishedSalesCatalogItems()
     const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
 
     if (!offer.leadId) {
@@ -1360,7 +1361,7 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
     return { ok: false as const, error: 'Nie znaleziono oferty.' }
   }
 
-  const catalogItem = offer.pricingCatalogKey ? await findSalesCatalogItemByKey(offer.pricingCatalogKey) : null
+  const catalogItem = offer.pricingCatalogKey ? await findPublishedSalesCatalogItemByKey(offer.pricingCatalogKey) : null
   const versionId = `offer-version-${crypto.randomUUID()}`
   const versionNumber = offer.versions.length + 1
   const payload = buildOfferVersionSnapshot(offer, versionId, versionNumber, catalogItem)

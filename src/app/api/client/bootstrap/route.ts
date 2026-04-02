@@ -3,8 +3,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { listManagedLeadStages, listManagedLeads, type ManagedLead } from '@/lib/lead-management'
 import { listManagedOffers, listOfferLeadOptions, listOfferPricingOptions, offerStatusOptions } from '@/lib/offer-management'
-import { getSalesCatalogBootstrap } from '@/lib/sales-catalog-management'
-import { getPublishedUpdateManifest } from '@/lib/update-management'
+import { getPublishedSalesCatalogBootstrap, getPublishedUpdateManifest } from '@/lib/update-management'
 
 function normalizeComparable(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? ''
@@ -38,7 +37,7 @@ export async function GET() {
 
   const [manifest, catalog, offers, leads, leadOptions, pricingOptions, leadStages] = await Promise.all([
     getPublishedUpdateManifest(),
-    getSalesCatalogBootstrap(),
+    getPublishedSalesCatalogBootstrap(),
     listManagedOffers(session),
     listManagedLeads(session),
     listOfferLeadOptions(session),

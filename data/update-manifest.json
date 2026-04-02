@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v15",
+      "version": "v16",
       "publishedAt": "2026-03-31T23:15:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.1 fixes offer material lookup for uploaded model assets and keeps the denser catalog administrator layout.",
+      "summary": "Flutter client 0.1.12.2 adds draft-vs-published catalog workflow so handlowcy and offers use only opublikowane dane.",
       "priority": "STANDARD"
     }
   ]

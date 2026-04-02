@@ -189,9 +189,9 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
   String _artifactDescription(String artifactType) {
     switch (artifactType) {
       case 'DATA':
-        return 'Wersjonowanie katalogu sprzedażowego, cen, wersji i palet kolorów dla wszystkich klientów.';
+        return 'Publikacja katalogu sprzedażowego, cen, wersji i palet kolorów dla całego zespołu po zapisaniu zmian przez administratora.';
       case 'ASSETS':
-        return 'Wersjonowanie zdjęć, grafik premium i PDF specyfikacji przypiętych do modeli.';
+        return 'Publikacja zdjęć, grafik premium i PDF specyfikacji przypiętych do modeli po przygotowaniu materiałów.';
       case 'APPLICATION':
         return 'Wersjonowanie samej aplikacji instalowanej u handlowców i administratorów.';
       default:
@@ -242,8 +242,8 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
               const SizedBox(height: 14),
               Text(
                 pendingCount == 0
-                    ? 'Lokalne wersje klienta są zgodne z opublikowanym manifestem. W tym miejscu publikujesz kolejne paczki dla zespołu.'
-                    : 'Lokalny klient jest już za opublikowanym manifestem. Przed dalszą pracą możesz ocenić różnice i opublikować kolejne paczki świadomie.',
+                  ? 'Lokalne wersje klienta są zgodne z opublikowanym manifestem. W tym miejscu zatwierdzasz zmiany katalogu i materiałów dla całego zespołu.'
+                  : 'Lokalny klient jest już za opublikowanym manifestem. Przed dalszą pracą możesz ocenić różnice i świadomie opublikować kolejne paczki.',
                 style: TextStyle(
                   color: VeloPrimePalette.muted.withValues(alpha: 0.96),
                   fontSize: 15,

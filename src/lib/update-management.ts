@@ -4,7 +4,16 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { AuthSession } from '@/lib/auth'
-import { getSalesCatalogBootstrap } from '@/lib/sales-catalog-management'
+import type { ModelColorPalette } from '@/lib/color-management'
+import {
+  getSalesCatalogBootstrap,
+  type SalesCatalogBootstrapAssetSummary,
+  type SalesCatalogBootstrapBrand,
+  type SalesCatalogBootstrapModel,
+  type SalesCatalogBootstrapPayload,
+  type SalesCatalogBootstrapVersion,
+  type SalesCatalogRuntimeItem,
+} from '@/lib/sales-catalog-management'
 
 export type UpdateArtifactType = 'DATA' | 'ASSETS' | 'APPLICATION'
 export type UpdatePriority = 'CRITICAL' | 'STANDARD'
@@ -43,7 +52,23 @@ export type VersionComparisonResult = {
 
 const UPDATE_DATA_DIR = path.join(process.cwd(), 'data')
 const UPDATE_MANIFEST_PATH = path.join(UPDATE_DATA_DIR, 'update-manifest.json')
+const PUBLISHED_CATALOG_DATA_PATH = path.join(UPDATE_DATA_DIR, 'published-sales-catalog-data.json')
+const PUBLISHED_CATALOG_ASSETS_PATH = path.join(UPDATE_DATA_DIR, 'published-sales-catalog-assets.json')
 const UPDATE_ARTIFACT_TYPES: UpdateArtifactType[] = ['DATA', 'ASSETS', 'APPLICATION']
+
+type PublishedCatalogDataSnapshot = {
+  generatedAt: string
+  brands: SalesCatalogBootstrapBrand[]
+  models: SalesCatalogBootstrapModel[]
+  versions: SalesCatalogBootstrapVersion[]
+  pricingRecords: SalesCatalogRuntimeItem[]
+  colorPalettes: ModelColorPalette[]
+}
+
+type PublishedCatalogAssetsSnapshot = {
+  generatedAt: string
+  assetBundles: SalesCatalogBootstrapAssetSummary[]
+}
 
 let inMemoryManifest: UpdateManifest | null = null
 
@@ -164,6 +189,131 @@ async function writeStore(manifest: UpdateManifest) {
   } catch {
     // Ignore filesystem write failures in serverless hosting.
   }
+}
+
+async function readPublishedCatalogDataStore() {
+  try {
+    const raw = await readFile(PUBLISHED_CATALOG_DATA_PATH, 'utf8')
+    const parsed = JSON.parse(raw) as PublishedCatalogDataSnapshot
+
+    if (!parsed || typeof parsed !== 'object') {
+      return null
+    }
+
+    if (!Array.isArray(parsed.brands) || !Array.isArray(parsed.models) || !Array.isArray(parsed.versions) || !Array.isArray(parsed.pricingRecords) || !Array.isArray(parsed.colorPalettes)) {
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+async function readPublishedCatalogAssetsStore() {
+  try {
+    const raw = await readFile(PUBLISHED_CATALOG_ASSETS_PATH, 'utf8')
+    const parsed = JSON.parse(raw) as PublishedCatalogAssetsSnapshot
+
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.assetBundles)) {
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+async function writePublishedCatalogDataStore(catalog: SalesCatalogBootstrapPayload) {
+  const snapshot: PublishedCatalogDataSnapshot = {
+    generatedAt: new Date().toISOString(),
+    brands: catalog.brands,
+    models: catalog.models,
+    versions: catalog.versions,
+    pricingRecords: catalog.pricingRecords,
+    colorPalettes: catalog.colorPalettes,
+  }
+
+  await mkdir(UPDATE_DATA_DIR, { recursive: true })
+  await writeFile(PUBLISHED_CATALOG_DATA_PATH, JSON.stringify(snapshot, null, 2), 'utf8')
+}
+
+async function writePublishedCatalogAssetsStore(catalog: SalesCatalogBootstrapPayload) {
+  const snapshot: PublishedCatalogAssetsSnapshot = {
+    generatedAt: new Date().toISOString(),
+    assetBundles: catalog.assetBundles,
+  }
+
+  await mkdir(UPDATE_DATA_DIR, { recursive: true })
+  await writeFile(PUBLISHED_CATALOG_ASSETS_PATH, JSON.stringify(snapshot, null, 2), 'utf8')
+}
+
+function buildCatalogStats(input: {
+  brands: SalesCatalogBootstrapBrand[]
+  models: SalesCatalogBootstrapModel[]
+  versions: SalesCatalogBootstrapVersion[]
+  pricingRecords: SalesCatalogRuntimeItem[]
+  colorPalettes: ModelColorPalette[]
+  assetBundles: SalesCatalogBootstrapAssetSummary[]
+}) {
+  return {
+    brands: input.brands.length,
+    models: input.models.length,
+    versions: input.versions.length,
+    pricingRecords: input.pricingRecords.length,
+    colorPalettes: input.colorPalettes.length,
+    colors: input.colorPalettes.reduce((sum, palette) => sum + palette.colors.length, 0),
+    assetBundles: input.assetBundles.length,
+    assetFiles: input.assetBundles.reduce((sum, bundle) => sum + bundle.totalFiles, 0),
+  }
+}
+
+export async function getPublishedSalesCatalogBootstrap() {
+  const liveCatalog = await getSalesCatalogBootstrap()
+  const [dataSnapshot, assetsSnapshot] = await Promise.all([
+    readPublishedCatalogDataStore(),
+    readPublishedCatalogAssetsStore(),
+  ])
+
+  const brands = dataSnapshot?.brands ?? liveCatalog.brands
+  const models = dataSnapshot?.models ?? liveCatalog.models
+  const versions = dataSnapshot?.versions ?? liveCatalog.versions
+  const pricingRecords = dataSnapshot?.pricingRecords ?? liveCatalog.pricingRecords
+  const colorPalettes = dataSnapshot?.colorPalettes ?? liveCatalog.colorPalettes
+  const assetBundles = assetsSnapshot?.assetBundles ?? liveCatalog.assetBundles
+
+  return {
+    brands,
+    models,
+    versions,
+    pricingRecords,
+    colorPalettes,
+    assetBundles,
+    stats: buildCatalogStats({
+      brands,
+      models,
+      versions,
+      pricingRecords,
+      colorPalettes,
+      assetBundles,
+    }),
+  } satisfies SalesCatalogBootstrapPayload
+}
+
+export async function listPublishedSalesCatalogItems() {
+  const catalog = await getPublishedSalesCatalogBootstrap()
+  return catalog.pricingRecords
+}
+
+export async function findPublishedSalesCatalogItemByKey(key: string) {
+  const items = await listPublishedSalesCatalogItems()
+  return items.find((item) => item.key === key) ?? null
+}
+
+export async function listPublishedSalesModelColorPalettes() {
+  const catalog = await getPublishedSalesCatalogBootstrap()
+  return catalog.colorPalettes
 }
 
 function nextVersion(currentVersion: string) {
@@ -298,6 +448,18 @@ export async function publishUpdate(
 
   if (!artifactSnapshot.ok) {
     return { ok: false as const, error: artifactSnapshot.error, status: 400 }
+  }
+
+  if (input.artifactType === 'DATA' || input.artifactType === 'ASSETS') {
+    const catalog = await getSalesCatalogBootstrap()
+
+    if (input.artifactType === 'DATA') {
+      await writePublishedCatalogDataStore(catalog)
+    }
+
+    if (input.artifactType === 'ASSETS') {
+      await writePublishedCatalogAssetsStore(catalog)
+    }
   }
 
   const manifest = await readStore()
