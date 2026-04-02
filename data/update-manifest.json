@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v19",
-      "publishedAt": "2026-04-02T12:00:00.000Z",
+      "version": "v20",
+      "publishedAt": "2026-04-02T18:00:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.5 adds the updated application icon and a redesigned Windows download screen.",
+      "summary": "Flutter client 0.1.12.6 adds advisor profiles with avatars and the redesigned premium offer experience.",
       "priority": "STANDARD"
     }
   ]
