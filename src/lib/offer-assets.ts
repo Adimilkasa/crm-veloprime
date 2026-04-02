@@ -104,12 +104,25 @@ async function getDatabaseAssetBundle(input: OfferAssetLookupInput): Promise<Off
   if (parsedCatalogKey) {
     const version = await db.salesVersion.findFirst({
       where: {
-        name: parsedCatalogKey.version,
-        year: parsedCatalogKey.year ? Number(parsedCatalogKey.year) : null,
+        name: {
+          equals: parsedCatalogKey.version,
+          mode: 'insensitive',
+        },
+        ...(parsedCatalogKey.year
+          ? {
+              year: Number(parsedCatalogKey.year),
+            }
+          : {}),
         model: {
-          name: parsedCatalogKey.model,
+          name: {
+            equals: parsedCatalogKey.model,
+            mode: 'insensitive',
+          },
           brand: {
-            name: parsedCatalogKey.brand,
+            name: {
+              equals: parsedCatalogKey.brand,
+              mode: 'insensitive',
+            },
           },
         },
       },
@@ -137,7 +150,10 @@ async function getDatabaseAssetBundle(input: OfferAssetLookupInput): Promise<Off
       where: {
         isActive: true,
         model: {
-          name: input.modelName,
+          name: {
+            equals: input.modelName,
+            mode: 'insensitive',
+          },
         },
       },
       include: {
