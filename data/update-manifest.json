@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v12",
+      "version": "v13",
       "publishedAt": "2026-03-31T23:15:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.11.0 includes the rebuilt catalog and pricing workspace for the desktop admin flow, keeps the installed version visible in navigation, and remains signed with the production test certificate.",
+      "summary": "Flutter client 0.1.11.1 contains the latest catalog workspace UX improvements, including visible existing vehicles and clearer editing context for administrator flows.",
       "priority": "STANDARD"
     }
   ]

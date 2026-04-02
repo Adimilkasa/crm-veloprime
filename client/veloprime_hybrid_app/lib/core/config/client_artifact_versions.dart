@@ -3,8 +3,8 @@ class ClientArtifactVersions {
 
   static const String data = 'v1';
   static const String assets = 'v1';
-  static const String application = 'v12';
-  static const String release = '0.1.11.0';
+  static const String application = 'v13';
+  static const String release = '0.1.11.1';
 
   static String get releaseLabel => 'wersja $release';
 }
