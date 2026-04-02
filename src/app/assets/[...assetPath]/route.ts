@@ -8,6 +8,7 @@ import { db } from '@/lib/db'
 const ALLOWED_ROOTS = new Map([
   ['grafiki', path.join(process.cwd(), 'client', 'veloprime_hybrid_app', 'assets', 'offers', 'grafiki')],
   ['spec', path.join(process.cwd(), 'client', 'veloprime_hybrid_app', 'assets', 'offers', 'spec')],
+  ['uploads', path.join(process.cwd(), '.vercel-blob-cache')],
 ])
 
 function getContentType(filePath: string) {
@@ -68,7 +69,14 @@ export async function GET(
 
     const relativePath = [root, ...rest].join('/')
     const uploadedAsset = await db.salesAssetFile.findFirst({
-      where: { filePath: relativePath },
+      where: root === 'uploads'
+        ? {
+            OR: [
+              { filePath: relativePath },
+              { fileName: rest[rest.length - 1] ?? '' },
+            ],
+          }
+        : { filePath: relativePath },
       select: {
         fileDataBase64: true,
         mimeType: true,

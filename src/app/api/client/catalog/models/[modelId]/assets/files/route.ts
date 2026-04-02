@@ -40,6 +40,9 @@ async function storeUploadedFile(modelId: string, formData: FormData) {
 
   const arrayBuffer = await upload.arrayBuffer()
   const fileBuffer = Buffer.from(arrayBuffer)
+  const categorySegment = sanitizeSegment(category || 'other') || 'other'
+  const modelSegment = sanitizeSegment(model?.code ?? modelId) || sanitizeSegment(modelId) || 'model'
+  const powertrainSegment = powertrainType ? sanitizeSegment(powertrainType) : ''
 
   let storedPath = requestedFileName || safeFileName
   let fileDataBase64: string | null = fileBuffer.toString('base64')
@@ -56,6 +59,10 @@ async function storeUploadedFile(modelId: string, formData: FormData) {
 
     storedPath = blob.url
     fileDataBase64 = null
+  } else {
+    storedPath = powertrainSegment.length > 0
+      ? `uploads/${modelSegment}/${categorySegment}/${powertrainSegment}/${safeFileName}`
+      : `uploads/${modelSegment}/${categorySegment}/${safeFileName}`
   }
 
   return {

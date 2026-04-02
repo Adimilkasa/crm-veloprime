@@ -66,6 +66,10 @@ function buildPublicAssetUrlFromRelativePath(filePath: string) {
     .map((segment) => segment.trim())
     .filter((segment) => segment.length > 0)
 
+  if (sanitizedPath.length == 1) {
+    return buildPublicAssetUrl('uploads', sanitizedPath[0])
+  }
+
   return buildPublicAssetUrl(...sanitizedPath)
 }
 

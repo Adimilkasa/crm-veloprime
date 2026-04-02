@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v17",
+      "version": "v18",
       "publishedAt": "2026-03-31T23:15:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.3 adds Vercel Blob storage for uploaded materials and removes legacy catalog fallback from production workflow.",
+      "summary": "Flutter client 0.1.12.4 fixes offer asset lookup for uploaded materials without Blob-backed absolute paths.",
       "priority": "STANDARD"
     }
   ]
