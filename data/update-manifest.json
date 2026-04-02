@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v13",
+      "version": "v14",
       "publishedAt": "2026-03-31T23:15:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.11.1 contains the latest catalog workspace UX improvements, including visible existing vehicles and clearer editing context for administrator flows.",
+      "summary": "Flutter client 0.1.12.0 contains the latest catalog workspace UX improvements plus persisted model material uploads and a denser administrator layout.",
       "priority": "STANDARD"
     }
   ]

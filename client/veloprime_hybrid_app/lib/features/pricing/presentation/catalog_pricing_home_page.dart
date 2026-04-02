@@ -985,17 +985,17 @@ class _PricingHomePageState extends State<PricingHomePage> {
                             child: LinearProgressIndicator(minHeight: 3),
                           ),
                         _buildHeroPanel(workspace),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 14),
                         _buildCatalogOverviewPanel(),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 14),
                         _buildSelectionSummaryPanel(),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 14),
                         _buildBrandsPanel(),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 14),
                         _buildModelsPanel(),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 14),
                         _buildActiveVehicleWorkspace(),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 14),
                         _buildTechnicalToolsPanel(),
                       ],
                     ),
@@ -1008,7 +1008,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Polityka cenowa')),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: content,
       ),
     );
@@ -1017,8 +1017,8 @@ class _PricingHomePageState extends State<PricingHomePage> {
   Widget _buildHeroPanel(CatalogWorkspaceData workspace) {
     return VeloPrimeWorkspacePanel(
       tint: _accentColor,
-      radius: 32,
-      padding: const EdgeInsets.all(28),
+      radius: 26,
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1035,25 +1035,25 @@ class _PricingHomePageState extends State<PricingHomePage> {
                       'Katalog samochodów i cen w aplikacji administratora.',
                       style: TextStyle(
                         color: VeloPrimePalette.ink,
-                        fontSize: 34,
-                        height: 1.08,
+                        fontSize: 28,
+                        height: 1.1,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Text(
                       'Tutaj jednocześnie widzisz istniejące samochody w katalogu i konfigurujesz wybrany model. Marki i modele budują katalog, a karta aktywnego samochodu pozwala uzupełniać wersje, kolory, materiały i ceny.',
                       style: TextStyle(
                         color: VeloPrimePalette.muted.withValues(alpha: 0.92),
-                        fontSize: 15,
-                        height: 1.6,
+                        fontSize: 13,
+                        height: 1.45,
                       ),
                     ),
                     if (!workspace.databaseReady) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF3E8),
                           borderRadius: BorderRadius.circular(18),
@@ -1083,10 +1083,10 @@ class _PricingHomePageState extends State<PricingHomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Wrap(
-            spacing: 14,
-            runSpacing: 14,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               _StatCard(label: 'Marki', value: workspace.stats.brands.toString()),
               _StatCard(label: 'Modele', value: workspace.stats.models.toString()),
@@ -1138,7 +1138,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(22),
@@ -1157,16 +1157,16 @@ class _PricingHomePageState extends State<PricingHomePage> {
                                     brand.name,
                                     style: const TextStyle(
                                       color: VeloPrimePalette.ink,
-                                      fontSize: 18,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 2),
                                   Text(
                                     brandModels.isEmpty
                                         ? 'Ta marka nie ma jeszcze żadnych modeli w katalogu.'
                                         : 'Modele tej marki: ${brandModels.length}. Kliknij model, aby pracować na jego karcie konfiguracji.',
-                                    style: const TextStyle(color: VeloPrimePalette.muted, height: 1.45),
+                                    style: const TextStyle(color: VeloPrimePalette.muted, height: 1.35, fontSize: 12),
                                   ),
                                 ],
                               ),
@@ -1178,7 +1178,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 10),
                         if (brandModels.isEmpty)
                           const _EmptySectionState(message: 'Brak modeli dla tej marki.')
                         else
@@ -1245,30 +1245,30 @@ class _PricingHomePageState extends State<PricingHomePage> {
 
     return VeloPrimeWorkspacePanel(
       tint: const Color(0xFF52606D),
-      radius: 28,
-      padding: const EdgeInsets.all(24),
+      radius: 24,
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const VeloPrimeSectionEyebrow(label: 'Aktywny ciąg wyboru', color: Color(0xFF52606D)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           const Text(
             'Najpierw świadomie wybierasz samochód, dopiero potem edytujesz jego dane.',
             style: TextStyle(
               color: VeloPrimePalette.ink,
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             _selectionHint(),
-            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.55),
+            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFF7F3EC),
               borderRadius: BorderRadius.circular(18),
@@ -1279,10 +1279,10 @@ class _PricingHomePageState extends State<PricingHomePage> {
               style: TextStyle(color: VeloPrimePalette.muted, height: 1.5),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _InfoChip(label: 'Marka: ${brand?.name ?? '—'}'),
               _InfoChip(label: 'Model: ${model?.name ?? '—'}'),
@@ -1291,17 +1291,17 @@ class _PricingHomePageState extends State<PricingHomePage> {
               _InfoChip(label: 'Pliki materiałów: ${bundle?.files.length ?? 0}'),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Text(
             model == null
                 ? 'Dopóki nie wybierzesz modelu, nie dodasz przypadkowo koloru ani materiałów do niewłaściwego samochodu.'
                 : version == null
                     ? 'Kolory i materiały zapisują się teraz dla modelu ${model.name}. Wybierz jeszcze wersję, jeśli chcesz dopisać ceny.'
                     : 'Ceny zapiszą się wyłącznie dla wersji ${version.name}, a kolory i materiały pozostają wspólne dla modelu ${model.name}.',
-            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.55),
+            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
           ),
           if (model != null) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             _buildCurrentVehicleInventoryPanel(),
           ],
         ],
@@ -1332,7 +1332,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -1345,19 +1345,19 @@ class _PricingHomePageState extends State<PricingHomePage> {
             'Co już dodano do tego samochodu',
             style: TextStyle(
               color: VeloPrimePalette.ink,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             'Model ${model.name} ma już poniższe wersje, kolory, materiały i ceny. Po zapisie nowy rekord zostaje tu od razu widoczny.',
-            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.5),
+            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _StatCard(label: 'Wersje modelu', value: versions.length.toString()),
               _StatCard(label: 'Kolory modelu', value: colors.length.toString()),
@@ -1365,12 +1365,12 @@ class _PricingHomePageState extends State<PricingHomePage> {
               _StatCard(label: 'Ceny wybranej wersji', value: pricingRecords.length.toString()),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _InventorySubsection(
             title: 'Wersje',
             children: buildChips(versions.map(_buildVersionContextLabel).toList(), emptyLabel: 'Brak wersji'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _InventorySubsection(
             title: 'Kolory',
             children: buildChips(
@@ -1378,7 +1378,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
               emptyLabel: 'Brak kolorów',
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _InventorySubsection(
             title: 'Materiały',
             children: buildChips(
@@ -1386,7 +1386,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
               emptyLabel: 'Brak plików',
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _InventorySubsection(
             title: 'Ceny aktywnej wersji',
             children: buildChips(
@@ -1408,33 +1408,33 @@ class _PricingHomePageState extends State<PricingHomePage> {
 
     return VeloPrimeWorkspacePanel(
       tint: const Color(0xFF3D405B),
-      radius: 30,
-      padding: const EdgeInsets.all(24),
+      radius: 24,
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const VeloPrimeSectionEyebrow(label: 'Aktywny samochód', color: Color(0xFF3D405B)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             model == null
                 ? 'Wybierz model samochodu, aby przejść do jego konfiguracji.'
                 : [if (brand != null) brand.name, model.name].join(' / '),
             style: const TextStyle(
               color: VeloPrimePalette.ink,
-              fontSize: 28,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             model == null
                 ? 'Sekcje wersji, kolorów, materiałów i cen staną się aktywne dopiero po wyborze konkretnego modelu. Dzięki temu każda operacja ma jasny kontekst.'
                 : version == null
                     ? 'Pracujesz na jednym modelu. Najpierw ustaw wersje, kolory i materiały tego samochodu. Ceny odblokują się po wskazaniu konkretnej wersji.'
                     : 'Pracujesz na jednym modelu i jednej wersji. Kolory i materiały dotyczą modelu, a ceny dokładnie wybranej wersji.',
-            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.55),
+            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           const Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1446,13 +1446,13 @@ class _PricingHomePageState extends State<PricingHomePage> {
               _InfoChip(label: 'Krok 5: ustaw ceny wersji'),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           _buildVersionsPanel(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           _buildColorsPanel(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           _buildAssetsPanel(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           _buildPricingPanel(),
         ],
       ),
@@ -2905,8 +2905,8 @@ class _AdminSectionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return VeloPrimeWorkspacePanel(
       tint: tint,
-      radius: 28,
-      padding: const EdgeInsets.all(24),
+      radius: 22,
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2918,21 +2918,22 @@ class _AdminSectionPanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     VeloPrimeSectionEyebrow(label: title, color: tint),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                     Text(
                       title,
                       style: const TextStyle(
                         color: VeloPrimePalette.ink,
-                        fontSize: 26,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       subtitle,
                       style: const TextStyle(
                         color: VeloPrimePalette.muted,
-                        height: 1.55,
+                        height: 1.4,
+                        fontSize: 13,
                       ),
                     ),
                   ],
@@ -2942,7 +2943,7 @@ class _AdminSectionPanel extends StatelessWidget {
               Wrap(spacing: 8, runSpacing: 8, children: actions),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           child,
         ],
       ),
@@ -2972,17 +2973,17 @@ class _SelectableRecordCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: selected ? const Color(0x14BE933E) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: selected ? const Color(0xFFBE933E) : VeloPrimePalette.line,
               ),
@@ -2995,7 +2996,7 @@ class _SelectableRecordCard extends StatelessWidget {
                   children: [
                     if (leading != null) ...[
                       leading!,
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                     ],
                     Expanded(
                       child: Column(
@@ -3005,16 +3006,17 @@ class _SelectableRecordCard extends StatelessWidget {
                             title,
                             style: const TextStyle(
                               color: VeloPrimePalette.ink,
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             subtitle,
                             style: const TextStyle(
                               color: VeloPrimePalette.muted,
-                              height: 1.45,
+                              height: 1.3,
+                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -3024,7 +3026,7 @@ class _SelectableRecordCard extends StatelessWidget {
                   ],
                 ),
                 if (footer != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   footer!,
                 ],
               ],
@@ -3045,15 +3047,15 @@ class _EmptySectionState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: VeloPrimePalette.line),
       ),
       child: Text(
         message,
-        style: const TextStyle(color: VeloPrimePalette.muted, height: 1.5),
+        style: const TextStyle(color: VeloPrimePalette.muted, height: 1.4, fontSize: 13),
       ),
     );
   }
@@ -3068,23 +3070,23 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 176,
-      padding: const EdgeInsets.all(16),
+      width: 138,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: VeloPrimePalette.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: VeloPrimePalette.muted)),
-          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(color: VeloPrimePalette.muted, fontSize: 12)),
+          const SizedBox(height: 6),
           Text(
             value,
             style: const TextStyle(
               color: VeloPrimePalette.ink,
-              fontSize: 28,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -3102,7 +3104,7 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: VeloPrimePalette.surface,
         borderRadius: BorderRadius.circular(999),
@@ -3112,7 +3114,7 @@ class _InfoChip extends StatelessWidget {
         label,
         style: const TextStyle(
           color: VeloPrimePalette.muted,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -3138,10 +3140,11 @@ class _InventorySubsection extends StatelessWidget {
           title,
           style: const TextStyle(
             color: VeloPrimePalette.ink,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Wrap(
           spacing: 8,
           runSpacing: 8,

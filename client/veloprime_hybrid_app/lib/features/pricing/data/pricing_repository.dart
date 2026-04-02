@@ -249,7 +249,7 @@ class PricingRepository {
     });
   }
 
-  Future<CatalogAssetFile> createAssetFile({
+  Future<CatalogAssetBundle> createAssetFile({
     required String modelId,
     required String category,
     String? powertrainType,
@@ -272,7 +272,7 @@ class PricingRepository {
       fileName: fileName,
     );
 
-    return CatalogAssetFile.fromJson(json['file'] as Map<String, dynamic>? ?? const {});
+    return CatalogAssetBundle.fromJson(json['assetBundle'] as Map<String, dynamic>? ?? const {});
   }
 
   Future<void> deleteAssetFile(String fileId) async {

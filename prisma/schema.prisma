@@ -372,6 +372,7 @@ model SalesAssetFile {
   powertrainType PowertrainType?
   fileName       String
   filePath       String
+  fileDataBase64 String?
   mimeType       String?
   sortOrder      Int                   @default(0)
   createdAt      DateTime              @default(now())

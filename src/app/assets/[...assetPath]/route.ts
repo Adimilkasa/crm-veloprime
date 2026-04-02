@@ -3,6 +3,8 @@ import path from 'node:path'
 
 import { NextResponse } from 'next/server'
 
+import { db } from '@/lib/db'
+
 const ALLOWED_ROOTS = new Map([
   ['grafiki', path.join(process.cwd(), 'client', 'veloprime_hybrid_app', 'assets', 'offers', 'grafiki')],
   ['spec', path.join(process.cwd(), 'client', 'veloprime_hybrid_app', 'assets', 'offers', 'spec')],
@@ -60,6 +62,30 @@ export async function GET(
       },
     })
   } catch {
-    return NextResponse.json({ error: 'Asset not found.' }, { status: 404 })
+    if (!db) {
+      return NextResponse.json({ error: 'Asset not found.' }, { status: 404 })
+    }
+
+    const relativePath = [root, ...rest].join('/')
+    const uploadedAsset = await db.salesAssetFile.findFirst({
+      where: { filePath: relativePath },
+      select: {
+        fileDataBase64: true,
+        mimeType: true,
+        fileName: true,
+      },
+    })
+
+    if (!uploadedAsset?.fileDataBase64) {
+      return NextResponse.json({ error: 'Asset not found.' }, { status: 404 })
+    }
+
+    return new NextResponse(Buffer.from(uploadedAsset.fileDataBase64, 'base64'), {
+      status: 200,
+      headers: {
+        'Content-Type': uploadedAsset.mimeType || getContentType(uploadedAsset.fileName),
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    })
   }
 }

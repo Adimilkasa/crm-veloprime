@@ -465,6 +465,7 @@ function mapAssetBundleRecord(record: {
     powertrainType: PowertrainType | null
     fileName: string
     filePath: string
+    fileDataBase64: string | null
     mimeType: string | null
     sortOrder: number
     createdAt: Date
@@ -1539,6 +1540,7 @@ export async function createSalesAssetFile(modelId: string, input: Record<string
   const powertrainType = category === 'SPEC_PDF'
     ? ensureEnumValue(input.powertrainType, SALES_POWERTRAIN_TYPES, null)
     : null
+  const fileDataBase64 = nullableString(input.fileDataBase64)
 
   if (category === 'SPEC_PDF' && input.powertrainType !== undefined && input.powertrainType !== null && !powertrainType) {
     return fail('Dla pliku specyfikacji wybierz poprawny typ napędu.')
@@ -1555,6 +1557,7 @@ export async function createSalesAssetFile(modelId: string, input: Record<string
         powertrainType: powertrainType as PowertrainType | null,
         fileName,
         filePath,
+        fileDataBase64,
         mimeType: nullableString(input.mimeType),
         sortOrder,
       },

@@ -66,11 +66,17 @@ async function storeUploadedFile(modelId: string, formData: FormData) {
         sanitizeSegment(category || 'other'),
       )
 
-  await mkdir(targetFolder, { recursive: true })
-
-  const absoluteTargetPath = path.join(targetFolder, safeFileName)
   const arrayBuffer = await upload.arrayBuffer()
-  await writeFile(absoluteTargetPath, Buffer.from(arrayBuffer))
+  const fileBuffer = Buffer.from(arrayBuffer)
+
+  try {
+    await mkdir(targetFolder, { recursive: true })
+    const absoluteTargetPath = path.join(targetFolder, safeFileName)
+    await writeFile(absoluteTargetPath, fileBuffer)
+  } catch {
+    // In deployed environments the application filesystem may be read-only.
+    // The database copy remains the source of truth and is served as a fallback.
+  }
 
   const relativePath = category === 'SPEC_PDF'
     ? path.posix.join('spec', 'uploaded', modelSegment, powertrainType.length > 0 ? sanitizeSegment(powertrainType) : 'generic', safeFileName)
@@ -83,6 +89,7 @@ async function storeUploadedFile(modelId: string, formData: FormData) {
       powertrainType: powertrainType || null,
       fileName: requestedFileName || safeFileName,
       filePath: relativePath,
+      fileDataBase64: fileBuffer.toString('base64'),
       mimeType,
       sortOrder: formData.get('sortOrder'),
     },
