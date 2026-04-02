@@ -7,6 +7,7 @@ export async function GET() {
     headers: {
       Location: GITHUB_RELEASE_URL,
       'Cache-Control': 'public, max-age=300',
+      'X-VeloPrime-Msix-Mode': 'redirect-v2',
     },
   })
 }
