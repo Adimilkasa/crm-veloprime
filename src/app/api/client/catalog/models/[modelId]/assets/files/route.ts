@@ -1,7 +1,5 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-
 import { readJsonRecord, jsonFromServiceResult, requireAdminApiSession } from '@/lib/api-route-helpers'
+import { uploadModelAssetToBlob, hasBlobStorage } from '@/lib/blob-storage'
 import { createSalesAssetFile } from '@/lib/catalog-admin'
 import { db } from '@/lib/db'
 
@@ -40,47 +38,25 @@ async function storeUploadedFile(modelId: string, formData: FormData) {
       })
     : null
 
-  const modelSegment = sanitizeSegment(model?.code ?? modelId)
-  const rootFolder = category === 'SPEC_PDF' ? 'spec' : 'grafiki'
-  const targetFolder = category === 'SPEC_PDF'
-    ? path.join(
-        process.cwd(),
-        'client',
-        'veloprime_hybrid_app',
-        'assets',
-        'offers',
-        'spec',
-        'uploaded',
-        modelSegment,
-        powertrainType.length > 0 ? sanitizeSegment(powertrainType) : 'generic',
-      )
-    : path.join(
-        process.cwd(),
-        'client',
-        'veloprime_hybrid_app',
-        'assets',
-        'offers',
-        'grafiki',
-        'uploaded',
-        modelSegment,
-        sanitizeSegment(category || 'other'),
-      )
-
   const arrayBuffer = await upload.arrayBuffer()
   const fileBuffer = Buffer.from(arrayBuffer)
 
-  try {
-    await mkdir(targetFolder, { recursive: true })
-    const absoluteTargetPath = path.join(targetFolder, safeFileName)
-    await writeFile(absoluteTargetPath, fileBuffer)
-  } catch {
-    // In deployed environments the application filesystem may be read-only.
-    // The database copy remains the source of truth and is served as a fallback.
-  }
+  let storedPath = requestedFileName || safeFileName
+  let fileDataBase64: string | null = fileBuffer.toString('base64')
 
-  const relativePath = category === 'SPEC_PDF'
-    ? path.posix.join('spec', 'uploaded', modelSegment, powertrainType.length > 0 ? sanitizeSegment(powertrainType) : 'generic', safeFileName)
-    : path.posix.join('grafiki', 'uploaded', modelSegment, sanitizeSegment(category || 'other'), safeFileName)
+  if (hasBlobStorage()) {
+    const blob = await uploadModelAssetToBlob({
+      modelCode: model?.code ?? modelId,
+      category,
+      fileName: safeFileName,
+      file: upload,
+      powertrainType: powertrainType || null,
+      mimeType,
+    })
+
+    storedPath = blob.url
+    fileDataBase64 = null
+  }
 
   return {
     ok: true as const,
@@ -88,8 +64,8 @@ async function storeUploadedFile(modelId: string, formData: FormData) {
       category,
       powertrainType: powertrainType || null,
       fileName: requestedFileName || safeFileName,
-      filePath: relativePath,
-      fileDataBase64: fileBuffer.toString('base64'),
+      filePath: storedPath,
+      fileDataBase64,
       mimeType,
       sortOrder: formData.get('sortOrder'),
     },

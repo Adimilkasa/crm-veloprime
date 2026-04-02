@@ -57,6 +57,10 @@ function buildPublicAssetUrl(...segments: string[]) {
 }
 
 function buildPublicAssetUrlFromRelativePath(filePath: string) {
+  if (/^https?:\/\//i.test(filePath)) {
+    return filePath
+  }
+
   const sanitizedPath = filePath
     .split('/')
     .map((segment) => segment.trim())

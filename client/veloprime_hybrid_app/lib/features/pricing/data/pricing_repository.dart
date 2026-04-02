@@ -11,10 +11,6 @@ class PricingRepository {
     return CatalogWorkspaceData.fromJson(json['workspace'] as Map<String, dynamic>? ?? const {});
   }
 
-  Future<void> syncLegacyCatalog() async {
-    await _apiClient.postJson('/api/client/catalog/sync-legacy', const {});
-  }
-
   Future<CatalogBrand> createBrand({
     required String name,
     int? sortOrder,

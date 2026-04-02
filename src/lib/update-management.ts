@@ -270,18 +270,24 @@ function buildCatalogStats(input: {
 }
 
 export async function getPublishedSalesCatalogBootstrap() {
-  const liveCatalog = await getSalesCatalogBootstrap()
-  const [dataSnapshot, assetsSnapshot] = await Promise.all([
+  const [manifest, liveCatalog, dataSnapshot, assetsSnapshot] = await Promise.all([
+    readStore(),
+    getSalesCatalogBootstrap(),
     readPublishedCatalogDataStore(),
     readPublishedCatalogAssetsStore(),
   ])
 
-  const brands = dataSnapshot?.brands ?? liveCatalog.brands
-  const models = dataSnapshot?.models ?? liveCatalog.models
-  const versions = dataSnapshot?.versions ?? liveCatalog.versions
-  const pricingRecords = dataSnapshot?.pricingRecords ?? liveCatalog.pricingRecords
-  const colorPalettes = dataSnapshot?.colorPalettes ?? liveCatalog.colorPalettes
-  const assetBundles = assetsSnapshot?.assetBundles ?? liveCatalog.assetBundles
+  const publishedDataEntry = manifest.versions.find((entry) => entry.artifactType === 'DATA')
+  const publishedAssetsEntry = manifest.versions.find((entry) => entry.artifactType === 'ASSETS')
+  const canUsePublishedData = publishedDataEntry?.snapshot?.source === 'DATABASE'
+  const canUsePublishedAssets = publishedAssetsEntry?.snapshot?.source === 'DATABASE'
+
+  const brands = canUsePublishedData ? (dataSnapshot?.brands ?? liveCatalog.brands) : liveCatalog.brands
+  const models = canUsePublishedData ? (dataSnapshot?.models ?? liveCatalog.models) : liveCatalog.models
+  const versions = canUsePublishedData ? (dataSnapshot?.versions ?? liveCatalog.versions) : liveCatalog.versions
+  const pricingRecords = canUsePublishedData ? (dataSnapshot?.pricingRecords ?? liveCatalog.pricingRecords) : liveCatalog.pricingRecords
+  const colorPalettes = canUsePublishedData ? (dataSnapshot?.colorPalettes ?? liveCatalog.colorPalettes) : liveCatalog.colorPalettes
+  const assetBundles = canUsePublishedAssets ? (assetsSnapshot?.assetBundles ?? liveCatalog.assetBundles) : liveCatalog.assetBundles
 
   return {
     brands,

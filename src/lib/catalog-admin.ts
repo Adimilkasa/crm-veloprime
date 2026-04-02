@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { AssetCategory, DriveType, PowertrainType, Prisma, SalesModelStatus, SalesPricingStatus } from '@prisma/client'
+import { deleteBlobIfManaged } from '@/lib/blob-storage'
 
 import sharedOfferAssetManifest from '../../client/veloprime_hybrid_app/assets/offers/asset_manifest.json'
 
@@ -760,8 +761,7 @@ export async function getSalesCatalogWorkspace(): Promise<CatalogAdminResult<Sal
   const unavailable = requireDb<SalesCatalogWorkspace>()
 
   if (unavailable) {
-    const bootstrap = await getSalesCatalogBootstrap()
-    return ok(buildLegacyWorkspaceFromBootstrap(bootstrap))
+    return unavailable
   }
 
   try {
@@ -1592,6 +1592,7 @@ export async function deleteSalesAssetFile(fileId: string): Promise<CatalogAdmin
   }
 
   try {
+    await deleteBlobIfManaged(existing.filePath)
     await db!.salesAssetFile.delete({ where: { id: fileId } })
     return ok({ id: fileId, bundleId: existing.bundleId })
   } catch (error) {
@@ -1600,29 +1601,7 @@ export async function deleteSalesAssetFile(fileId: string): Promise<CatalogAdmin
 }
 
 export async function runLegacyCatalogSync(): Promise<CatalogAdminResult<SalesCatalogSyncSummary>> {
-  const unavailable = requireDb<SalesCatalogSyncSummary>()
-
-  if (unavailable) {
-    const bootstrap = await getSalesCatalogBootstrap()
-
-    return ok({
-      brands: bootstrap.stats.brands,
-      models: bootstrap.stats.models,
-      versions: bootstrap.stats.versions,
-      pricingRecords: bootstrap.stats.pricingRecords,
-      colors: bootstrap.stats.colors,
-      assetBundles: bootstrap.stats.assetBundles,
-      assetFiles: bootstrap.stats.assetFiles,
-    })
-  }
-
-  const result = await syncLegacySalesCatalogToDatabase()
-
-  if (!result.ok) {
-    return fail(result.error, 400)
-  }
-
-  return ok(result.summary)
+  return fail('Synchronizacja legacy została wyłączona. Katalog działa już wyłącznie na nowym modelu danych.', 410)
 }
 
 export async function getLegacyCatalogSyncStatus(): Promise<CatalogAdminResult<SalesCatalogSyncStatus>> {

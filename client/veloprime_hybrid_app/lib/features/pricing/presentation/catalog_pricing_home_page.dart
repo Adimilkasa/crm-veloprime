@@ -183,7 +183,7 @@ class _PricingHomePageState extends State<PricingHomePage> {
 
   CatalogWorkspaceData? get _resolvedWorkspace => _workspace;
 
-  bool get _isReadOnlyWorkspace => _workspace?.databaseReady == false;
+  bool get _isReadOnlyWorkspace => false;
 
   List<CatalogBrand> get _brands => _workspace == null ? const [] : _sortedBrands(_workspace!.brands);
 
@@ -246,6 +246,8 @@ class _PricingHomePageState extends State<PricingHomePage> {
 
     return null;
   }
+
+  Widget _buildTechnicalToolsPanel() => const SizedBox.shrink();
 
   int _versionCountForModel(String modelId) =>
       _workspace?.versions.where((version) => version.modelId == modelId).length ?? 0;
@@ -313,17 +315,6 @@ class _PricingHomePageState extends State<PricingHomePage> {
     required String successMessage,
     void Function(T result)? applySelection,
   }) async {
-    if (_isReadOnlyWorkspace) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Ten katalog działa lokalnie w trybie podglądu legacy. Zapis zmian wymaga aktywnego połączenia z bazą danych.',
-          ),
-        ),
-      );
-      return;
-    }
-
     setState(() {
       _isMutating = true;
     });
@@ -723,38 +714,6 @@ class _PricingHomePageState extends State<PricingHomePage> {
     );
   }
 
-  Future<void> _handleSyncLegacy() async {
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Uruchomić synchronizację legacy?'),
-            content: const Text(
-              'System skopiuje dotychczasowy arkusz, palety i materiały do nowego katalogu. Użyj tego, jeśli chcesz przenieść obecne dane do nowego modelu.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Anuluj'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Synchronizuj'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-
-    if (!confirmed) {
-      return;
-    }
-
-    await _performMutation(
-      action: () => widget.repository.syncLegacyCatalog(),
-      successMessage: 'Legacy dane zostały zsynchronizowane do nowego katalogu.',
-    );
-  }
-
   String _formatMoney(num? value) {
     if (value == null) {
       return '—';
@@ -1049,35 +1008,6 @@ class _PricingHomePageState extends State<PricingHomePage> {
                         height: 1.45,
                       ),
                     ),
-                    if (!workspace.databaseReady) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E8),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE5B97A)),
-                        ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Tryb tylko do odczytu',
-                              style: TextStyle(
-                                color: Color(0xFF8B5E34),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Backend działa teraz bez aktywnej bazy danych. Możesz obejrzeć strukturę katalogu, ale dodawanie marki, modelu, koloru, cen i materiałów będzie zablokowane.',
-                              style: TextStyle(color: VeloPrimePalette.muted, height: 1.5),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -1832,26 +1762,6 @@ class _PricingHomePageState extends State<PricingHomePage> {
                     );
                   }).toList(),
                 ),
-    );
-  }
-
-  Widget _buildTechnicalToolsPanel() {
-    return _AdminSectionPanel(
-      tint: const Color(0xFF6C757D),
-      title: 'Narzędzia techniczne',
-      subtitle:
-          'Ta sekcja nie służy do codziennego dodawania samochodów. Zawiera działania techniczne potrzebne przy przejściu ze starego katalogu na nowy model danych.',
-      actions: [
-        OutlinedButton.icon(
-          onPressed: _isMutating || _isReadOnlyWorkspace ? null : _handleSyncLegacy,
-          icon: const Icon(Icons.sync_problem_outlined),
-          label: const Text('Synchronizuj legacy'),
-        ),
-      ],
-      child: const _EmptySectionState(
-        message:
-            '„Synchronizuj legacy” kopiuje dotychczasowy arkusz, palety i materiały do nowego katalogu. To narzędzie migracyjne uruchamiane świadomie, a nie element codziennej konfiguracji modelu.',
-      ),
     );
   }
 

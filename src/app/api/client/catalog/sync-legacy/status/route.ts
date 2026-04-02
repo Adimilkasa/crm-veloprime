@@ -1,13 +1,11 @@
-import { jsonFromServiceResult, requireAdminApiSession } from '@/lib/api-route-helpers'
-import { getLegacyCatalogSyncStatus } from '@/lib/catalog-admin'
+import { NextResponse } from 'next/server'
 
 export async function GET() {
-  const session = await requireAdminApiSession()
-
-  if (!session.ok) {
-    return session.response
-  }
-
-  const result = await getLegacyCatalogSyncStatus()
-  return jsonFromServiceResult(result, (status) => ({ status }))
+  return NextResponse.json(
+    {
+      ok: false,
+      error: 'Status synchronizacji legacy nie jest już dostępny. Katalog działa wyłącznie na nowym modelu danych.',
+    },
+    { status: 410 }
+  )
 }

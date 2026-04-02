@@ -703,17 +703,10 @@ async function readCatalogBootstrapFromDatabase(): Promise<SalesCatalogBootstrap
 
 export async function listSalesCatalogItems() {
   try {
-    const databaseCatalog = await readCatalogFromDatabase()
-
-    if (databaseCatalog.length > 0) {
-      return databaseCatalog
-    }
+    return await readCatalogFromDatabase()
   } catch {
-    // Fall back to the legacy pricing sheet until the database migration is applied.
+    return []
   }
-
-  const pricingSheet = await getActivePricingSheet()
-  return buildDetailedPricingCatalog(pricingSheet).map(mapLegacyItem)
 }
 
 export async function findSalesCatalogItemByKey(key: string) {
@@ -723,16 +716,10 @@ export async function findSalesCatalogItemByKey(key: string) {
 
 export async function listSalesModelColorPalettes() {
   try {
-    const palettes = await readColorPalettesFromDatabase()
-
-    if (palettes.length > 0) {
-      return palettes
-    }
+    return await readColorPalettesFromDatabase()
   } catch {
-    // Fall back to the legacy file until the database migration is applied.
+    return []
   }
-
-  return listColorPalettes()
 }
 
 export async function syncLegacyCatalogItemsToDb(catalogItems: SalesCatalogRuntimeItem[]) {
@@ -1119,17 +1106,10 @@ export async function syncLegacySalesCatalogToDatabase() {
 
 export async function listSalesAssetBundles() {
   try {
-    const databaseBundles = await readAssetBundlesFromDatabase()
-
-    if (databaseBundles.length > 0) {
-      return databaseBundles
-    }
+    return await readAssetBundlesFromDatabase()
   } catch {
-    // Fall back to the legacy manifest until the database migration is applied.
+    return []
   }
-
-  const catalogItems = await listSalesCatalogItems()
-  return buildLegacyAssetBundles(catalogItems)
 }
 
 export async function getSalesCatalogBootstrap() {
@@ -1140,98 +1120,25 @@ export async function getSalesCatalogBootstrap() {
       return databaseBootstrap
     }
   } catch {
-    // Fall back to the legacy catalog until the database migration is applied.
+    // Ignore and return an empty bootstrap below.
   }
-
-  const [catalogItems, colorPalettes, assetBundles] = await Promise.all([
-    listSalesCatalogItems(),
-    listSalesModelColorPalettes(),
-    listSalesAssetBundles(),
-  ])
-  const normalizedColorPalettes = enrichColorPalettesWithCatalogCodes(colorPalettes, catalogItems)
-
-  const brandMap = new Map<string, SalesCatalogBootstrapBrand>()
-  const modelMap = new Map<
-    string,
-    SalesCatalogBootstrapModel & { availablePowertrainSet: Set<PowertrainType> }
-  >()
-  const versions: SalesCatalogBootstrapVersion[] = []
-
-  for (const item of catalogItems) {
-    const brandCode = buildStableCatalogCode(item.brand)
-    const modelCode = buildStableCatalogCode(item.model)
-    const versionCode = buildStableCatalogCode(item.version, item.year, item.powertrain)
-    const modelKey = `${brandCode}::${modelCode}`
-    const powertrainType = toRuntimePowertrain(item.powertrain)
-
-    if (!brandMap.has(brandCode)) {
-      brandMap.set(brandCode, {
-        code: brandCode,
-        name: item.brand,
-        sortOrder: brandMap.size,
-      })
-    }
-
-    if (!modelMap.has(modelKey)) {
-      modelMap.set(modelKey, {
-        brandCode,
-        code: modelCode,
-        name: item.model,
-        marketingName: null,
-        status: 'ACTIVE',
-        sortOrder: [...modelMap.values()].filter((model) => model.brandCode === brandCode).length,
-        availablePowertrains: [],
-        availablePowertrainSet: new Set<PowertrainType>(),
-      })
-    }
-
-    const modelRecord = modelMap.get(modelKey)!
-
-    if (powertrainType) {
-      modelRecord.availablePowertrainSet.add(powertrainType)
-    }
-
-    versions.push({
-      catalogKey: item.key,
-      brandCode,
-      modelCode,
-      code: versionCode,
-      name: item.version,
-      year: parseLegacyYear(item.year),
-      powertrainType,
-      powerHp: item.powerHp,
-      systemPowerHp: parseLegacyPowerHp(item.powerHp),
-      batteryCapacityKwh: null,
-      combustionEnginePowerHp: null,
-      engineDisplacementCc: null,
-      driveType: null,
-      rangeKm: null,
-      notes: null,
-    })
-  }
-
-  const normalizedModels = [...modelMap.values()].map(({ availablePowertrainSet, ...model }) => ({
-    ...model,
-    availablePowertrains: [...availablePowertrainSet].sort(),
-  }))
-  const assetFiles = assetBundles.reduce((sum, bundle) => sum + bundle.totalFiles, 0)
 
   return {
-    brands: [...brandMap.values()],
-    models: normalizedModels,
-    versions,
-    pricingRecords: catalogItems,
-    colorPalettes: normalizedColorPalettes,
-    assetBundles,
+    brands: [],
+    models: [],
+    versions: [],
+    pricingRecords: [],
+    colorPalettes: [],
+    assetBundles: [],
     stats: {
-      brands: brandMap.size,
-      models: normalizedModels.length,
-      versions: versions.length,
-      pricingRecords: catalogItems.length,
-      colorPalettes: normalizedColorPalettes.length,
-      colors: normalizedColorPalettes.reduce((sum, palette) => sum + palette.colors.length, 0),
-      assetBundles: assetBundles.length,
-      assetFiles,
+      brands: 0,
+      models: 0,
+      versions: 0,
+      pricingRecords: 0,
+      colorPalettes: 0,
+      colors: 0,
+      assetBundles: 0,
+      assetFiles: 0,
     },
   } satisfies SalesCatalogBootstrapPayload
 }
