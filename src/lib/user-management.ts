@@ -8,6 +8,7 @@ export type ManagedUser = {
   fullName: string
   email: string
   phone: string | null
+  avatarUrl: string | null
   role: UserRoleKey
   isActive: boolean
   region: string | null
@@ -52,6 +53,7 @@ export async function listManagedUsers() {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone ?? null,
+      avatarUrl: user.avatarUrl ?? null,
       role: user.role,
       isActive: user.isActive,
       region: user.region,
@@ -131,6 +133,7 @@ export async function createManagedUser(input: CreateManagedUserInput) {
       fullName: result.user.fullName,
       email: result.user.email,
       phone: result.user.phone ?? null,
+      avatarUrl: result.user.avatarUrl ?? null,
       role: result.user.role,
       isActive: result.user.isActive,
       region: result.user.region,
@@ -157,6 +160,7 @@ export async function toggleManagedUserStatus(userId: string) {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone ?? null,
+      avatarUrl: user.avatarUrl ?? null,
       role: user.role,
       isActive: user.isActive,
       region: user.region,

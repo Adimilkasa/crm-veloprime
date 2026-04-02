@@ -4,13 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "clean:next": "node scripts/clean-next-build.mjs",
     "build": "node scripts/run-prisma-migrate-if-db.mjs && prisma generate && next build",
+    "build:clean": "npm run clean:next && npm run build",
     "start": "next start",
     "lint": "eslint",
     "db:seed": "node prisma/seed.mjs",
     "smoke:catalog-sync": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-catalog-sync.ps1",
     "smoke:accounts": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-account-flows.ps1",
-    "smoke:lead-offer-pdf": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-lead-offer-pdf.ps1"
+    "smoke:lead-offer-pdf": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-lead-offer-pdf.ps1",
+    "smoke:public-offer-share": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-public-offer-share.ps1",
+    "smoke:offer-email": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-offer-email.ps1"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",

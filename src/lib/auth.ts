@@ -18,6 +18,7 @@ export type AuthSession = {
 
 export type DemoUser = AuthSession & {
   phone?: string | null
+  avatarUrl?: string | null
   reportsToUserId?: string | null
   password: string
 }
@@ -25,6 +26,7 @@ export type DemoUser = AuthSession & {
 type AuthBackedUser = DemoUser & {
   isActive: boolean
   phone: string | null
+  avatarUrl: string | null
   region: string | null
   teamName: string | null
   createdAt: string
@@ -83,6 +85,7 @@ function mapSeedUser(user: DemoUser): AuthBackedUser {
     ...user,
     isActive: true,
     phone: user.phone ?? null,
+    avatarUrl: user.avatarUrl ?? null,
     region: null,
     teamName: null,
     createdAt: new Date().toISOString(),
@@ -105,6 +108,7 @@ function sanitizeAuthUser(user: AuthBackedUser) {
     fullName: user.fullName,
     role: user.role,
     phone: user.phone ?? null,
+    avatarUrl: user.avatarUrl ?? null,
     reportsToUserId: user.reportsToUserId ?? null,
     isActive: user.isActive,
     region: user.region,
@@ -161,6 +165,7 @@ function mapDbUser(user: {
   role: UserRole
   isActive: boolean
   phone: string | null
+  avatarUrl?: string | null
   region: string | null
   teamName: string | null
   reportsToUserId: string | null
@@ -173,6 +178,7 @@ function mapDbUser(user: {
     fullName: user.fullName,
     role: mapDbRole(user.role),
     phone: user.phone,
+    avatarUrl: user.avatarUrl ?? null,
     reportsToUserId: user.reportsToUserId ?? null,
     password: user.passwordHash ?? '',
     isActive: user.isActive,
@@ -207,6 +213,7 @@ async function ensureSeedUsersInDb() {
         role: user.role,
         isActive: true,
         phone: user.phone ?? null,
+        avatarUrl: user.avatarUrl ?? null,
         reportsToUserId: user.reportsToUserId ?? null,
         passwordHash: hashPassword(user.password),
       },
@@ -297,6 +304,7 @@ export async function createAuthUser(input: {
         role: input.role,
         isActive: true,
         phone: input.phone?.trim() || null,
+        avatarUrl: null,
         region: input.region?.trim() || null,
         teamName: input.teamName?.trim() || null,
         reportsToUserId: input.reportsToUserId ?? null,
@@ -318,6 +326,7 @@ export async function createAuthUser(input: {
     fullName: input.fullName.trim(),
     role: input.role,
     phone: input.phone?.trim() || null,
+    avatarUrl: null,
     reportsToUserId: input.reportsToUserId ?? null,
     password,
     isActive: true,
@@ -469,6 +478,44 @@ export async function resetAuthUserPassword(input: { userId: string; newPassword
     ok: true as const,
     temporaryPassword: nextPassword,
   }
+}
+
+export async function getAuthUserProfile(userId: string) {
+  if (db) {
+    await ensureSeedUsersInDb()
+    const user = await db.user.findUnique({ where: { id: userId } })
+    return user ? sanitizeAuthUser(mapDbUser(user)) : null
+  }
+
+  const user = getUserStore().find((entry) => entry.sub === userId)
+  return user ? sanitizeAuthUser(user) : null
+}
+
+export async function updateAuthUserAvatar(input: { userId: string; avatarUrl: string | null }) {
+  if (db) {
+    await ensureSeedUsersInDb()
+    const user = await db.user.findUnique({ where: { id: input.userId } })
+
+    if (!user) {
+      return null
+    }
+
+    const updated = await db.user.update({
+      where: { id: input.userId },
+      data: { avatarUrl: input.avatarUrl },
+    })
+
+    return sanitizeAuthUser(mapDbUser(updated))
+  }
+
+  const user = getUserStore().find((entry) => entry.sub === input.userId)
+
+  if (!user) {
+    return null
+  }
+
+  user.avatarUrl = input.avatarUrl
+  return sanitizeAuthUser(user)
 }
 
 export async function createSessionToken(session: AuthSession) {

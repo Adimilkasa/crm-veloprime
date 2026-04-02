@@ -19,17 +19,27 @@ function buildModelLabel(modelName: string | null | undefined, fallback: string)
   return modelName?.trim() || fallback
 }
 
+function isCompanyCustomer(customerType: string | null | undefined) {
+  const normalized = customerType?.trim().toLowerCase() ?? ''
+  return normalized.includes('firm') || normalized === 'b2b' || normalized === 'company'
+}
+
 function buildOfferNarrative(input: {
   modelName: string
   customerName: string
-  finalGrossLabel: string
+  effectivePriceLabel: string
+  pricingDisplayMode: 'netto' | 'brutto'
   financingSummary: string | null
   financingVariant: string | null
 }) {
   const financing = input.financingSummary ?? input.financingVariant ?? 'warunki ustalane indywidualnie'
+  const priceLabel = input.pricingDisplayMode === 'netto' ? 'netto' : 'brutto'
 
-  return `Konfiguracja ${input.modelName} została przygotowana indywidualnie dla ${input.customerName}. Punktem wyjścia do rozmowy jest cena końcowa ${input.finalGrossLabel} brutto oraz scenariusz finansowania: ${financing}.`
+  return `Konfiguracja ${input.modelName} została przygotowana indywidualnie dla ${input.customerName}. Punktem wyjścia do rozmowy jest cena końcowa ${input.effectivePriceLabel} ${priceLabel} oraz scenariusz finansowania: ${financing}.`
 }
+
+const defaultFinancingDisclaimer =
+  'Prezentowane raty są orientacyjne i obliczone na podstawie parametrów wprowadzonych do kalkulatora. Ostateczna decyzja finansowa, wysokość rat oraz warunki umowy są ustalane przez instytucję finansującą po pełnej analizie zdolności kredytowej klienta. Oferta nie stanowi wiążącej oferty finansowania zgodnie z Kodeksem cywilnym.'
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
@@ -110,17 +120,33 @@ export default async function PublicOfferPage({
   }
 
   if (!document.ok) {
+    const expiredAdvisorName = document.advisorName ?? 'Opiekun VeloPrime'
+    const expiredAdvisorContact = buildContactLine(document.advisorEmail, document.advisorPhone)
+
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(26,87,152,0.2),transparent_35%),linear-gradient(180deg,#f6f8fc_0%,#edf2f8_100%)] px-4 py-10 text-[#172033]">
         <div className="mx-auto max-w-3xl rounded-[32px] border border-[rgba(27,58,112,0.12)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(17,32,67,0.14)]">
           <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Oferta VeloPrime</div>
-          <h1 className="mt-4 text-3xl font-semibold text-[#172033]">Ta oferta nie jest już aktywna.</h1>
+          <h1 className="mt-4 text-3xl font-semibold text-[#172033]">Oferta wygasła.</h1>
           <p className="mt-4 max-w-2xl text-base leading-8 text-[#52607a]">
-            Link wygasł wraz z okresem ważności dokumentu. Skontaktuj się bezpośrednio z opiekunem oferty, aby otrzymać aktualną wersję.
+            Ten link nie jest już aktywny. W sprawie aktualnej oferty skontaktuj się z osobą odpowiedzialną za klienta.
           </p>
           <div className="mt-8 rounded-[24px] border border-[rgba(27,58,112,0.1)] bg-[#f8fbff] p-6">
-            <div className="text-sm font-semibold text-[#172033]">{document.advisorName ?? 'Opiekun VeloPrime'}</div>
-            <div className="mt-2 text-sm text-[#52607a]">{buildContactLine(document.advisorEmail, document.advisorPhone)}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9d7b27]">Osoba odpowiedzialna za klienta</div>
+            <div className="mt-3 text-lg font-semibold text-[#172033]">{expiredAdvisorName}</div>
+            <div className="mt-2 text-sm text-[#52607a]">{expiredAdvisorContact}</div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {document.advisorEmail ? (
+                <a href={`mailto:${document.advisorEmail}`} className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#e3c986_0%,#d6ad56_100%)] px-5 py-3 text-sm font-semibold text-[#1c1711] shadow-[0_14px_34px_rgba(212,168,79,0.2)] transition hover:translate-y-[-1px] hover:brightness-[1.02]">
+                  Napisz wiadomość
+                </a>
+              ) : null}
+              {document.advisorPhone ? (
+                <a href={`tel:${document.advisorPhone.replace(/\s+/g, '')}`} className="inline-flex items-center rounded-full border border-[rgba(20,33,61,0.1)] bg-white px-5 py-3 text-sm font-medium text-[#172033] shadow-[0_12px_30px_rgba(17,32,67,0.06)] transition hover:translate-y-[-1px] hover:border-[rgba(157,123,39,0.24)]">
+                  Zadzwoń
+                </a>
+              ) : null}
+            </div>
           </div>
         </div>
       </main>
@@ -137,18 +163,29 @@ export default async function PublicOfferPage({
     ...assets.images.details,
   ].filter((image, index, all) => all.indexOf(image) === index)
   const modelLabel = buildModelLabel(payload.customer.modelName, document.title)
+  const pricingDisplayMode = isCompanyCustomer(payload.internal.customerType) ? 'netto' : 'brutto'
+  const effectivePriceLabel = pricingDisplayMode === 'netto' ? payload.customer.finalNetLabel : payload.customer.finalGrossLabel
+  const secondaryPriceLabel = pricingDisplayMode === 'netto' ? payload.customer.finalGrossLabel : payload.customer.finalNetLabel
+  const effectivePriceTitle = pricingDisplayMode === 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto'
+  const secondaryPriceTitle = pricingDisplayMode === 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto'
   const offerNarrative = buildOfferNarrative({
     modelName: modelLabel,
     customerName: payload.customer.customerName,
-    finalGrossLabel: payload.customer.finalGrossLabel,
+    effectivePriceLabel,
+    pricingDisplayMode,
     financingSummary: payload.customer.financingSummary,
     financingVariant: payload.customer.financingVariant,
   })
   const advisorName = payload.advisor.fullName || payload.internal.ownerName || 'Opiekun VeloPrime'
   const advisorRole = payload.advisor.role || payload.internal.ownerRole || 'Handlowiec'
+  const advisorAvatarUrl = payload.advisor.avatarUrl?.trim() || null
   const customerContactLine = buildContactLine(payload.customer.customerEmail, payload.customer.customerPhone)
   const advisorContactLine = buildContactLine(payload.advisor.email, payload.advisor.phone)
   const accentGallery = gallery.slice(0, 5)
+  const validUntilLabel = formatDate(payload.customer.validUntil ?? document.shareExpiresAt)
+  const generatedAtLabel = formatDate(payload.createdAt)
+  const onlineStatusSummary = `To jest aktywna wersja oferty online. Link prowadzi do tej samej konfiguracji przygotowanej przez opiekuna i pozostaje ważny do ${validUntilLabel}.`
+  const formalNotice = payload.customer.financingDisclaimer ?? defaultFinancingDisclaimer
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(212,168,79,0.12),transparent_28%),radial-gradient(circle_at_85%_14%,rgba(31,82,147,0.16),transparent_24%),linear-gradient(180deg,#fcfcfb_0%,#f1f5f8_100%)] px-4 py-5 text-[#172033] sm:px-6 lg:px-8 lg:py-8">
@@ -196,14 +233,14 @@ export default async function PublicOfferPage({
 
                 <div className="mt-8 grid gap-4 sm:grid-cols-3">
                   <MetricCard
-                    eyebrow="Cena końcowa"
-                    value={payload.customer.finalGrossLabel}
-                    detail="Brutto dla przygotowanej konfiguracji, po uwzględnieniu warunków oferty."
+                    eyebrow={effectivePriceTitle}
+                    value={effectivePriceLabel}
+                    detail={`Cena prezentowana w trybie ${pricingDisplayMode} dla przygotowanej konfiguracji, po uwzględnieniu warunków oferty.`}
                     accent
                   />
                   <MetricCard
-                    eyebrow="Cena netto"
-                    value={payload.customer.finalNetLabel}
+                    eyebrow={secondaryPriceTitle}
+                    value={secondaryPriceLabel}
                     detail={`Cena katalogowa ${payload.customer.listPriceLabel} z rabatem ${payload.customer.discountLabel}.`}
                   />
                   <MetricCard
@@ -259,8 +296,13 @@ export default async function PublicOfferPage({
                     </div>
                     <div className="rounded-[24px] border border-[rgba(20,33,61,0.07)] bg-[linear-gradient(135deg,#18325f_0%,#23477f_100%)] p-5 text-white shadow-[0_18px_50px_rgba(23,45,87,0.28)]">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">Opiekun oferty</div>
-                      <div className="mt-3 text-[22px] font-semibold">{advisorName}</div>
-                      <div className="mt-2 text-sm text-white/72">{advisorRole}</div>
+                      <div className="mt-4 flex items-center gap-4">
+                        <AdvisorAvatar avatarUrl={advisorAvatarUrl} fullName={advisorName} size="h-16 w-16" textClassName="text-lg" />
+                        <div>
+                          <div className="text-[22px] font-semibold">{advisorName}</div>
+                          <div className="mt-2 text-sm text-white/72">{advisorRole}</div>
+                        </div>
+                      </div>
                       <div className="mt-4 text-sm leading-7 text-white/78">{advisorContactLine}</div>
                     </div>
                   </div>
@@ -321,8 +363,13 @@ export default async function PublicOfferPage({
             >
               <div className="rounded-[28px] bg-[linear-gradient(145deg,#18325f_0%,#214b87_100%)] p-6 text-white shadow-[0_22px_60px_rgba(23,45,87,0.28)]">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">{advisorRole}</div>
-                <div className="mt-3 text-[30px] font-semibold leading-tight">{advisorName}</div>
-                <div className="mt-4 text-sm leading-8 text-white/76">{advisorContactLine}</div>
+                <div className="mt-4 flex items-center gap-4">
+                  <AdvisorAvatar avatarUrl={advisorAvatarUrl} fullName={advisorName} size="h-20 w-20" textClassName="text-xl" />
+                  <div>
+                    <div className="text-[30px] font-semibold leading-tight">{advisorName}</div>
+                    <div className="mt-3 text-sm leading-8 text-white/76">{advisorContactLine}</div>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-5 grid gap-3">
@@ -379,7 +426,80 @@ export default async function PublicOfferPage({
             </div>
           )}
         </SectionCard>
+
+        <section className="mt-6 rounded-[30px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,249,252,0.96))] p-6 shadow-[0_20px_60px_rgba(17,32,67,0.08)] lg:p-8">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Finalizacja</div>
+          <h2 className="mt-3 text-[28px] font-semibold leading-tight text-[#172033]">Oficjalny status tej wersji oferty</h2>
+          <p className="mt-3 max-w-3xl text-[15px] leading-8 text-[#58657f]">
+            Końcowa sekcja porządkuje status dokumentu, termin ważności i formalne zastrzeżenia przed finalnym potwierdzeniem konfiguracji lub finansowania.
+          </p>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="grid gap-4">
+              <div className="rounded-[26px] border border-[rgba(36,65,103,0.12)] bg-[linear-gradient(180deg,#f7fbff_0%,#edf4fb_100%)] p-5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#31557f]">Status wersji online</div>
+                <p className="mt-3 text-sm leading-8 text-[#4d5f79]">{onlineStatusSummary}</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <DetailTile label="Numer oferty" value={payload.customer.offerNumber} />
+                <DetailTile label="Wersja dokumentu" value={String(document.version.versionNumber)} />
+                <DetailTile label="Wygenerowano" value={generatedAtLabel} />
+                <DetailTile label="Ważna do" value={validUntilLabel} />
+                <DetailTile label="Opiekun" value={advisorName} />
+                <DetailTile label="Specyfikacja" value={assets.specPdfUrl ? 'PDF dostępny' : 'Brak osobnego PDF'} />
+              </div>
+            </div>
+
+            <div className="rounded-[26px] border border-[rgba(157,123,39,0.16)] bg-[linear-gradient(180deg,#fff9ee_0%,#fffdf8_100%)] p-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Zastrzeżenie formalne</div>
+              <p className="mt-3 text-sm leading-8 text-[#6b654d]">{formalNotice}</p>
+              <div className="mt-4 border-t border-[rgba(157,123,39,0.12)] pt-4 text-sm leading-7 text-[#786f56]">
+                Kontakt do opiekuna: {advisorContactLine}
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   )
+}
+
+function AdvisorAvatar({
+  avatarUrl,
+  fullName,
+  size,
+  textClassName,
+}: {
+  avatarUrl: string | null
+  fullName: string
+  size: string
+  textClassName: string
+}) {
+  const initials = buildAdvisorInitials(fullName)
+
+  if (avatarUrl) {
+    return (
+      <div className={`overflow-hidden rounded-full border border-white/25 bg-white/10 ${size}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- direct avatar url can be blob or data uri */}
+        <img src={avatarUrl} alt={fullName} className="h-full w-full object-cover" />
+      </div>
+    )
+  }
+
+  return (
+    <div className={`flex items-center justify-center rounded-full border border-white/18 bg-[linear-gradient(135deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] font-semibold text-white ${size} ${textClassName}`}>
+      {initials}
+    </div>
+  )
+}
+
+function buildAdvisorInitials(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean).slice(0, 2)
+
+  if (parts.length === 0) {
+    return 'VP'
+  }
+
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('')
 }

@@ -92,6 +92,7 @@ export type OfferAdvisorSnapshot = {
   fullName: string
   email: string | null
   phone: string | null
+  avatarUrl: string | null
   role: AuthSession['role']
 }
 
@@ -113,6 +114,7 @@ export type ManagedOffer = {
   ownerName: string
   ownerEmail: string | null
   ownerPhone: string | null
+  ownerAvatarUrl: string | null
   validUntil: string | null
   totalGross: number | null
   totalNet: number | null
@@ -504,6 +506,7 @@ async function buildSeedOffers() {
       ownerName: lead.salespersonName ?? adminSession?.fullName ?? 'Administrator VeloPrime',
       ownerEmail: ownerUser?.email ?? null,
       ownerPhone: ownerUser?.phone ?? null,
+      ownerAvatarUrl: ownerUser?.avatarUrl ?? null,
       validUntil: new Date(Date.now() + (index + 5) * 86400000).toISOString(),
       totalGross: index === 0 ? 184900 : 203500,
       totalNet: index === 0 ? 150325.2 : 165447.15,
@@ -595,6 +598,7 @@ function buildOfferVersionSnapshot(
       fullName: offer.ownerName,
       email: offer.ownerEmail,
       phone: offer.ownerPhone,
+      avatarUrl: offer.ownerAvatarUrl,
       role: offer.calculation?.ownerRole ?? 'SALES',
     },
     internal: {
@@ -1013,6 +1017,7 @@ export async function createManagedOffer(
   const resolvedOwnerName = lead?.salespersonName ?? ownerUser?.fullName ?? session.fullName
   const resolvedOwnerEmail = ownerUser?.email ?? session.email
   const resolvedOwnerPhone = ownerUser?.phone ?? null
+  const resolvedOwnerAvatarUrl = ownerUser?.avatarUrl ?? null
   const pricingResult = await resolveOfferPricing({
     pricingCatalogKey: input.pricingCatalogKey?.trim() || undefined,
     customerType,
@@ -1129,6 +1134,7 @@ export async function createManagedOffer(
     ownerName: resolvedOwnerName,
     ownerEmail: resolvedOwnerEmail,
     ownerPhone: resolvedOwnerPhone,
+    ownerAvatarUrl: resolvedOwnerAvatarUrl,
     validUntil: input.validUntil?.trim() ? new Date(input.validUntil).toISOString() : null,
     totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
     totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
@@ -1752,6 +1758,7 @@ export async function assignManagedOfferLead(
   offer.ownerName = nextOwnerName
   offer.ownerEmail = nextOwnerUser?.email ?? offer.ownerEmail
   offer.ownerPhone = nextOwnerUser?.phone ?? offer.ownerPhone
+  offer.ownerAvatarUrl = nextOwnerUser?.avatarUrl ?? offer.ownerAvatarUrl
   offer.notes = offer.notes ?? lead.message ?? null
   offer.updatedAt = new Date().toISOString()
 
@@ -1933,6 +1940,7 @@ function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
     ownerName: offer.owner.fullName,
     ownerEmail: offer.owner.email,
     ownerPhone: offer.owner.phone,
+    ownerAvatarUrl: offer.owner.avatarUrl,
     validUntil: offer.validUntil?.toISOString() ?? null,
     totalGross: offer.totalGross ? Number(offer.totalGross) : null,
     totalNet: offer.totalNet ? Number(offer.totalNet) : null,

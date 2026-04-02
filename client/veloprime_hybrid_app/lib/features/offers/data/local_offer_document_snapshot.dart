@@ -111,6 +111,7 @@ OfferDocumentSnapshot buildLocalOfferDocumentSnapshot({
         fullName: advisorName,
         email: advisorEmail,
         phone: null,
+        avatarUrl: null,
         role: ownerRole,
       ),
       internal: OfferDocumentInternalSnapshot(

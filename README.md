@@ -17,6 +17,14 @@ npm install
 npm run dev
 ```
 
+Jesli lokalny build zlapie uszkodzony cache `.next`, uzyj czystego buildu:
+
+```bash
+npm run build:clean
+```
+
+Ten wariant czysci artefakty buildu i wygenerowane typy Next.js bez kasowania calego katalogu developerskiego `next dev`.
+
 ## Prisma
 
 ```bash
@@ -71,6 +79,44 @@ Skrypt testuje:
 - utworzenie wersji dokumentu PDF
 - pobranie snapshotu dokumentu przez API
 - otwarcie strony podglądu PDF z aktywną sesją
+
+## Smoke Test publicznego linku oferty
+
+Po uruchomieniu aplikacji w trybie developerskim można wykonać smoke test linku publicznego oferty:
+
+```bash
+npm run dev -- --hostname 127.0.0.1 --port 3005
+npm run smoke:public-offer-share
+```
+
+Skrypt testuje:
+
+- logowanie administratora
+- utworzenie lub odświeżenie oferty smoke
+- wygenerowanie wersji dokumentu
+- utworzenie publicznego linku do tej wersji
+- otwarcie strony `/oferta/[token]` bez sesji CRM
+- weryfikację podstawowych markerów treści widoku klienta
+
+## Smoke Test wysyłki maila z ofertą
+
+Po uruchomieniu aplikacji w trybie developerskim można wykonać smoke test wysyłki maila z linkiem do oferty:
+
+```bash
+npm run dev -- --hostname 127.0.0.1 --port 3005
+npm run smoke:offer-email
+```
+
+W trybie lokalnym skrypt weryfikuje fallback do `.mail-outbox/`.
+
+Skrypt testuje:
+
+- logowanie administratora
+- utworzenie lub odświeżenie oferty smoke
+- wygenerowanie wersji dokumentu
+- wysłanie maila przez `POST /api/client/offers/:offerId/send-email`
+- zapis wiadomości do `.mail-outbox/`
+- obecność publicznego linku `/oferta/[token]` w treści maila
 
 ## Smoke Test klienta Flutter
 

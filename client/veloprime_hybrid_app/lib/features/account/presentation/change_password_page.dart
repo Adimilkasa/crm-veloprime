@@ -1,3 +1,4 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/presentation/veloprime_ui.dart';
@@ -24,8 +25,17 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
+  AccountProfile? _profile;
+  bool _isLoadingProfile = true;
   bool _isSaving = false;
+  bool _isUploadingAvatar = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
 
   @override
   void dispose() {
@@ -33,6 +43,114 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoadingProfile = true;
+    });
+
+    try {
+      final profile = await widget.repository.fetchProfile();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _profile = profile;
+        _isLoadingProfile = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoadingProfile = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  Future<void> _pickAvatar() async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'Obrazy', extensions: ['png', 'jpg', 'jpeg', 'webp']),
+      ],
+    );
+    if (file == null) {
+      return;
+    }
+
+    setState(() {
+      _isUploadingAvatar = true;
+      _error = null;
+    });
+
+    try {
+      final profile = await widget.repository.uploadAvatar(filePath: file.path, fileName: file.name);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _profile = profile;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Zdjęcie przedstawiciela zostało zapisane.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingAvatar = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _removeAvatar() async {
+    setState(() {
+      _isUploadingAvatar = true;
+      _error = null;
+    });
+
+    try {
+      final profile = await widget.repository.removeAvatar();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _profile = profile;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Zdjęcie przedstawiciela zostało usunięte.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingAvatar = false;
+        });
+      }
+    }
   }
 
   Future<void> _save() async {
@@ -64,7 +182,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Haslo zostalo zmienione.')),
       );
-      Navigator.of(context).pop();
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+      if (!widget.embeddedInShell) {
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -99,7 +222,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final isWide = constraints.maxWidth >= 980;
-                    final copy = const Column(
+                    const copy = Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         VeloPrimeSectionEyebrow(label: 'Security', color: accentColor),
@@ -171,12 +294,113 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 3, child: copy),
+                        const Expanded(flex: 3, child: copy),
                         const SizedBox(width: 24),
                         Expanded(flex: 2, child: actionPanel),
                       ],
                     );
                   },
+                ),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 920),
+                  child: VeloPrimeWorkspacePanel(
+                    tint: accentColor,
+                    radius: 30,
+                    child: _isLoadingProfile
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isWide = constraints.maxWidth >= 760;
+                              final profile = _profile;
+                              final avatar = _AccountAvatar(
+                                avatarUrl: profile?.avatarUrl,
+                                fullName: profile?.fullName ?? 'Przedstawiciel VeloPrime',
+                                size: isWide ? 136 : 112,
+                              );
+
+                              final details = Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const VeloPrimeSectionEyebrow(label: 'Profil przedstawiciela', color: accentColor),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    profile?.fullName ?? 'Aktualny użytkownik',
+                                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    profile == null
+                                        ? 'Pobieramy dane konta oraz zdjęcie, które będzie widoczne w wygenerowanej ofercie.'
+                                        : 'To zdjęcie będzie wykorzystywane w sekcji opiekuna oferty w aplikacji i w publicznym linku dla klienta.',
+                                    style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    children: [
+                                      if (profile != null) VeloPrimeBadge(label: 'Email', value: profile.email),
+                                      if (profile?.phone != null && profile!.phone!.trim().isNotEmpty)
+                                        VeloPrimeBadge(label: 'Telefon', value: profile.phone!),
+                                      if (profile != null) VeloPrimeBadge(label: 'Rola', value: profile.role),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 18),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    children: [
+                                      FilledButton.icon(
+                                        onPressed: _isUploadingAvatar ? null : _pickAvatar,
+                                        icon: _isUploadingAvatar
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                              )
+                                            : const Icon(Icons.add_a_photo_outlined),
+                                        label: Text(_isUploadingAvatar ? 'Wysyłanie...' : 'Dodaj lub zmień zdjęcie'),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: _isUploadingAvatar || profile?.avatarUrl == null ? null : _removeAvatar,
+                                        icon: const Icon(Icons.delete_outline_rounded),
+                                        label: const Text('Usuń zdjęcie'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              );
+
+                              if (!isWide) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Align(alignment: Alignment.centerLeft, child: avatar),
+                                    const SizedBox(height: 18),
+                                    details,
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  avatar,
+                                  const SizedBox(width: 24),
+                                  Expanded(child: details),
+                                ],
+                              );
+                            },
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -244,11 +468,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 720),
-                  child: VeloPrimeWorkspacePanel(
+                  child: const VeloPrimeWorkspacePanel(
                     tint: accentColor,
                     radius: 28,
                     surfaceOpacity: 0.68,
-                    child: const Column(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         VeloPrimeSectionEyebrow(label: 'Wskazowki', color: accentColor),
@@ -280,5 +504,72 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         child: content,
       ),
     );
+  }
+}
+
+class _AccountAvatar extends StatelessWidget {
+  const _AccountAvatar({
+    required this.avatarUrl,
+    required this.fullName,
+    required this.size,
+  });
+
+  final String? avatarUrl;
+  final String fullName;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = _buildImage();
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEAF2FB), Color(0xFFD9E3F3)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF13284A).withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: image ?? Center(
+        child: Icon(Icons.person_rounded, size: size * 0.44, color: const Color(0xFF355274)),
+      ),
+    );
+  }
+
+  Widget? _buildImage() {
+    final value = avatarUrl?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
+    if (value.startsWith('data:image/')) {
+      UriData? uriData;
+      try {
+        uriData = UriData.parse(value);
+      } catch (_) {
+        uriData = null;
+      }
+
+      final bytes = uriData?.contentAsBytes();
+      if (bytes == null) {
+        return null;
+      }
+
+      return Image.memory(bytes, fit: BoxFit.cover);
+    }
+
+    return Image.network(value, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => const SizedBox.shrink());
   }
 }

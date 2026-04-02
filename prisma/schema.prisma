@@ -117,6 +117,7 @@ model User {
   role           UserRole
   isActive       Boolean       @default(true)
   phone          String?
+  avatarUrl      String?
   region         String?
   teamName       String?
   reportsToUserId String?

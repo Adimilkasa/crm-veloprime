@@ -145,6 +145,78 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
     }
   }
 
+  Future<void> _publishCatalogAndAssets() async {
+    final request = await showDialog<_PublishRequest>(
+      context: context,
+      builder: (context) => const _PublishArtifactDialog(
+        artifactType: 'DATA+ASSETS',
+        defaultPriority: 'CRITICAL',
+        titleOverride: 'Opublikuj katalog i materiały',
+        descriptionOverride:
+            'Ta akcja publikuje razem dane katalogu i materiały modeli dla całego zespołu. Użyj jej po zakończeniu zmian w polityce cenowej, kolorach i plikach.',
+      ),
+    );
+
+    if (request == null) {
+      return;
+    }
+
+    setState(() {
+      _isPublishing = true;
+    });
+
+    try {
+      await widget.repository.publishUpdate(
+        artifactType: 'DATA',
+        priority: request.priority,
+        summary: request.summary,
+      );
+      final manifest = await widget.repository.publishUpdate(
+        artifactType: 'ASSETS',
+        priority: request.priority,
+        summary: request.summary,
+      );
+      final comparison = await widget.repository.compareVersions(
+        const ClientVersionPayload(
+          dataVersion: ClientArtifactVersions.data,
+          assetsVersion: ClientArtifactVersions.assets,
+          applicationVersion: ClientArtifactVersions.application,
+        ),
+      );
+
+      if (widget.onManifestChanged != null) {
+        await widget.onManifestChanged!();
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _manifest = manifest;
+        _comparison = comparison;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Katalog i materiały zostały opublikowane.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPublishing = false;
+        });
+      }
+    }
+  }
+
   VersionComparisonItem? _comparisonFor(String artifactType) {
     final comparison = _comparison;
     if (comparison == null) {
@@ -306,6 +378,18 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
                 ),
                 const SizedBox(height: 18),
                 FilledButton.icon(
+                  onPressed: _isPublishing ? null : _publishCatalogAndAssets,
+                  icon: _isPublishing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2.2),
+                        )
+                      : const Icon(Icons.cloud_upload_rounded),
+                  label: const Text('Publikuj katalog i materiały'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
                   onPressed: _isPublishing ? null : () => _load(silent: false),
                   icon: _isLoading
                       ? const SizedBox(
@@ -391,7 +475,7 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
                 ),
               ),
               const SizedBox(width: 16),
-              FilledButton.icon(
+              OutlinedButton.icon(
                 onPressed: _isPublishing ? null : () => _publishArtifact(artifactType),
                 icon: _isPublishing
                     ? const SizedBox(
@@ -400,7 +484,7 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
                         child: CircularProgressIndicator(strokeWidth: 2.2),
                       )
                     : const Icon(Icons.publish_rounded),
-                label: const Text('Publikuj'),
+                label: const Text('Publikuj tylko ten artefakt'),
               ),
             ],
           ),
@@ -622,10 +706,14 @@ class _PublishArtifactDialog extends StatefulWidget {
   const _PublishArtifactDialog({
     required this.artifactType,
     required this.defaultPriority,
+    this.titleOverride,
+    this.descriptionOverride,
   });
 
   final String artifactType;
   final String defaultPriority;
+  final String? titleOverride;
+  final String? descriptionOverride;
 
   @override
   State<_PublishArtifactDialog> createState() => _PublishArtifactDialogState();
@@ -643,8 +731,12 @@ class _PublishArtifactDialogState extends State<_PublishArtifactDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.titleOverride ?? 'Publikuj ${widget.artifactType}';
+    final description = widget.descriptionOverride ??
+        'Ta akcja podniesie wersję ${widget.artifactType} w manifeście i zapisze nowy snapshot publikacji.';
+
     return AlertDialog(
-      title: Text('Publikuj ${widget.artifactType}'),
+      title: Text(title),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -652,7 +744,7 @@ class _PublishArtifactDialogState extends State<_PublishArtifactDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Ta akcja podniesie wersję ${widget.artifactType} w manifeście i zapisze nowy snapshot publikacji.',
+              description,
               style: const TextStyle(color: VeloPrimePalette.muted, height: 1.5),
             ),
             const SizedBox(height: 18),
