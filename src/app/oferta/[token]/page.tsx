@@ -34,7 +34,7 @@ function buildHeroNarrative(input: {
   const color = input.selectedColorName?.trim() || 'kolor bazowy'
   const powertrain = input.powertrainType?.trim() || 'napęd zgodny z konfiguracją'
 
-  return `Konfiguracja ${input.modelName} została przygotowana indywidualnie dla ${input.customerName}. Hero pokazuje sam pojazd i jego główne cechy: kolor ${color} oraz ${powertrain}.`
+  return `Konfiguracja ${input.modelName} została przygotowana dla ${input.customerName} w kolorze ${color} z napędem ${powertrain}. Oferta prezentuje najważniejsze parametry pojazdu, wycenę i warunki finansowania tej wersji.`
 }
 
 function formatMoney(value: number | null | undefined) {
@@ -194,6 +194,9 @@ export default async function PublicOfferPage({
   const generatedAtLabel = formatDate(payload.createdAt)
   const onlineStatusSummary = `To jest aktywna wersja oferty online. Link prowadzi do tej samej konfiguracji przygotowanej przez opiekuna i pozostaje ważny do ${validUntilLabel}.`
   const formalNotice = payload.customer.financingDisclaimer ?? defaultFinancingDisclaimer
+  const heroSupportMessage = assets.specPdfUrl
+    ? 'W ofercie znajdziesz specyfikację modelu, parametry techniczne, galerię, wycenę i przygotowany wariant finansowania.'
+    : 'W ofercie znajdziesz parametry techniczne, galerię modelu, wycenę i przygotowany wariant finansowania.'
   const baseColorName = payload.internal.baseColorName?.trim() || null
   const technicalItems = [
     { label: 'Model', value: modelLabel },
@@ -258,7 +261,7 @@ export default async function PublicOfferPage({
                 <div className="mt-8 max-w-xl rounded-[28px] border border-white/70 bg-white/74 p-5 shadow-[0_20px_60px_rgba(17,32,67,0.08)] backdrop-blur-md lg:p-6">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Gotowe do prezentacji</div>
                   <p className="mt-3 text-[15px] leading-8 text-[#56627a]">
-                    Poniżej znajdziesz PDF specyfikacji, galerię modelu, wycenę oraz finansowanie w kolejności zgodnej z finalnym układem oferty.
+                    {heroSupportMessage}
                   </p>
                 </div>
               </div>
@@ -278,26 +281,19 @@ export default async function PublicOfferPage({
                     <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent_0%,rgba(8,17,35,0.75)_100%)] p-6 text-white sm:p-7">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/68">Wybrana konfiguracja</div>
                       <div className="mt-3 text-[28px] font-semibold leading-tight">{payload.customer.selectedColorName ?? modelLabel}</div>
-                      <div className="mt-2 max-w-xl text-sm leading-7 text-white/78">Hero pozostaje czysty: skupia się na samochodzie, kolorze i materiale wizualnym, bez sekcji cenowej i metadanych dokumentu.</div>
+                      <div className="mt-2 max-w-xl text-sm leading-7 text-white/78">Samochód został przygotowany do spokojnego porównania konfiguracji, wyceny i dostępnych warunków zakupu.</div>
                     </div>
                   </div>
 
-                  <div className="grid gap-4 px-6 py-6 sm:grid-cols-2">
+                  <div className="px-6 py-6">
                     <div className="rounded-[24px] border border-[rgba(20,33,61,0.07)] bg-white/90 p-5">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Klient</div>
                       <div className="mt-3 text-[22px] font-semibold text-[#172033]">{payload.customer.customerName}</div>
                       <div className="mt-3 text-sm leading-7 text-[#5f6d87]">{customerContactLine}</div>
-                    </div>
-                    <div className="rounded-[24px] border border-[rgba(20,33,61,0.07)] bg-[linear-gradient(135deg,#18325f_0%,#23477f_100%)] p-5 text-white shadow-[0_18px_50px_rgba(23,45,87,0.28)]">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">Opiekun oferty</div>
-                      <div className="mt-4 flex items-center gap-4">
-                        <AdvisorAvatar avatarUrl={advisorAvatarUrl} fullName={advisorName} size="h-16 w-16" textClassName="text-lg" />
-                        <div>
-                          <div className="text-[22px] font-semibold">{advisorName}</div>
-                          <div className="mt-2 text-sm text-white/72">{advisorRole}</div>
-                        </div>
+                      <div className="mt-4 flex flex-wrap gap-3 text-sm text-[#5f6d87]">
+                        <span>Oferta ważna do {validUntilLabel}</span>
+                        <span>Opiekun: {advisorName}</span>
                       </div>
-                      <div className="mt-4 text-sm leading-7 text-white/78">{advisorContactLine}</div>
                     </div>
                   </div>
                 </div>
@@ -307,13 +303,13 @@ export default async function PublicOfferPage({
         </section>
 
         {assets.specPdfUrl ? (
-          <section className="mt-8 rounded-[30px] border border-[rgba(20,33,61,0.08)] bg-white/94 p-6 shadow-[0_20px_60px_rgba(17,32,67,0.08)] lg:p-8">
+          <section className="mt-8 rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-white/94 p-5 shadow-[0_16px_44px_rgba(17,32,67,0.07)] lg:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">PDF</div>
-                <h2 className="mt-3 text-[28px] font-semibold leading-tight text-[#172033]">Specyfikacja pojazdu dostępna do pobrania</h2>
-                <p className="mt-3 max-w-3xl text-[15px] leading-8 text-[#58657f]">
-                  PDF pozostaje tuż pod hero, zanim użytkownik przejdzie do sekcji technicznej, galerii, wyceny i finansowania.
+                <h2 className="mt-2 text-[22px] font-semibold leading-tight text-[#172033]">Specyfikacja pojazdu dostępna do pobrania</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-7 text-[#58657f]">
+                  Plik zawiera szczegółową kartę modelu i wyposażenia dla tej konfiguracji.
                 </p>
               </div>
               <Link href={assets.specPdfUrl} target="_blank" className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#e3c986_0%,#d6ad56_100%)] px-5 py-3 text-sm font-semibold text-[#1c1711] shadow-[0_14px_34px_rgba(212,168,79,0.2)] transition hover:translate-y-[-1px] hover:brightness-[1.02]">
@@ -323,13 +319,13 @@ export default async function PublicOfferPage({
           </section>
         ) : null}
 
-        <section className="mt-8 grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+        <section className="mt-8">
           <SectionCard
             eyebrow="Konfiguracja techniczna"
             title="Dane pojazdu i wybranej konfiguracji"
-            description="Ta sekcja zawiera wyłącznie parametry samochodu. Metadane dokumentu i formalności pozostają przeniesione na sam dół oferty."
+            description="Najważniejsze parametry przygotowane dla tej konfiguracji pojazdu."
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {technicalItems.map((item) => (
                 <DetailTile key={item.label} label={item.label} value={item.value} />
               ))}
@@ -338,16 +334,18 @@ export default async function PublicOfferPage({
             <div className="mt-5 rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,#f9fbfe_0%,#f4f7fb_100%)] p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Opis konfiguracji</div>
               <p className="mt-4 text-[15px] leading-8 text-[#55627d]">
-                Sekcja techniczna pozostaje czysta: pokazuje model, kolor i napęd, zanim użytkownik przejdzie do materiałów wizualnych oraz części handlowej oferty.
+                Zebraliśmy tu podstawowe informacje o modelu, kolorze i napędzie, aby łatwo porównać tę konfigurację z innymi wariantami.
               </p>
             </div>
           </SectionCard>
+        </section>
 
+        <section className="mt-8 grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
           <div className="grid gap-6">
             <SectionCard
               eyebrow="Materiały modelu"
               title={`Galeria dla konfiguracji ${modelLabel}`}
-              description="Galeria jest celowo pokazana przed sekcją wartości i finansowania, żeby najpierw sprzedawać sam samochód i jego wygląd."
+              description="Zdjęcia pokazują sylwetkę modelu, detale nadwozia i charakter tej konfiguracji."
             >
               <PublicOfferGallery modelLabel={modelLabel} gallery={gallery} />
             </SectionCard>
@@ -355,7 +353,7 @@ export default async function PublicOfferPage({
             <SectionCard
               eyebrow="Wartość pojazdu"
               title="Cena i rabat dla tej konfiguracji"
-              description="Wycena pozostaje oddzielona od finansowania. Najpierw pokazujemy wartość pojazdu i pełny kontekst cenowy, a dopiero potem scenariusz finansowania."
+              description="Wycena pokazuje pełny kontekst cenowy tej konfiguracji wraz z rabatem i ceną katalogową."
             >
               <div className="grid gap-4 sm:grid-cols-3">
                 <MetricCard
@@ -383,7 +381,7 @@ export default async function PublicOfferPage({
           <SectionCard
             eyebrow="Finansowanie"
             title="Osobna sekcja warunków finansowania"
-            description="Finansowanie nie miesza się z wartością pojazdu. Tu trafiają wyłącznie wariant, parametry kalkulacji oraz zastrzeżenie formalne."
+            description="Przygotowany wariant finansowania obejmuje kluczowe parametry kalkulacji oraz zastrzeżenie formalne."
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-white p-5">
@@ -424,7 +422,7 @@ export default async function PublicOfferPage({
           <SectionCard
             eyebrow="Opiekun"
             title="Osoba odpowiedzialna za ofertę"
-            description="Sekcja kontaktowa pozostaje oddzielona od danych systemowych dokumentu. Tu klient widzi wyłącznie opiekuna i ewentualne uwagi do rozmowy."
+            description="W tej sekcji znajdują się dane opiekuna oferty oraz dodatkowe uwagi do rozmowy z klientem."
           >
             <div className="rounded-[28px] bg-[linear-gradient(145deg,#18325f_0%,#214b87_100%)] p-6 text-white shadow-[0_22px_60px_rgba(23,45,87,0.28)]">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">{advisorRole}</div>

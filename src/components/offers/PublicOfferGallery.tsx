@@ -67,12 +67,12 @@ export function PublicOfferGallery({
           className="group relative overflow-hidden rounded-[28px] border border-[rgba(20,33,61,0.08)] bg-[#eef3f9] text-left shadow-[0_18px_50px_rgba(17,32,67,0.08)]"
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-          <img src={featured} alt={modelLabel} className="h-[420px] w-full object-cover transition duration-300 group-hover:scale-[1.01]" />
+          <img src={featured} alt={modelLabel} className="h-[300px] w-full object-cover transition duration-300 group-hover:scale-[1.01] sm:h-[340px]" />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent_0%,rgba(10,20,37,0.78)_100%)] p-5 text-white">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/65">Zdjęcie główne</div>
-                <div className="mt-2 text-base font-semibold">Kliknij, aby otworzyć pełną galerię</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/65">Galeria modelu</div>
+                <div className="mt-2 text-sm font-semibold sm:text-base">Kliknij, aby otworzyć pełną galerię</div>
               </div>
               <div className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white/82">
                 {gallery.length} zdjęć
@@ -89,7 +89,7 @@ export function PublicOfferGallery({
               className="group relative overflow-hidden rounded-[24px] border border-[rgba(20,33,61,0.08)] bg-[#eef3f9] text-left shadow-[0_16px_40px_rgba(17,32,67,0.07)]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-              <img src={imageUrl} alt={`${modelLabel} ${index + 2}`} className="h-[198px] w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+              <img src={imageUrl} alt={`${modelLabel} ${index + 2}`} className="h-[148px] w-full object-cover transition duration-300 group-hover:scale-[1.02] sm:h-[164px]" />
               <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/18 bg-[rgba(9,18,33,0.5)] px-2.5 py-1 text-[11px] font-semibold text-white/82">
                 {index + 2}
               </div>
@@ -99,7 +99,7 @@ export function PublicOfferGallery({
       </div>
 
       {gallery.length > 5 ? (
-        <div className="mt-4 flex flex-wrap gap-4">
+        <div className="mt-4 flex flex-wrap gap-3">
           {gallery.slice(5).map((imageUrl, index) => (
             <button
               key={imageUrl}
@@ -108,7 +108,7 @@ export function PublicOfferGallery({
               className="group relative overflow-hidden rounded-[22px] border border-[rgba(20,33,61,0.08)] bg-[#eef3f9] text-left shadow-[0_14px_34px_rgba(17,32,67,0.06)]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-              <img src={imageUrl} alt={`${modelLabel} ${index + 6}`} className="h-[126px] w-[180px] object-cover transition duration-300 group-hover:scale-[1.02]" />
+              <img src={imageUrl} alt={`${modelLabel} ${index + 6}`} className="h-[92px] w-[132px] object-cover transition duration-300 group-hover:scale-[1.02]" />
               <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/18 bg-[rgba(9,18,33,0.5)] px-2.5 py-1 text-[11px] font-semibold text-white/82">
                 {index + 6}
               </div>
