@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v26",
-      "publishedAt": "2026-04-03T14:15:00.000Z",
+      "version": "v27",
+      "publishedAt": "2026-04-03T20:35:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.12 binds the generated offer preview to viewport height so the full snapshot body renders instead of collapsing under the top action bar.",
+      "summary": "Flutter client 0.1.12.13 simplifies the generated offer preview shell, top bar and hero block so the snapshot body renders reliably in the Windows client.",
       "priority": "STANDARD"
     }
   ]

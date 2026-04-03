@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -369,139 +367,124 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
             );
           }
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final contentWidth = constraints.maxWidth > 1240 ? 1240.0 : constraints.maxWidth;
-
-              return Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: contentWidth,
-                  height: constraints.maxHeight,
-                  child: Column(
-                    children: [
-                      _PreviewStickyTopBar(
-                        hasSpecification: specDocumentSource != null,
-                        canSendEmail: canSendEmail,
-                        isSendingEmail: _isSendingEmail,
-                        onBack: () => Navigator.of(context).pop(),
-                        onOpenSpecification: specDocumentSource == null
-                            ? null
-                            : () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
-                        onSendOffer: canSendEmail ? () => _sendOfferByEmail(document) : null,
-                      ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _PreviewHeroCard(
-                                document: document,
-                                heroImageSource: heroImageSource,
-                                contactLine: contactLine,
-                                supportingMessage: heroSupportMessage,
-                                effectivePriceLabel: effectivePriceLabel,
-                                generatedAtLabel: generatedAtLabel,
-                                commercialSummary: commercialSummary,
-                                customerLine: [customer.customerName, customer.customerEmail, customer.customerPhone]
-                                    .whereType<String>()
-                                    .where((item) => item.trim().isNotEmpty)
-                                    .join(' • '),
-                              ),
-                              if (specDocumentSource != null) ...[
-                                const SizedBox(height: 16),
-                                _PreviewPdfStrip(
-                                  onPressed: () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
-                                ),
-                              ],
-                              const SizedBox(height: 20),
-                              _PreviewSectionCard(
-                                title: 'Najważniejsze dane',
-                                subtitle: 'Najpierw to, co klient powinien zrozumieć od razu. Kluczowe parametry są większe, reszta lżejsza i spokojniejsza wizualnie.',
-                                child: _PreviewTechnicalSection(
-                                  items: technicalItems,
-                                  metaItems: [
-                                    'Oferta dla ${customer.customerName}',
-                                    'Opiekun: ${advisor.fullName.isNotEmpty ? advisor.fullName : document.payload.internal.ownerName}',
-                                    'Ważna do $validUntilLabel',
-                                    'Ceny w trybie $pricingDisplayMode',
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              _PreviewSectionCard(
-                                title: 'Galeria',
-                                subtitle: 'Sekcyjna prezentacja auta: zewnętrze, wnętrze i detale.',
-                                child: _AssetGallery(
-                                  media: resolvedMedia,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              _PreviewValueSection(
-                                listPriceLabel: customer.listPriceLabel,
-                                discountLabel: customer.discountLabel,
-                                discountPercentLabel: customer.discountPercentLabel,
-                                effectivePriceLabel: effectivePriceLabel,
-                                secondaryPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
-                                pricingDisplayMode: pricingDisplayMode,
-                              ),
-                              const SizedBox(height: 20),
-                              _PreviewFinancingSection(
-                                insights: financingInsights,
-                                pricingDisplayMode: pricingDisplayMode,
-                                financingVariant: customer.financingVariant ?? 'Do uzupełnienia',
-                                primaryFinalPriceLabel: pricingDisplayMode == 'netto' ? customer.finalNetLabel : customer.finalGrossLabel,
-                                secondaryFinalPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
-                                disclaimer: customer.financingDisclaimer ?? _defaultFinancingDisclaimer,
-                              ),
-                              const SizedBox(height: 20),
-                              _PreviewSectionCard(
-                                title: 'Porozmawiajmy o tej konfiguracji',
-                                subtitle: 'To jest końcówka tej oferty: kontakt z opiekunem i przejście do realnej rozmowy o finansowaniu, wariancie i kolejnych krokach.',
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _PreviewAdvisorCard(
-                                      advisor: advisor,
-                                      fallbackName: document.payload.internal.ownerName,
-                                      advisorLine: advisorLine,
-                                      onContact: () => _contactAdvisor(advisor),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _PreviewCalloutBox(
-                                      title: 'Wskazówki do rozmowy',
-                                      value: customer.notes?.isNotEmpty == true
-                                          ? customer.notes!
-                                          : 'Brak dodatkowych uwag do oferty.',
-                                      tint: const Color(0xFFF3EFE7),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _PreviewInfoGrid(items: [
-                                      _PreviewInfoItem('Numer oferty', customer.offerNumber),
-                                      _PreviewInfoItem('Ważna do', validUntilLabel),
-                                      _PreviewInfoItem('Specyfikacja', specDocumentSource != null ? 'PDF dostępny' : 'Brak PDF'),
-                                      _PreviewInfoItem('Tryb cen', pricingDisplayMode),
-                                    ]),
-                                    const SizedBox(height: 12),
-                                    _PreviewCalloutBox(
-                                      title: 'Zastrzeżenie formalne',
-                                      value: formalNotice,
-                                      tint: const Color(0xFFF7F1E5),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+          return Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1240),
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _PreviewStickyTopBar(
+                    hasSpecification: specDocumentSource != null,
+                    canSendEmail: canSendEmail,
+                    isSendingEmail: _isSendingEmail,
+                    onBack: () => Navigator.of(context).pop(),
+                    onOpenSpecification: specDocumentSource == null
+                        ? null
+                        : () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
+                    onSendOffer: canSendEmail ? () => _sendOfferByEmail(document) : null,
                   ),
-                ),
-              );
-            },
+                  const SizedBox(height: 16),
+                  _PreviewHeroCard(
+                    document: document,
+                    heroImageSource: heroImageSource,
+                    contactLine: contactLine,
+                    supportingMessage: heroSupportMessage,
+                    effectivePriceLabel: effectivePriceLabel,
+                    generatedAtLabel: generatedAtLabel,
+                    commercialSummary: commercialSummary,
+                    customerLine: [customer.customerName, customer.customerEmail, customer.customerPhone]
+                        .whereType<String>()
+                        .where((item) => item.trim().isNotEmpty)
+                        .join(' • '),
+                  ),
+                  if (specDocumentSource != null) ...[
+                    const SizedBox(height: 16),
+                    _PreviewPdfStrip(
+                      onPressed: () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  _PreviewSectionCard(
+                    title: 'Najważniejsze dane',
+                    subtitle: 'Najpierw to, co klient powinien zrozumieć od razu. Kluczowe parametry są większe, reszta lżejsza i spokojniejsza wizualnie.',
+                    child: _PreviewTechnicalSection(
+                      items: technicalItems,
+                      metaItems: [
+                        'Oferta dla ${customer.customerName}',
+                        'Opiekun: ${advisor.fullName.isNotEmpty ? advisor.fullName : document.payload.internal.ownerName}',
+                        'Ważna do $validUntilLabel',
+                        'Ceny w trybie $pricingDisplayMode',
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _PreviewSectionCard(
+                    title: 'Galeria',
+                    subtitle: 'Sekcyjna prezentacja auta: zewnętrze, wnętrze i detale.',
+                    child: _AssetGallery(
+                      media: resolvedMedia,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _PreviewValueSection(
+                    listPriceLabel: customer.listPriceLabel,
+                    discountLabel: customer.discountLabel,
+                    discountPercentLabel: customer.discountPercentLabel,
+                    effectivePriceLabel: effectivePriceLabel,
+                    secondaryPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
+                    pricingDisplayMode: pricingDisplayMode,
+                  ),
+                  const SizedBox(height: 20),
+                  _PreviewFinancingSection(
+                    insights: financingInsights,
+                    pricingDisplayMode: pricingDisplayMode,
+                    financingVariant: customer.financingVariant ?? 'Do uzupełnienia',
+                    primaryFinalPriceLabel: pricingDisplayMode == 'netto' ? customer.finalNetLabel : customer.finalGrossLabel,
+                    secondaryFinalPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
+                    disclaimer: customer.financingDisclaimer ?? _defaultFinancingDisclaimer,
+                  ),
+                  const SizedBox(height: 20),
+                  _PreviewSectionCard(
+                    title: 'Porozmawiajmy o tej konfiguracji',
+                    subtitle: 'To jest końcówka tej oferty: kontakt z opiekunem i przejście do realnej rozmowy o finansowaniu, wariancie i kolejnych krokach.',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _PreviewAdvisorCard(
+                          advisor: advisor,
+                          fallbackName: document.payload.internal.ownerName,
+                          advisorLine: advisorLine,
+                          onContact: () => _contactAdvisor(advisor),
+                        ),
+                        const SizedBox(height: 12),
+                        _PreviewCalloutBox(
+                          title: 'Wskazówki do rozmowy',
+                          value: customer.notes?.isNotEmpty == true
+                              ? customer.notes!
+                              : 'Brak dodatkowych uwag do oferty.',
+                          tint: const Color(0xFFF3EFE7),
+                        ),
+                        const SizedBox(height: 12),
+                        _PreviewInfoGrid(items: [
+                          _PreviewInfoItem('Numer oferty', customer.offerNumber),
+                          _PreviewInfoItem('Ważna do', validUntilLabel),
+                          _PreviewInfoItem('Specyfikacja', specDocumentSource != null ? 'PDF dostępny' : 'Brak PDF'),
+                          _PreviewInfoItem('Tryb cen', pricingDisplayMode),
+                        ]),
+                        const SizedBox(height: 12),
+                        _PreviewCalloutBox(
+                          title: 'Zastrzeżenie formalne',
+                          value: formalNotice,
+                          tint: const Color(0xFFF7F1E5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -550,234 +533,144 @@ class _PreviewHeroCard extends StatelessWidget {
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 900;
 
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(36),
-          child: Container(
-            constraints: BoxConstraints(minHeight: isCompact ? 560 : 680),
-            decoration: BoxDecoration(
-              color: hasHeroImage ? const Color(0xFFE6EBF2) : const Color(0xFF1D1D1F),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 34,
-                  offset: const Offset(0, 14),
-                ),
-              ],
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isCompact ? 22 : 28),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2B2419), Color(0xFF1D1D1F), Color(0xFF161618)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hasHeroImage)
-                  _PreviewImage(
+            borderRadius: BorderRadius.circular(36),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 34,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (hasHeroImage) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: _PreviewImage(
                     source: heroImageSource!,
-                    height: isCompact ? 560 : 680,
+                    height: isCompact ? 220 : 320,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     missingLabel: 'Podgląd grafiki modelu jest niedostępny',
-                  )
-                else
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color(0xFF2B2419),
-                          Color(0xFF1D1D1F),
-                          Color(0xFF121214),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  top: -80,
-                  right: -40,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 240,
-                      height: 240,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFD4A84F).withValues(alpha: hasHeroImage ? 0.08 : 0.16),
-                      ),
-                    ),
                   ),
                 ),
-                Positioned(
-                  bottom: -120,
-                  left: -60,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 280,
-                      height: 280,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFBE933E).withValues(alpha: hasHeroImage ? 0.06 : 0.12),
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: hasHeroImage
-                          ? const [
-                              Color.fromRGBO(7, 12, 18, 0.08),
-                              Color.fromRGBO(7, 12, 18, 0.22),
-                              Color.fromRGBO(7, 12, 18, 0.58),
-                              Color.fromRGBO(245, 245, 247, 0.96),
-                            ]
-                          : const [
-                              Color.fromRGBO(7, 12, 18, 0.18),
-                              Color.fromRGBO(7, 12, 18, 0.28),
-                              Color.fromRGBO(7, 12, 18, 0.74),
-                              Color.fromRGBO(29, 29, 31, 0.98),
-                            ],
-                      stops: hasHeroImage ? const [0, 0.18, 0.72, 1] : const [0, 0.22, 0.72, 1],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: hasHeroImage
-                          ? const [
-                              Color.fromRGBO(7, 12, 18, 0.68),
-                              Color.fromRGBO(7, 12, 18, 0.34),
-                              Color.fromRGBO(7, 12, 18, 0.1),
-                            ]
-                          : const [
-                              Color.fromRGBO(7, 12, 18, 0.78),
-                              Color.fromRGBO(7, 12, 18, 0.52),
-                              Color.fromRGBO(7, 12, 18, 0.24),
-                            ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(isCompact ? 24 : 34, isCompact ? 26 : 32, isCompact ? 24 : 34, isCompact ? 28 : 34),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-                        ),
-                        child: Text(
-                          'Oferta dla ${customer.customerName}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 760),
-                        child: Text(
-                          modelLabel,
-                          style: TextStyle(
-                            fontSize: isCompact ? 44 : 72,
-                            height: 0.92,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 640),
-                        child: Text(
-                          supportingMessage.isNotEmpty ? supportingMessage : customerNarrative,
-                          style: TextStyle(
-                            fontSize: isCompact ? 17 : 19,
-                            height: 1.6,
-                            color: Colors.white.withValues(alpha: 0.84),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        customerNarrative,
-                        style: TextStyle(
-                          fontSize: 15,
-                          height: 1.6,
-                          color: Colors.white.withValues(alpha: 0.72),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        rateLabel ?? 'Cena dla tej konfiguracji',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0,
-                          color: Colors.white.withValues(alpha: 0.68),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        primaryValue,
-                        style: TextStyle(
-                          fontSize: isCompact ? 38 : 52,
-                          height: 0.98,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Dane klienta',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1,
-                                color: Colors.white.withValues(alpha: 0.66),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              customerLine.isNotEmpty ? customerLine : 'Dane klienta do uzupełnienia',
-                              style: TextStyle(fontSize: 14, height: 1.6, color: Colors.white.withValues(alpha: 0.84)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Opiekun: $advisorName • Ważna do: $validUntilLabel • Wygenerowano: $generatedAtLabel',
-                        style: TextStyle(fontSize: 14, height: 1.6, color: Colors.white.withValues(alpha: 0.74)),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        contactLine,
-                        style: TextStyle(fontSize: 14, height: 1.6, color: Colors.white.withValues(alpha: 0.68)),
-                      ),
-                    ],
-                  ),
-                ),
+                const SizedBox(height: 20),
               ],
-            ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Oferta dla ${customer.customerName}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                modelLabel,
+                style: TextStyle(
+                  fontSize: isCompact ? 40 : 56,
+                  height: 0.96,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                supportingMessage.isNotEmpty ? supportingMessage : customerNarrative,
+                style: TextStyle(
+                  fontSize: isCompact ? 16 : 18,
+                  height: 1.6,
+                  color: Colors.white.withValues(alpha: 0.84),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                customerNarrative,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.6,
+                  color: Colors.white.withValues(alpha: 0.72),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                rateLabel ?? 'Cena dla tej konfiguracji',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.0,
+                  color: Colors.white.withValues(alpha: 0.68),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                primaryValue,
+                style: TextStyle(
+                  fontSize: isCompact ? 34 : 46,
+                  height: 1,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dane klienta',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                        color: Colors.white.withValues(alpha: 0.66),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      customerLine.isNotEmpty ? customerLine : 'Dane klienta do uzupełnienia',
+                      style: TextStyle(fontSize: 14, height: 1.6, color: Colors.white.withValues(alpha: 0.84)),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Opiekun: $advisorName • Ważna do: $validUntilLabel • Wygenerowano: $generatedAtLabel',
+                      style: TextStyle(fontSize: 14, height: 1.6, color: Colors.white.withValues(alpha: 0.74)),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      contactLine,
+                      style: TextStyle(fontSize: 14, height: 1.6, color: Colors.white.withValues(alpha: 0.68)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -905,58 +798,52 @@ class _PreviewStickyTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF7F2E9).withValues(alpha: 0.62),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.52)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF13284A).withValues(alpha: 0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F2E9),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.52)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF13284A).withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            runSpacing: 10,
-            spacing: 10,
-            children: [
-              _PreviewTopBarButton(
-                onPressed: onBack,
-                icon: Icons.arrow_back_rounded,
-                label: 'Powrót',
-              ),
-              if (hasSpecification)
-                _PreviewTopBarButton(
-                  onPressed: onOpenSpecification,
-                  icon: Icons.description_outlined,
-                  label: 'Otwórz specyfikację PDF',
-                ),
-              if (canSendEmail)
-                _PreviewTopBarButton(
-                  onPressed: isSendingEmail ? null : onSendOffer,
-                  icon: isSendingEmail ? null : Icons.alternate_email_outlined,
-                  label: isSendingEmail ? 'Wysyłamy ofertę...' : 'Wyślij ofertę',
-                  isPrimary: true,
-                  trailing: isSendingEmail
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : null,
-                ),
-            ],
+        ],
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        runSpacing: 10,
+        spacing: 10,
+        children: [
+          _PreviewTopBarButton(
+            onPressed: onBack,
+            icon: Icons.arrow_back_rounded,
+            label: 'Powrót',
           ),
-        ),
+          if (hasSpecification)
+            _PreviewTopBarButton(
+              onPressed: onOpenSpecification,
+              icon: Icons.description_outlined,
+              label: 'Otwórz specyfikację PDF',
+            ),
+          if (canSendEmail)
+            _PreviewTopBarButton(
+              onPressed: isSendingEmail ? null : onSendOffer,
+              icon: isSendingEmail ? null : Icons.alternate_email_outlined,
+              label: isSendingEmail ? 'Wysyłamy ofertę...' : 'Wyślij ofertę',
+              isPrimary: true,
+              trailing: isSendingEmail
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : null,
+            ),
+        ],
       ),
     );
   }

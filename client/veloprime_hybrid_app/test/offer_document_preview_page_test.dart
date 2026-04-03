@@ -24,7 +24,6 @@ void main() {
         versionNumber: 1,
         summary: 'PDF ready',
         createdAt: '2026-03-31T08:00:00.000Z',
-        pdfUrl: 'https://crm.veloprime.pl/oferty/of-2026-001.pdf',
       ),
       payload: OfferDocumentPayloadData(
         versionId: 'version-1',
@@ -54,10 +53,12 @@ void main() {
           fullName: 'Doradca Testowy',
           email: 'doradca@veloprime.pl',
           phone: '+48999111222',
+          avatarUrl: null,
           role: 'SALES',
         ),
         internal: OfferDocumentInternalSnapshot(
           catalogKey: 'seal-7-excellence',
+          powertrainType: null,
           customerType: 'PRIVATE',
           finalPriceGross: 214900,
           finalPriceNet: 174715,
@@ -90,7 +91,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Wyślij na email'), findsOneWidget);
-    expect(find.text('Otworz specyfikacje PDF'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Wyślij ofertę'), findsOneWidget);
+    expect(find.text('Otwórz specyfikację PDF'), findsOneWidget);
+    expect(find.text('BYD Seal 7'), findsOneWidget);
   });
 }
