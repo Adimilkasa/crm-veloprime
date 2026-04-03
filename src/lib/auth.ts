@@ -6,7 +6,7 @@ import { cookies } from 'next/headers'
 import { UserRole } from '@prisma/client'
 import { SignJWT, jwtVerify } from 'jose'
 
-import { db } from '@/lib/db'
+import { db, isDatabaseUnavailableError } from '@/lib/db'
 import type { UserRoleKey } from '@/lib/rbac'
 
 export type AuthSession = {
@@ -230,8 +230,16 @@ async function listDbUsers() {
     return null
   }
 
-  const users = await ensureSeedUsersInDb()
-  return users?.map(mapDbUser) ?? []
+  try {
+    const users = await ensureSeedUsersInDb()
+    return users?.map(mapDbUser) ?? []
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      return null
+    }
+
+    throw error
+  }
 }
 
 function getSecret() {

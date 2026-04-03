@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { AuthSession } from '@/lib/auth'
-import { db, hasDatabaseUrl } from '@/lib/db'
+import { db, hasDatabaseUrl, isDatabaseUnavailableError } from '@/lib/db'
 import { listManagedUsers } from '@/lib/user-management'
 
 export type LeadStageKind = 'OPEN' | 'WON' | 'LOST' | 'HOLD'
@@ -141,7 +141,7 @@ function isPrismaSchemaMismatch(error: unknown) {
 }
 
 function canUseFileLeadStorageFallback(error: unknown) {
-  return process.env.NODE_ENV !== 'production' && isPrismaSchemaMismatch(error)
+  return isDatabaseUnavailableError(error) || (process.env.NODE_ENV !== 'production' && isPrismaSchemaMismatch(error))
 }
 
 function splitFullName(fullName: string) {

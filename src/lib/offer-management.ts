@@ -6,7 +6,7 @@ import type { AuthSession } from '@/lib/auth'
 import { getOfferAssetBundle } from '@/lib/offer-assets'
 import type { ModelColorPalette } from '@/lib/color-management'
 import { listActiveCommissionRules } from '@/lib/commission-management'
-import { db, hasDatabaseUrl } from '@/lib/db'
+import { db, hasDatabaseUrl, isDatabaseUnavailableError } from '@/lib/db'
 import { sendTransactionalEmail } from '@/lib/email-service'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
 import { createManagedLead, listManagedLeads, listManagedLeadStages, logManagedLeadActivity, type ManagedLead } from '@/lib/lead-management'
@@ -715,58 +715,64 @@ async function getManagedOffer(session: AuthSession, offerId: string) {
   const visibleOwnerIds = getVisibleOfferOwnerIds(session, users)
 
   if (isPrismaOfferStorageEnabled() && db) {
-    const record = await db.offer.findUnique({
-      where: { id: offerId },
-      include: {
-        customer: true,
-        owner: true,
-        salesCatalogItem: true,
-        financing: true,
-        versions: true,
-      },
-    })
-
-    if (!record) {
-      return null
-    }
-
-    const mapped = mapDbOfferToManagedOffer(record)
-
-    if (!canViewOffer(mapped, visibleOwnerIds)) {
-      return null
-    }
-
-    const leadLookupFilters = [
-      record.customerId ? { customerId: record.customerId } : null,
-      record.customer.email ? { email: record.customer.email } : null,
-      record.customer.phone ? { phone: record.customer.phone } : null,
-    ].filter(Boolean) as Prisma.LeadWhereInput[]
-
-    if (leadLookupFilters.length > 0) {
-      const linkedLead = await db.lead.findFirst({
-        where: {
-          OR: leadLookupFilters,
-          ...(session.role === 'ADMIN'
-            ? {}
-            : {
-                salespersonId: {
-                  in: Array.from(visibleOwnerIds),
-                },
-              }),
+    try {
+      const record = await db.offer.findUnique({
+        where: { id: offerId },
+        include: {
+          customer: true,
+          owner: true,
+          salesCatalogItem: true,
+          financing: true,
+          versions: true,
         },
-        orderBy: { updatedAt: 'desc' },
-        select: { id: true },
       })
 
-      if (linkedLead) {
-        return { ...mapped, leadId: linkedLead.id }
+      if (!record) {
+        return null
+      }
+
+      const mapped = mapDbOfferToManagedOffer(record)
+
+      if (!canViewOffer(mapped, visibleOwnerIds)) {
+        return null
+      }
+
+      const leadLookupFilters = [
+        record.customerId ? { customerId: record.customerId } : null,
+        record.customer.email ? { email: record.customer.email } : null,
+        record.customer.phone ? { phone: record.customer.phone } : null,
+      ].filter(Boolean) as Prisma.LeadWhereInput[]
+
+      if (leadLookupFilters.length > 0) {
+        const linkedLead = await db.lead.findFirst({
+          where: {
+            OR: leadLookupFilters,
+            ...(session.role === 'ADMIN'
+              ? {}
+              : {
+                  salespersonId: {
+                    in: Array.from(visibleOwnerIds),
+                  },
+                }),
+          },
+          orderBy: { updatedAt: 'desc' },
+          select: { id: true },
+        })
+
+        if (linkedLead) {
+          return { ...mapped, leadId: linkedLead.id }
+        }
+      }
+
+      const leads = await listManagedLeads(session)
+      const matchedLead = matchLeadForOffer(leads, mapped)
+
+      return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
+    } catch (error) {
+      if (!isDatabaseUnavailableError(error)) {
+        throw error
       }
     }
-
-    const leads = await listManagedLeads(session)
-    const matchedLead = matchLeadForOffer(leads, mapped)
-
-    return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
   }
 
   const offer = (await getStore()).find((entry) => entry.id === offerId) ?? null
@@ -786,26 +792,32 @@ export async function listManagedOffers(session: AuthSession) {
   const visibleOwnerIds = getVisibleOfferOwnerIds(session, users)
 
   if (isPrismaOfferStorageEnabled() && db) {
-    const offers = await db.offer.findMany({
-      include: {
-        customer: true,
-        owner: true,
-        salesCatalogItem: true,
-        financing: true,
-        versions: true,
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-    })
-
-    return offers
-      .map((offer) => {
-        const mapped = mapDbOfferToManagedOffer(offer)
-        const matchedLead = matchLeadForOffer(leads, mapped)
-        return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
+    try {
+      const offers = await db.offer.findMany({
+        include: {
+          customer: true,
+          owner: true,
+          salesCatalogItem: true,
+          financing: true,
+          versions: true,
+        },
+        orderBy: {
+          updatedAt: 'desc',
+        },
       })
-      .filter((offer) => canViewOffer(offer, visibleOwnerIds))
+
+      return offers
+        .map((offer) => {
+          const mapped = mapDbOfferToManagedOffer(offer)
+          const matchedLead = matchLeadForOffer(leads, mapped)
+          return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
+        })
+        .filter((offer) => canViewOffer(offer, visibleOwnerIds))
+    } catch (error) {
+      if (!isDatabaseUnavailableError(error)) {
+        throw error
+      }
+    }
   }
 
   const offers = await getStore()
