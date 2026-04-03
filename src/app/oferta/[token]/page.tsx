@@ -1,8 +1,28 @@
-import Link from 'next/link'
+import type { ReactNode } from 'react'
+
 import { notFound } from 'next/navigation'
 
-import { PublicOfferGallery } from '@/components/offers/PublicOfferGallery'
+import { PublicOfferGallery, type PublicOfferGallerySection } from '@/components/offers/PublicOfferGallery'
 import { getPublicOfferDocumentSnapshot } from '@/lib/offer-management'
+
+function parseCatalogKey(catalogKey: string | null | undefined) {
+  if (!catalogKey) {
+    return null
+  }
+
+  const [brand, model, version, year] = catalogKey.split('::')
+
+  if (!brand || !model || !version) {
+    return null
+  }
+
+  return {
+    brand,
+    model,
+    version,
+    year: year?.trim() || null,
+  }
+}
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -10,6 +30,18 @@ function formatDate(value: string | null) {
   }
 
   return new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function formatMoney(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return 'Do ustalenia z opiekunem'
+  }
+
+  return new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: 'PLN',
+    maximumFractionDigits: 2,
+  }).format(value)
 }
 
 function buildContactLine(email: string | null | undefined, phone: string | null | undefined) {
@@ -25,95 +57,122 @@ function isCompanyCustomer(customerType: string | null | undefined) {
   return normalized.includes('firm') || normalized === 'b2b' || normalized === 'company'
 }
 
-function buildHeroNarrative(input: {
-  modelName: string
-  customerName: string
-  selectedColorName: string | null
-  powertrainType: string | null | undefined
-}) {
-  const color = input.selectedColorName?.trim() || 'kolor bazowy'
-  const powertrain = input.powertrainType?.trim() || 'napęd zgodny z konfiguracją'
+function normalizeCommercialValue(value: string | null | undefined) {
+  const normalized = value?.trim()
 
-  return `Konfiguracja ${input.modelName} została przygotowana dla ${input.customerName} w kolorze ${color} z napędem ${powertrain}. Oferta prezentuje najważniejsze parametry pojazdu, wycenę i warunki finansowania tej wersji.`
-}
-
-function formatMoney(value: number | null | undefined) {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return 'Do potwierdzenia'
+  if (!normalized || /do potwierdzenia|do ustalenia/i.test(normalized)) {
+    return 'Do ustalenia z opiekunem'
   }
 
-  return new Intl.NumberFormat('pl-PL', {
-    style: 'currency',
-    currency: 'PLN',
-    maximumFractionDigits: 2,
-  }).format(value)
+  return normalized
 }
 
-const defaultFinancingDisclaimer =
-  'Prezentowane raty są orientacyjne i obliczone na podstawie parametrów wprowadzonych do kalkulatora. Ostateczna decyzja finansowa, wysokość rat oraz warunki umowy są ustalane przez instytucję finansującą po pełnej analizie zdolności kredytowej klienta. Oferta nie stanowi wiążącej oferty finansowania zgodnie z Kodeksem cywilnym.'
+function formatPowertrainType(powertrainType: string | null | undefined) {
+  const normalized = powertrainType?.trim().toLowerCase() ?? ''
 
-function InfoPill({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-white/55 bg-white/72 px-4 py-2 text-sm font-medium text-[#24324f] backdrop-blur-sm">
-      <span className="mr-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8b7746]">{label}</span>
-      <span>{value}</span>
-    </span>
-  )
+  if (normalized.includes('electric') || normalized.includes('ev') || normalized.includes('elek')) {
+    return 'Elektryczny'
+  }
+
+  if (normalized.includes('hybrid') || normalized.includes('phev') || normalized.includes('hev') || normalized.includes('hyb')) {
+    return 'Hybrydowy'
+  }
+
+  if (normalized.includes('petrol') || normalized.includes('diesel') || normalized.includes('fuel') || normalized.includes('spalin')) {
+    return 'Spalinowy'
+  }
+
+  return 'Do potwierdzenia'
 }
 
-function MetricCard({
-  eyebrow,
-  value,
-  detail,
-  accent = false,
-}: {
-  eyebrow: string
-  value: string
-  detail: string
-  accent?: boolean
-}) {
-  return (
-    <article
-      className={[
-        'rounded-[26px] border p-5 shadow-[0_20px_60px_rgba(17,32,67,0.08)]',
-        accent
-          ? 'border-[rgba(157,123,39,0.18)] bg-[linear-gradient(180deg,#fff8ea_0%,#fffdf7_100%)]'
-          : 'border-[rgba(20,33,61,0.08)] bg-white/92',
-      ].join(' ')}
-    >
-      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8b7746]">{eyebrow}</div>
-      <div className="mt-3 text-[28px] font-semibold leading-tight text-[#172033]">{value}</div>
-      <div className="mt-3 text-sm leading-7 text-[#5c6881]">{detail}</div>
-    </article>
-  )
+function buildHeroNarrative(modelName: string, selectedColorName: string | null) {
+  const selectedColor = selectedColorName?.trim()
+
+  if (selectedColor) {
+    return `${modelName} w kolorze ${selectedColor}. Oferta została przygotowana jako czytelna, spokojna prezentacja konfiguracji i warunków zakupu.`
+  }
+
+  return `${modelName}. Oferta została przygotowana jako czytelna, spokojna prezentacja konfiguracji i warunków zakupu.`
 }
 
-function SectionCard({
-  eyebrow,
-  title,
-  description,
+function buildGallerySections(images: {
+  premium: string[]
+  exterior: string[]
+  interior: string[]
+  details: string[]
+  other: string[]
+}): PublicOfferGallerySection[] {
+  const sections = [
+    {
+      title: 'Zewnętrze',
+      images: [...images.premium, ...images.exterior, ...images.other],
+    },
+    {
+      title: 'Wnętrze',
+      images: images.interior,
+    },
+    {
+      title: 'Detale',
+      images: images.details,
+    },
+  ]
+
+  return sections
+    .map((section) => ({
+      ...section,
+      images: section.images.filter((image, index, all) => all.indexOf(image) === index),
+    }))
+    .filter((section) => section.images.length > 0)
+}
+
+function Panel({
   children,
+  variant = 'default',
+  className = '',
+  id,
 }: {
-  eyebrow: string
-  title: string
-  description?: string
-  children: React.ReactNode
+  children: ReactNode
+  variant?: 'default' | 'highlight' | 'accent'
+  className?: string
+  id?: string
 }) {
+  const variants = {
+    default: 'bg-white/72 shadow-[0_20px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/50 backdrop-blur-xl',
+    highlight: 'bg-white/78 shadow-[0_20px_60px_rgba(15,23,42,0.1)] ring-1 ring-white/60 backdrop-blur-xl',
+    accent: 'bg-[linear-gradient(135deg,rgba(190,147,62,0.96),rgba(212,168,79,0.92))] text-white shadow-[0_24px_64px_rgba(190,147,62,0.26)]',
+  }
+
   return (
-    <section className="rounded-[30px] border border-[rgba(20,33,61,0.08)] bg-white/94 p-6 shadow-[0_20px_60px_rgba(17,32,67,0.08)] lg:p-8">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">{eyebrow}</div>
-      <h2 className="mt-3 text-[28px] font-semibold leading-tight text-[#172033]">{title}</h2>
-      {description ? <p className="mt-3 max-w-3xl text-[15px] leading-8 text-[#58657f]">{description}</p> : null}
-      <div className="mt-6">{children}</div>
+    <section id={id} className={`rounded-[36px] px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10 ${variants[variant]} ${className}`.trim()}>
+      {children}
     </section>
   )
 }
 
-function DetailTile({ label, value }: { label: string; value: string }) {
+function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-[22px] border border-[rgba(20,33,61,0.07)] bg-[linear-gradient(180deg,#ffffff_0%,#f7f9fc_100%)] p-4">
-      <div className="text-sm text-[#7a879f]">{label}</div>
-      <div className="mt-2 text-[18px] font-semibold leading-7 text-[#172033]">{value}</div>
+    <div className="max-w-3xl">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[#6e6e73]">Premium offer</p>
+      <h2 className="mt-4 text-[32px] font-semibold leading-[1.02] tracking-[-0.04em] text-[#1d1d1f] sm:text-[40px] lg:text-[46px]">{title}</h2>
+      <p className="mt-4 text-[16px] leading-8 text-[#4e4e56]">{description}</p>
+    </div>
+  )
+}
+
+function SpecTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[24px] bg-white/68 px-5 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)] ring-1 ring-white/70 backdrop-blur-sm">
+      <div className="text-[13px] font-medium text-[#6e6e73]">{label}</div>
+      <div className="mt-2 text-[18px] font-semibold leading-tight text-[#1d1d1f]">{value}</div>
+    </div>
+  )
+}
+
+function FinanceRow({ label, value, emphasize = false }: { label: string; value: string; emphasize?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-[#d9d9de] py-4 last:border-b-0 last:pb-0 first:pt-0">
+      <div className="text-[14px] leading-7 text-[#6e6e73]">{label}</div>
+      <div className={`text-right text-[16px] font-semibold leading-7 ${emphasize ? 'text-[#1d1d1f]' : 'text-[#3a3a40]'}`}>{value}</div>
     </div>
   )
 }
@@ -135,30 +194,17 @@ export default async function PublicOfferPage({
     const expiredAdvisorContact = buildContactLine(document.advisorEmail, document.advisorPhone)
 
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(26,87,152,0.2),transparent_35%),linear-gradient(180deg,#f6f8fc_0%,#edf2f8_100%)] px-4 py-10 text-[#172033]">
-        <div className="mx-auto max-w-3xl rounded-[32px] border border-[rgba(27,58,112,0.12)] bg-white/90 p-8 shadow-[0_24px_80px_rgba(17,32,67,0.14)]">
-          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Oferta VeloPrime</div>
-          <h1 className="mt-4 text-3xl font-semibold text-[#172033]">Oferta wygasła.</h1>
-          <p className="mt-4 max-w-2xl text-base leading-8 text-[#52607a]">
-            Ten link nie jest już aktywny. W sprawie aktualnej oferty skontaktuj się z osobą odpowiedzialną za klienta.
-          </p>
-          <div className="mt-8 rounded-[24px] border border-[rgba(27,58,112,0.1)] bg-[#f8fbff] p-6">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9d7b27]">Osoba odpowiedzialna za klienta</div>
-            <div className="mt-3 text-lg font-semibold text-[#172033]">{expiredAdvisorName}</div>
-            <div className="mt-2 text-sm text-[#52607a]">{expiredAdvisorContact}</div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {document.advisorEmail ? (
-                <a href={`mailto:${document.advisorEmail}`} className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#e3c986_0%,#d6ad56_100%)] px-5 py-3 text-sm font-semibold text-[#1c1711] shadow-[0_14px_34px_rgba(212,168,79,0.2)] transition hover:translate-y-[-1px] hover:brightness-[1.02]">
-                  Napisz wiadomość
-                </a>
-              ) : null}
-              {document.advisorPhone ? (
-                <a href={`tel:${document.advisorPhone.replace(/\s+/g, '')}`} className="inline-flex items-center rounded-full border border-[rgba(20,33,61,0.1)] bg-white px-5 py-3 text-sm font-medium text-[#172033] shadow-[0_12px_30px_rgba(17,32,67,0.06)] transition hover:translate-y-[-1px] hover:border-[rgba(157,123,39,0.24)]">
-                  Zadzwoń
-                </a>
-              ) : null}
+      <main className="min-h-screen bg-transparent px-4 py-12 text-[#1d1d1f] sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <Panel>
+            <h1 className="text-[42px] font-semibold tracking-[-0.04em]">Oferta wygasła</h1>
+            <p className="mt-4 text-[16px] leading-8 text-[#4e4e56]">Ten link nie jest już aktywny. W sprawie aktualnej oferty skontaktuj się z osobą odpowiedzialną za klienta.</p>
+            <div className="mt-8 rounded-[28px] bg-white/70 p-6 ring-1 ring-white/70">
+              <div className="text-[13px] font-medium uppercase tracking-[0.16em] text-[#6e6e73]">Kontakt</div>
+              <div className="mt-3 text-[24px] font-semibold text-[#1d1d1f]">{expiredAdvisorName}</div>
+              <div className="mt-3 text-[15px] leading-7 text-[#4e4e56]">{expiredAdvisorContact}</div>
             </div>
-          </div>
+          </Panel>
         </div>
       </main>
     )
@@ -166,364 +212,226 @@ export default async function PublicOfferPage({
 
   const payload = document.payload
   const assets = document.assets
-  const heroImage = assets.images.premium[0] ?? assets.images.exterior[0] ?? assets.images.other[0] ?? null
-  const gallery = [
-    ...assets.images.premium,
-    ...assets.images.exterior,
-    ...assets.images.interior,
-    ...assets.images.details,
-  ].filter((image, index, all) => all.indexOf(image) === index)
+  const gallerySections = buildGallerySections(assets.images)
+  const heroImage = gallerySections[0]?.images[0] ?? assets.images.premium[0] ?? assets.images.exterior[0] ?? assets.images.other[0] ?? null
   const modelLabel = buildModelLabel(payload.customer.modelName, document.title)
+  const parsedCatalogKey = parseCatalogKey(payload.internal.catalogKey)
   const pricingDisplayMode = isCompanyCustomer(payload.internal.customerType) ? 'netto' : 'brutto'
   const effectivePriceLabel = pricingDisplayMode === 'netto' ? payload.customer.finalNetLabel : payload.customer.finalGrossLabel
-  const secondaryPriceLabel = pricingDisplayMode === 'netto' ? payload.customer.finalGrossLabel : payload.customer.finalNetLabel
   const effectivePriceTitle = pricingDisplayMode === 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto'
-  const secondaryPriceTitle = pricingDisplayMode === 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto'
-  const heroNarrative = buildHeroNarrative({
-    modelName: modelLabel,
-    customerName: payload.customer.customerName,
-    selectedColorName: payload.customer.selectedColorName,
-    powertrainType: payload.internal.powertrainType,
-  })
   const advisorName = payload.advisor.fullName || payload.internal.ownerName || 'Opiekun VeloPrime'
-  const advisorRole = payload.advisor.role || payload.internal.ownerRole || 'Handlowiec'
-  const advisorAvatarUrl = payload.advisor.avatarUrl?.trim() || null
-  const customerContactLine = buildContactLine(payload.customer.customerEmail, payload.customer.customerPhone)
   const advisorContactLine = buildContactLine(payload.advisor.email, payload.advisor.phone)
   const validUntilLabel = formatDate(payload.customer.validUntil ?? document.shareExpiresAt)
-  const generatedAtLabel = formatDate(payload.createdAt)
-  const onlineStatusSummary = `To jest aktywna wersja oferty online. Link prowadzi do tej samej konfiguracji przygotowanej przez opiekuna i pozostaje ważny do ${validUntilLabel}.`
-  const formalNotice = payload.customer.financingDisclaimer ?? defaultFinancingDisclaimer
-  const heroSupportMessage = assets.specPdfUrl
-    ? 'W ofercie znajdziesz specyfikację modelu, parametry techniczne, galerię, wycenę i przygotowany wariant finansowania.'
-    : 'W ofercie znajdziesz parametry techniczne, galerię modelu, wycenę i przygotowany wariant finansowania.'
-  const baseColorName = payload.internal.baseColorName?.trim() || null
-  const technicalItems = [
-    { label: 'Model', value: modelLabel },
-    { label: 'Kolor konfiguracji', value: payload.customer.selectedColorName ?? 'Bazowy' },
-    { label: 'Typ napędu', value: payload.internal.powertrainType?.trim() || 'Do potwierdzenia' },
-    ...(baseColorName ? [{ label: 'Kolor bazowy modelu', value: baseColorName }] : []),
-  ]
-  const notesText = payload.customer.notes?.trim() || 'Brak dodatkowych uwag do oferty.'
+  const heroNarrative = buildHeroNarrative(modelLabel, payload.customer.selectedColorName)
+  const formalNotice = payload.customer.financingDisclaimer ?? 'Prezentowane warunki mają charakter orientacyjny i wymagają końcowego potwierdzenia po weryfikacji finansowej.'
   const financingSummary = payload.internal.financing
-  const financingFacts = financingSummary
-    ? [
-        { label: 'Szacowana rata', value: formatMoney(financingSummary.estimatedInstallment) },
-        { label: 'Okres', value: `${financingSummary.termMonths} mies.` },
-        { label: 'Wpłata własna', value: formatMoney(financingSummary.downPaymentAmount) },
-        { label: 'Wykup', value: `${financingSummary.buyoutPercent}%` },
-      ]
-    : []
+  const estimatedInstallmentLabel = financingSummary?.estimatedInstallment ? formatMoney(financingSummary.estimatedInstallment) : null
+  const priceFallbackText = normalizeCommercialValue(effectivePriceLabel)
+  const heroPrimaryValue = estimatedInstallmentLabel ? `${estimatedInstallmentLabel} / mies.` : priceFallbackText
+  const heroPrimaryLabel = estimatedInstallmentLabel ? 'Szacowana rata miesięczna' : effectivePriceTitle
+  const powertrainLabel = formatPowertrainType(payload.internal.powertrainType)
+  const technicalTiles = [
+    ...(parsedCatalogKey?.brand ? [{ label: 'Marka', value: parsedCatalogKey.brand }] : []),
+    { label: 'Model', value: modelLabel },
+    ...(parsedCatalogKey?.version ? [{ label: 'Wersja', value: parsedCatalogKey.version }] : []),
+    { label: 'Napęd', value: powertrainLabel },
+    ...(payload.internal.driveType?.trim() ? [{ label: 'Napęd osi', value: payload.internal.driveType.trim() }] : []),
+    { label: 'Kolor', value: payload.customer.selectedColorName ?? 'Bazowy' },
+    ...(payload.internal.year ? [{ label: 'Rocznik', value: String(payload.internal.year) }] : []),
+    ...(payload.internal.powerHp?.trim() ? [{ label: 'Moc', value: payload.internal.powerHp.trim() }] : []),
+    ...(payload.internal.systemPowerHp?.trim() ? [{ label: 'Moc układu', value: payload.internal.systemPowerHp.trim() }] : []),
+    ...(payload.internal.batteryCapacityKwh?.trim() ? [{ label: 'Pojemność baterii', value: payload.internal.batteryCapacityKwh.trim() }] : []),
+    ...(payload.internal.rangeKm?.trim() ? [{ label: 'Zasięg', value: payload.internal.rangeKm.trim() }] : []),
+    ...(payload.internal.combustionEnginePowerHp?.trim() ? [{ label: 'Moc silnika spalinowego', value: payload.internal.combustionEnginePowerHp.trim() }] : []),
+    ...(payload.internal.engineDisplacementCc?.trim() ? [{ label: 'Pojemność silnika', value: payload.internal.engineDisplacementCc.trim() }] : []),
+    ...(payload.internal.baseColorName?.trim() ? [{ label: 'Kolor bazowy', value: payload.internal.baseColorName.trim() }] : []),
+  ].filter((item, index, all) => all.findIndex((candidate) => candidate.label === item.label && candidate.value === item.value) === index)
+  const customerData = [payload.customer.customerName, payload.customer.customerEmail, payload.customer.customerPhone].filter(Boolean)
+  const primaryCtaHref = payload.advisor.email
+    ? `mailto:${payload.advisor.email}`
+    : payload.advisor.phone
+      ? `tel:${payload.advisor.phone.replace(/\s+/g, '')}`
+      : null
+  const phoneCtaHref = payload.advisor.phone ? `tel:${payload.advisor.phone.replace(/\s+/g, '')}` : null
+  const primaryFinalPrice = pricingDisplayMode === 'netto' ? payload.customer.finalNetLabel : payload.customer.finalGrossLabel
+  const secondaryFinalPrice = pricingDisplayMode === 'netto' ? payload.customer.finalGrossLabel : payload.customer.finalNetLabel
+  const primaryFinalPriceLabel = pricingDisplayMode === 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto'
+  const secondaryFinalPriceLabel = pricingDisplayMode === 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto'
+  const financeRows = [
+    { label: 'Cena auta', value: payload.customer.listPriceLabel },
+    { label: 'Rabat', value: `${payload.customer.discountLabel} (${payload.customer.discountPercentLabel})` },
+    { label: 'Cena końcowa', value: priceFallbackText, emphasize: true },
+    { label: 'Wpłata własna', value: financingSummary?.downPaymentAmount ? formatMoney(financingSummary.downPaymentAmount) : 'Do ustalenia' },
+    { label: 'Okres', value: financingSummary?.termMonths ? `${financingSummary.termMonths} mies.` : 'Do ustalenia' },
+    { label: 'Wykup', value: financingSummary?.buyoutPercent ? `${financingSummary.buyoutPercent}%` : 'Do ustalenia' },
+  ]
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(212,168,79,0.12),transparent_28%),radial-gradient(circle_at_85%_14%,rgba(31,82,147,0.16),transparent_24%),linear-gradient(180deg,#fcfcfb_0%,#f1f5f8_100%)] px-4 py-6 text-[#172033] sm:px-6 lg:px-8 lg:py-10">
-      <div className="mx-auto max-w-7xl">
-        <section className="relative overflow-hidden rounded-[40px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(135deg,rgba(255,255,255,0.9),rgba(247,250,255,0.88))] shadow-[0_34px_110px_rgba(17,32,67,0.14)]">
-          <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,168,79,0.48),transparent)]" />
-          <div className="absolute -left-16 top-12 h-44 w-44 rounded-full bg-[rgba(212,168,79,0.12)] blur-3xl" />
-          <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[rgba(32,83,149,0.12)] blur-3xl" />
+    <main className="min-h-screen bg-transparent text-[#1d1d1f]">
+      <section className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_48%)]" />
+        {heroImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- direct product assets are required in the public offer hero
+          <img src={heroImage} alt={modelLabel} className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,#c7d2e3_0%,#8b9bb4_100%)]" />
+        )}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,16,24,0.28)_0%,rgba(10,16,24,0.18)_24%,rgba(10,16,24,0.52)_78%,rgba(245,245,247,1)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(10,16,24,0.72)_0%,rgba(10,16,24,0.44)_34%,rgba(10,16,24,0.12)_68%,rgba(10,16,24,0.04)_100%)]" />
 
-          <div className="relative px-6 py-7 lg:px-10 lg:py-9">
-            <div className="flex flex-col gap-4 border-b border-[rgba(20,33,61,0.07)] pb-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="rounded-[22px] border border-white/70 bg-white/78 px-4 py-3 shadow-[0_14px_34px_rgba(17,32,67,0.08)] backdrop-blur-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- share page uses static asset logo */}
-                  <img src={assets.logoUrl} alt="VeloPrime" className="h-8 w-auto" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#9d7b27]">Oferta online</div>
-                  <div className="mt-1 text-sm text-[#62708a]">Dokument przygotowany indywidualnie dla klienta</div>
-                </div>
-              </div>
+        <div className="relative z-10 mx-auto flex min-h-[92svh] max-w-7xl items-end px-4 pb-16 pt-28 sm:px-6 lg:px-8 lg:pb-24">
+          <div className="max-w-3xl">
+            <div className="inline-flex rounded-full bg-white/12 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur-md ring-1 ring-white/18">
+              Oferta przygotowana dla {payload.customer.customerName}
+            </div>
+            <h1 className="mt-6 text-[52px] font-semibold leading-[0.92] tracking-[-0.06em] text-white sm:text-[72px] lg:text-[104px]">{modelLabel}</h1>
+            <p className="mt-6 max-w-2xl text-[18px] leading-8 text-white/82 sm:text-[19px]">{heroNarrative}</p>
+            <p className="mt-4 max-w-xl text-[15px] leading-7 text-white/72">To produkcyjna wersja oferty przygotowana dla klienta, z prezentacją modelu, konfiguracji, specyfikacji i warunków finansowych.</p>
 
-              <div className="flex flex-wrap gap-3">
-                <InfoPill label="Dla klienta" value={payload.customer.customerName} />
-                <InfoPill label="Kolor" value={payload.customer.selectedColorName ?? 'Bazowy'} />
-                <InfoPill label="Napęd" value={payload.internal.powertrainType?.trim() || 'Do potwierdzenia'} />
-              </div>
+            <div className="mt-10">
+              <div className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/68">{heroPrimaryLabel}</div>
+              <div className="mt-3 text-[42px] font-semibold leading-[0.98] tracking-[-0.05em] text-white sm:text-[56px] lg:text-[72px]">{heroPrimaryValue}</div>
             </div>
 
-            <div className="mt-8 grid gap-8 lg:grid-cols-[1.05fr_0.95fr] xl:gap-10">
-              <div className="relative z-10">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#9d7b27]">Konfiguracja dopasowana do rozmowy handlowej</div>
-                <h1 className="mt-4 max-w-4xl text-[40px] font-semibold leading-[1.04] tracking-[-0.03em] text-[#172033] sm:text-[54px] lg:text-[64px]">
-                  {modelLabel}
-                </h1>
-                <p className="mt-5 max-w-2xl text-[16px] leading-8 text-[#58657f]">
-                  {heroNarrative}
-                </p>
-
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <InfoPill label="Kontakt" value={customerContactLine} />
-                  <InfoPill label="Opiekun" value={advisorName} />
-                </div>
-
-                <div className="mt-8 max-w-xl rounded-[28px] border border-white/70 bg-white/74 p-5 shadow-[0_20px_60px_rgba(17,32,67,0.08)] backdrop-blur-md lg:p-6">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Gotowe do prezentacji</div>
-                  <p className="mt-3 text-[15px] leading-8 text-[#56627a]">
-                    {heroSupportMessage}
-                  </p>
-                </div>
-              </div>
-
-              <div className="relative lg:pl-4">
-                <div className="overflow-hidden rounded-[32px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,#ffffff_0%,#f7f9fc_100%)] shadow-[0_30px_90px_rgba(17,32,67,0.14)]">
-                  <div className="relative">
-                    {heroImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- share page uses direct product assets
-                      <img src={heroImage} alt={modelLabel} className="h-[320px] w-full object-cover sm:h-[420px]" />
-                    ) : (
-                      <div className="flex h-[320px] items-center justify-center bg-[linear-gradient(135deg,#edf3fb,#dde7f5)] px-8 text-center text-sm leading-7 text-[#5f6d87] sm:h-[420px]">
-                        Materiały modelu są kompletowane. Ta oferta pozostaje aktywna i może zostać uzupełniona dodatkowymi wizualizacjami.
-                      </div>
-                    )}
-
-                    <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent_0%,rgba(8,17,35,0.75)_100%)] p-6 text-white sm:p-7">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/68">Wybrana konfiguracja</div>
-                      <div className="mt-3 text-[28px] font-semibold leading-tight">{payload.customer.selectedColorName ?? modelLabel}</div>
-                      <div className="mt-2 max-w-xl text-sm leading-7 text-white/78">Samochód został przygotowany do spokojnego porównania konfiguracji, wyceny i dostępnych warunków zakupu.</div>
-                    </div>
-                  </div>
-
-                  <div className="px-6 py-6">
-                    <div className="rounded-[24px] border border-[rgba(20,33,61,0.07)] bg-white/90 p-5">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Klient</div>
-                      <div className="mt-3 text-[22px] font-semibold text-[#172033]">{payload.customer.customerName}</div>
-                      <div className="mt-3 text-sm leading-7 text-[#5f6d87]">{customerContactLine}</div>
-                      <div className="mt-4 flex flex-wrap gap-3 text-sm text-[#5f6d87]">
-                        <span>Oferta ważna do {validUntilLabel}</span>
-                        <span>Opiekun: {advisorName}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {assets.specPdfUrl ? (
-          <section className="mt-8 rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-white/94 p-5 shadow-[0_16px_44px_rgba(17,32,67,0.07)] lg:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">PDF</div>
-                <h2 className="mt-2 text-[22px] font-semibold leading-tight text-[#172033]">Specyfikacja pojazdu dostępna do pobrania</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-7 text-[#58657f]">
-                  Plik zawiera szczegółową kartę modelu i wyposażenia dla tej konfiguracji.
-                </p>
-              </div>
-              <Link href={assets.specPdfUrl} target="_blank" className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#e3c986_0%,#d6ad56_100%)] px-5 py-3 text-sm font-semibold text-[#1c1711] shadow-[0_14px_34px_rgba(212,168,79,0.2)] transition hover:translate-y-[-1px] hover:brightness-[1.02]">
-                Otwórz specyfikację PDF
-              </Link>
-            </div>
-          </section>
-        ) : null}
-
-        <section className="mt-8">
-          <SectionCard
-            eyebrow="Konfiguracja techniczna"
-            title="Dane pojazdu i wybranej konfiguracji"
-            description="Najważniejsze parametry przygotowane dla tej konfiguracji pojazdu."
-          >
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {technicalItems.map((item) => (
-                <DetailTile key={item.label} label={item.label} value={item.value} />
-              ))}
-            </div>
-
-            <div className="mt-5 rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,#f9fbfe_0%,#f4f7fb_100%)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Opis konfiguracji</div>
-              <p className="mt-4 text-[15px] leading-8 text-[#55627d]">
-                Zebraliśmy tu podstawowe informacje o modelu, kolorze i napędzie, aby łatwo porównać tę konfigurację z innymi wariantami.
-              </p>
-            </div>
-          </SectionCard>
-        </section>
-
-        <section className="mt-8 grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
-          <div className="grid gap-6">
-            <SectionCard
-              eyebrow="Materiały modelu"
-              title={`Galeria dla konfiguracji ${modelLabel}`}
-              description="Zdjęcia pokazują sylwetkę modelu, detale nadwozia i charakter tej konfiguracji."
-            >
-              <PublicOfferGallery modelLabel={modelLabel} gallery={gallery} />
-            </SectionCard>
-
-            <SectionCard
-              eyebrow="Wartość pojazdu"
-              title="Cena i rabat dla tej konfiguracji"
-              description="Wycena pokazuje pełny kontekst cenowy tej konfiguracji wraz z rabatem i ceną katalogową."
-            >
-              <div className="grid gap-4 sm:grid-cols-3">
-                <MetricCard
-                  eyebrow={effectivePriceTitle}
-                  value={effectivePriceLabel}
-                  detail={`Cena prezentowana w trybie ${pricingDisplayMode} dla przygotowanej konfiguracji, po uwzględnieniu warunków oferty.`}
-                  accent
-                />
-                <MetricCard
-                  eyebrow={secondaryPriceTitle}
-                  value={secondaryPriceLabel}
-                  detail={`Cena alternatywna względem trybu ${pricingDisplayMode} dla tej samej konfiguracji.`}
-                />
-                <MetricCard
-                  eyebrow="Rabat"
-                  value={payload.customer.discountLabel}
-                  detail={`Cena katalogowa ${payload.customer.listPriceLabel} oraz rabat procentowy ${payload.customer.discountPercentLabel}.`}
-                />
-              </div>
-            </SectionCard>
-          </div>
-        </section>
-
-        <section className="mt-8 grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-          <SectionCard
-            eyebrow="Finansowanie"
-            title="Osobna sekcja warunków finansowania"
-            description="Przygotowany wariant finansowania obejmuje kluczowe parametry kalkulacji oraz zastrzeżenie formalne."
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-white p-5">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Wariant finansowania</div>
-                <div className="mt-3 text-[22px] font-semibold leading-tight text-[#172033]">
-                  {payload.customer.financingVariant ?? 'Warunki ustalane indywidualnie'}
-                </div>
-                <p className="mt-3 text-sm leading-7 text-[#5b6881]">
-                  {payload.customer.financingSummary ?? 'W tej wersji dokumentu scenariusz finansowania pozostaje gotowy do doprecyzowania z opiekunem oferty.'}
-                </p>
-              </div>
-              <div className="rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(145deg,#18325f_0%,#214b87_100%)] p-5 text-white shadow-[0_22px_60px_rgba(23,45,87,0.28)]">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">Podstawa kalkulacji</div>
-                <div className="mt-3 text-[22px] font-semibold leading-tight">
-                  {financingSummary?.calculationBaseLabel ? `Wartości ${financingSummary.calculationBaseLabel}` : 'Wartości do potwierdzenia'}
-                </div>
-                <p className="mt-3 text-sm leading-7 text-white/76">
-                  {financingSummary
-                    ? `Kalkulacja obejmuje okres ${financingSummary.termMonths} mies., wpłatę własną ${formatMoney(financingSummary.downPaymentAmount)} i wykup ${financingSummary.buyoutPercent}%.`
-                    : 'Szczegółowa kalkulacja finansowania zostanie przedstawiona po pełnym potwierdzeniu parametrów.'}
-                </p>
-              </div>
-            </div>
-
-            {financingFacts.length > 0 ? (
-              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {financingFacts.map((item) => (
-                  <DetailTile key={item.label} label={item.label} value={item.value} />
+            <div className="mt-10 rounded-[26px] bg-white/10 px-5 py-4 backdrop-blur-md ring-1 ring-white/18 sm:px-6">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/64">Dane klienta</div>
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[14px] leading-7 text-white/82">
+                {customerData.map((item) => (
+                  <span key={item}>{item}</span>
                 ))}
               </div>
-            ) : null}
-
-            <div className="mt-5 rounded-[24px] border border-[rgba(157,123,39,0.16)] bg-[linear-gradient(180deg,#fff9ee_0%,#fffdf8_100%)] px-5 py-4 text-sm leading-7 text-[#6b654d]">
-              {formalNotice}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            eyebrow="Opiekun"
-            title="Osoba odpowiedzialna za ofertę"
-            description="W tej sekcji znajdują się dane opiekuna oferty oraz dodatkowe uwagi do rozmowy z klientem."
-          >
-            <div className="rounded-[28px] bg-[linear-gradient(145deg,#18325f_0%,#214b87_100%)] p-6 text-white shadow-[0_22px_60px_rgba(23,45,87,0.28)]">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">{advisorRole}</div>
-              <div className="mt-4 flex items-center gap-4">
-                <AdvisorAvatar avatarUrl={advisorAvatarUrl} fullName={advisorName} size="h-20 w-20" textClassName="text-xl" />
-                <div>
-                  <div className="text-[30px] font-semibold leading-tight">{advisorName}</div>
-                  <div className="mt-3 text-sm leading-8 text-white/76">{advisorContactLine}</div>
-                </div>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                {payload.advisor.email ? (
-                  <a href={`mailto:${payload.advisor.email}`} className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#e3c986_0%,#d6ad56_100%)] px-5 py-3 text-sm font-semibold text-[#1c1711] shadow-[0_14px_34px_rgba(212,168,79,0.2)] transition hover:translate-y-[-1px] hover:brightness-[1.02]">
-                    Wyślij wiadomość do opiekuna
-                  </a>
-                ) : null}
-                {payload.advisor.phone ? (
-                  <a href={`tel:${payload.advisor.phone.replace(/\s+/g, '')}`} className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-medium text-white transition hover:translate-y-[-1px] hover:border-white/35">
-                    Zadzwoń: {payload.advisor.phone}
-                  </a>
-                ) : null}
-              </div>
             </div>
 
-            <div className="mt-5 rounded-[24px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,#f9fbfe_0%,#f4f7fb_100%)] p-5 text-sm leading-8 text-[#55627d]">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Uwagi do oferty</div>
-              <p className="mt-3">{notesText}</p>
-            </div>
-          </SectionCard>
-        </section>
-
-        <section className="mt-8 rounded-[30px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,249,252,0.96))] p-6 shadow-[0_20px_60px_rgba(17,32,67,0.08)] lg:p-8">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Finalizacja</div>
-          <h2 className="mt-3 text-[28px] font-semibold leading-tight text-[#172033]">Oficjalny status tej wersji oferty</h2>
-          <p className="mt-3 max-w-3xl text-[15px] leading-8 text-[#58657f]">
-            Końcowa sekcja porządkuje status dokumentu, termin ważności i formalne zastrzeżenia przed finalnym potwierdzeniem konfiguracji lub finansowania.
-          </p>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-            <div className="grid gap-4">
-              <div className="rounded-[26px] border border-[rgba(36,65,103,0.12)] bg-[linear-gradient(180deg,#f7fbff_0%,#edf4fb_100%)] p-5">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#31557f]">Status wersji online</div>
-                <p className="mt-3 text-sm leading-8 text-[#4d5f79]">{onlineStatusSummary}</p>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <DetailTile label="Numer oferty" value={payload.customer.offerNumber} />
-                <DetailTile label="Wersja dokumentu" value={String(document.version.versionNumber)} />
-                <DetailTile label="Wygenerowano" value={generatedAtLabel} />
-                <DetailTile label="Ważna do" value={validUntilLabel} />
-                <DetailTile label="Specyfikacja" value={assets.specPdfUrl ? 'PDF dostępny' : 'Brak osobnego PDF'} />
-                <DetailTile label="Typ klienta" value={isCompanyCustomer(payload.internal.customerType) ? 'Firma' : 'Klient prywatny'} />
-              </div>
-            </div>
-
-            <div className="rounded-[26px] border border-[rgba(157,123,39,0.16)] bg-[linear-gradient(180deg,#fff9ee_0%,#fffdf8_100%)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Zastrzeżenie formalne</div>
-              <p className="mt-3 text-sm leading-8 text-[#6b654d]">{formalNotice}</p>
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[14px] leading-7 text-white/72">
+              <span>Opiekun: {advisorName}</span>
+              <span>Ważna do: {validUntilLabel}</span>
+              <span>{advisorContactLine}</span>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
+
+      <div className="relative z-10 mx-auto -mt-10 max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+        <div className="space-y-8 sm:space-y-10 lg:space-y-12">
+          <Panel>
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+              <SectionHeader
+                title="Najważniejsze dane"
+                description="Zestaw najważniejszych informacji o konfiguracji, generowany z danych dostępnych dla tej polityki cenowej i publicznego snapshotu oferty."
+              />
+
+              <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+                  {technicalTiles.map((item) => (
+                    <SpecTile key={item.label} label={item.label} value={item.value} />
+                  ))}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-[28px] font-semibold leading-[1.02] tracking-[-0.04em] text-[#1d1d1f] sm:text-[34px]">Galeria</h2>
+            </div>
+            <div className="mt-6">
+              <PublicOfferGallery modelLabel={modelLabel} sections={gallerySections} />
+            </div>
+          </Panel>
+
+          <Panel id="specyfikacja-pojazdu" className="scroll-mt-24 overflow-hidden">
+            <div className="relative rounded-[28px] bg-[#f2ede2]">
+              {heroImage ? (
+                // eslint-disable-next-line @next/next/no-img-element -- direct product assets are required in the public offer specification block
+                <img src={heroImage} alt={modelLabel} className="absolute inset-0 h-full w-full object-cover opacity-28" />
+              ) : null}
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.92)_0%,rgba(255,255,255,0.84)_48%,rgba(255,255,255,0.76)_100%)]" />
+              <div className="relative grid gap-5 px-6 py-6 sm:px-7 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+                <div>
+                  <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#6e6e73]">Specyfikacja pojazdu</div>
+                  <h2 className="mt-3 text-[28px] font-semibold leading-[1.04] tracking-[-0.04em] text-[#1d1d1f]">PDF z kartą modelu i wyposażenia</h2>
+                  <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#4e4e56]">Krótki dokument z techniczną specyfikacją i szczegółami konfiguracji przygotowanej dla klienta.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3 lg:justify-end">
+                  {assets.specPdfUrl ? (
+                    <a href={assets.specPdfUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-full bg-[#BE933E] px-6 py-3 text-[15px] font-semibold text-white transition hover:brightness-[1.03]">
+                      Pobierz PDF
+                    </a>
+                  ) : (
+                    <div className="text-[14px] leading-7 text-[#6e6e73]">PDF specyfikacji nie został jeszcze dołączony.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel variant="highlight">
+            <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
+              <div className="rounded-[32px] bg-[#1d1d1f] px-7 py-8 text-white shadow-[0_18px_48px_rgba(29,29,31,0.2)] sm:px-8 sm:py-9">
+                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-white/58">Finanse</div>
+                <h2 className="mt-4 text-[32px] font-semibold leading-[1.02] tracking-[-0.04em] text-white sm:text-[40px]">Najważniejsza liczba tej oferty</h2>
+                <div className="mt-8 text-[16px] font-medium text-white/68">Rata miesięczna</div>
+                <div className="mt-3 text-[44px] font-semibold leading-[0.98] tracking-[-0.05em] text-white sm:text-[56px]">{heroPrimaryValue}</div>
+                <p className="mt-5 max-w-xl text-[15px] leading-8 text-white/74">
+                  {estimatedInstallmentLabel
+                    ? 'To punkt wyjścia do rozmowy o finansowaniu. Ostateczna rata i warunki zostaną potwierdzone po weryfikacji klienta i finalnej konfiguracji.'
+                    : 'Jeżeli klient nie ma jeszcze gotowego wariantu finansowania, opiekun przygotuje dokładną propozycję po krótkiej rozmowie.'}
+                </p>
+                <div className="mt-8 rounded-[24px] bg-white/8 p-5 ring-1 ring-white/10">
+                  <div className="text-[13px] font-medium text-white/58">{primaryFinalPriceLabel}</div>
+                  <div className="mt-2 text-[28px] font-semibold tracking-[-0.04em] text-white">{primaryFinalPrice}</div>
+                  <div className="mt-4 text-[13px] font-medium text-white/52">{secondaryFinalPriceLabel}</div>
+                  <div className="mt-1 text-[18px] font-semibold text-white/82">{secondaryFinalPrice}</div>
+                </div>
+              </div>
+
+              <div className="rounded-[32px] bg-white/72 px-6 py-6 ring-1 ring-white/70 backdrop-blur-md sm:px-7 sm:py-7">
+                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[#6e6e73]">Podsumowanie</div>
+                <div className="mt-6">
+                  {financeRows.map((row) => (
+                    <FinanceRow key={row.label} label={row.label} value={row.value} emphasize={row.emphasize} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-white/40 pt-5 text-[12px] leading-7 text-[#5e6168]">
+              {formalNotice} Szczegółowe wyliczenie finansowania jest przygotowywane po weryfikacji zdolności finansowej klienta oraz po potwierdzeniu długości finansowania, wysokości wpłaty własnej i wykupu.
+            </div>
+          </Panel>
+
+          <Panel variant="accent">
+            <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+              <div>
+                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-white/70">Kontakt</div>
+                <h2 className="mt-4 text-[34px] font-semibold leading-[1.02] tracking-[-0.04em] text-white sm:text-[44px]">Finalny krok to rozmowa z opiekunem</h2>
+                <p className="mt-4 max-w-2xl text-[16px] leading-8 text-white/82">Ta oferta została zbudowana po to, by klient szybko przeszedł od pierwszego wrażenia do kontaktu. {advisorName} dopracuje konfigurację, finansowanie i kolejne kroki zakupu.</p>
+              </div>
+
+              <div className="rounded-[30px] bg-white/12 p-6 ring-1 ring-white/14 backdrop-blur-md sm:p-7">
+                <div className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/62">Opiekun oferty</div>
+                <div className="mt-4 text-[30px] font-semibold tracking-[-0.04em] text-white">{advisorName}</div>
+                <div className="mt-4 space-y-2 text-[16px] leading-7 text-white/82">
+                  {payload.advisor.phone ? <div>{payload.advisor.phone}</div> : null}
+                  {payload.advisor.email ? <div>{payload.advisor.email}</div> : null}
+                </div>
+
+                <div className="mt-8 flex flex-wrap gap-3">
+                  {primaryCtaHref ? (
+                    <a href={primaryCtaHref} className="inline-flex items-center rounded-full bg-white px-6 py-3 text-[15px] font-semibold text-[#BE933E] transition hover:bg-white/90">
+                      Skontaktuj się
+                    </a>
+                  ) : null}
+                  {phoneCtaHref ? (
+                    <a href={phoneCtaHref} className="inline-flex items-center rounded-full bg-white/10 px-6 py-3 text-[15px] font-semibold text-white ring-1 ring-white/18 transition hover:bg-white/16">
+                      Zadzwoń
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </Panel>
+        </div>
       </div>
     </main>
   )
-}
-
-function AdvisorAvatar({
-  avatarUrl,
-  fullName,
-  size,
-  textClassName,
-}: {
-  avatarUrl: string | null
-  fullName: string
-  size: string
-  textClassName: string
-}) {
-  const initials = buildAdvisorInitials(fullName)
-
-  if (avatarUrl) {
-    return (
-      <div className={`overflow-hidden rounded-full border border-white/25 bg-white/10 ${size}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- direct avatar url can be blob or data uri */}
-        <img src={avatarUrl} alt={fullName} className="h-full w-full object-cover" />
-      </div>
-    )
-  }
-
-  return (
-    <div className={`flex items-center justify-center rounded-full border border-white/18 bg-[linear-gradient(135deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] font-semibold text-white ${size} ${textClassName}`}>
-      {initials}
-    </div>
-  )
-}
-
-function buildAdvisorInitials(value: string) {
-  const parts = value.trim().split(/\s+/).filter(Boolean).slice(0, 2)
-
-  if (parts.length === 0) {
-    return 'VP'
-  }
-
-  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('')
 }

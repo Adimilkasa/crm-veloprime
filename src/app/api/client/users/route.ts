@@ -20,7 +20,7 @@ export async function GET() {
   }
 
   const users = await listManagedUsers()
-  const supervisorOptions = users.filter((user) => user.isActive && (user.role === 'DIRECTOR' || user.role === 'MANAGER'))
+  const supervisorOptions = users.filter((user) => user.isActive && (user.role === 'ADMIN' || user.role === 'DIRECTOR' || user.role === 'MANAGER'))
 
   return NextResponse.json({ ok: true, users, supervisorOptions })
 }

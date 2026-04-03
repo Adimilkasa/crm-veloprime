@@ -90,6 +90,14 @@ class OfferDocumentInternalSnapshot {
   const OfferDocumentInternalSnapshot({
     required this.catalogKey,
     required this.powertrainType,
+    this.year,
+    this.powerHp,
+    this.systemPowerHp,
+    this.batteryCapacityKwh,
+    this.combustionEnginePowerHp,
+    this.engineDisplacementCc,
+    this.driveType,
+    this.rangeKm,
     required this.customerType,
     required this.finalPriceGross,
     required this.finalPriceNet,
@@ -102,6 +110,14 @@ class OfferDocumentInternalSnapshot {
 
   final String? catalogKey;
   final String? powertrainType;
+  final String? year;
+  final String? powerHp;
+  final String? systemPowerHp;
+  final String? batteryCapacityKwh;
+  final String? combustionEnginePowerHp;
+  final String? engineDisplacementCc;
+  final String? driveType;
+  final String? rangeKm;
   final String customerType;
   final num? finalPriceGross;
   final num? finalPriceNet;
@@ -115,6 +131,14 @@ class OfferDocumentInternalSnapshot {
     return OfferDocumentInternalSnapshot(
       catalogKey: json['catalogKey'] as String?,
       powertrainType: json['powertrainType'] as String?,
+      year: json['year']?.toString(),
+      powerHp: json['powerHp'] as String?,
+      systemPowerHp: json['systemPowerHp'] as String?,
+      batteryCapacityKwh: json['batteryCapacityKwh'] as String?,
+      combustionEnginePowerHp: json['combustionEnginePowerHp'] as String?,
+      engineDisplacementCc: json['engineDisplacementCc'] as String?,
+      driveType: json['driveType'] as String?,
+      rangeKm: json['rangeKm'] as String?,
       customerType: json['customerType'] as String? ?? '',
       finalPriceGross: json['finalPriceGross'] as num?,
       finalPriceNet: json['finalPriceNet'] as num?,

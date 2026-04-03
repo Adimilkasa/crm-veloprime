@@ -317,6 +317,17 @@ export async function findPublishedSalesCatalogItemByKey(key: string) {
   return items.find((item) => item.key === key) ?? null
 }
 
+export async function findPublishedSalesCatalogVersionByKey(catalogKey: string) {
+  const normalizedKey = catalogKey.trim().toLowerCase()
+
+  if (!normalizedKey) {
+    return null
+  }
+
+  const catalog = await getPublishedSalesCatalogBootstrap()
+  return catalog.versions.find((version) => version.catalogKey === normalizedKey) ?? null
+}
+
 export async function listPublishedSalesModelColorPalettes() {
   const catalog = await getPublishedSalesCatalogBootstrap()
   return catalog.colorPalettes

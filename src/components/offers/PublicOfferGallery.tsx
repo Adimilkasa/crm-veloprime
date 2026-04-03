@@ -1,15 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
+export type PublicOfferGallerySection = {
+  title: string
+  images: string[]
+}
 
 export function PublicOfferGallery({
   modelLabel,
-  gallery,
+  sections,
 }: {
   modelLabel: string
-  gallery: string[]
+  sections: PublicOfferGallerySection[]
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+
+  const allImages = useMemo(
+    () => sections.flatMap((section) => section.images).filter((image, index, all) => all.indexOf(image) === index),
+    [sections],
+  )
 
   useEffect(() => {
     if (activeIndex === null) {
@@ -23,124 +33,95 @@ export function PublicOfferGallery({
       }
 
       if (event.key === 'ArrowRight') {
-        setActiveIndex((current) => {
-          if (current === null) {
-            return current
-          }
-
-          return (current + 1) % gallery.length
-        })
+        setActiveIndex((current) => (current === null ? current : (current + 1) % allImages.length))
       }
 
       if (event.key === 'ArrowLeft') {
-        setActiveIndex((current) => {
-          if (current === null) {
-            return current
-          }
-
-          return (current - 1 + gallery.length) % gallery.length
-        })
+        setActiveIndex((current) => (current === null ? current : (current - 1 + allImages.length) % allImages.length))
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeIndex, gallery.length])
+  }, [activeIndex, allImages.length])
 
-  if (gallery.length === 0) {
+  if (allImages.length === 0) {
     return (
-      <div className="rounded-[26px] border border-dashed border-[rgba(20,33,61,0.14)] bg-[linear-gradient(180deg,#f8fbfe_0%,#f5f8fc_100%)] px-6 py-10 text-sm leading-8 text-[#5f6d87]">
-        Ta oferta nie ma jeszcze kompletnej galerii. Sam link pozostaje aktywny, a opiekun może uzupełnić materiały lub dosłać dodatkową prezentację produktu.
+      <div className="rounded-[30px] bg-white/64 px-6 py-12 text-[15px] leading-8 text-[#6e6e73] ring-1 ring-white/70 backdrop-blur-sm">
+        Ta oferta nie ma jeszcze kompletnej galerii. Sam link pozostaje aktywny, a opiekun może uzupełnić materiały po rozmowie z klientem.
       </div>
     )
   }
 
-  const featured = gallery[0]
-  const secondary = gallery.slice(1, 5)
-
   return (
     <>
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <button
-          type="button"
-          onClick={() => setActiveIndex(0)}
-          className="group relative overflow-hidden rounded-[28px] border border-[rgba(20,33,61,0.08)] bg-[#eef3f9] text-left shadow-[0_18px_50px_rgba(17,32,67,0.08)]"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-          <img src={featured} alt={modelLabel} className="h-[300px] w-full object-cover transition duration-300 group-hover:scale-[1.01] sm:h-[340px]" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent_0%,rgba(10,20,37,0.78)_100%)] p-5 text-white">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/65">Galeria modelu</div>
-                <div className="mt-2 text-sm font-semibold sm:text-base">Kliknij, aby otworzyć pełną galerię</div>
-              </div>
-              <div className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white/82">
-                {gallery.length} zdjęć
+      <div className="space-y-8 lg:space-y-10">
+        {sections.map((section) => {
+          const featured = section.images[0]
+          const thumbnails = section.images.slice(1, 5)
+
+          if (!featured) {
+            return null
+          }
+
+          return (
+            <div key={section.title} className="space-y-4">
+              <h3 className="text-[22px] font-semibold tracking-[-0.03em] text-[#1d1d1f] sm:text-[24px]">{section.title}</h3>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex(allImages.indexOf(featured))}
+                  className="group relative block w-full overflow-hidden rounded-[30px] bg-[#e8eaed] text-left shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses direct asset URLs */}
+                  <img src={featured} alt={`${modelLabel} ${section.title}`} className="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-[1.015]" />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,18,28,0.02)_0%,rgba(12,18,28,0.18)_58%,rgba(12,18,28,0.44)_100%)]" />
+                </button>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                  {thumbnails.map((imageUrl, index) => (
+                    <button
+                      key={`${section.title}-${imageUrl}`}
+                      type="button"
+                      onClick={() => setActiveIndex(allImages.indexOf(imageUrl))}
+                      className="group overflow-hidden rounded-[24px] bg-[#e8eaed] shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses direct asset URLs */}
+                      <img src={imageUrl} alt={`${modelLabel} ${section.title} ${index + 2}`} className="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </button>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          {secondary.map((imageUrl, index) => (
-            <button
-              key={imageUrl}
-              type="button"
-              onClick={() => setActiveIndex(index + 1)}
-              className="group relative overflow-hidden rounded-[24px] border border-[rgba(20,33,61,0.08)] bg-[#eef3f9] text-left shadow-[0_16px_40px_rgba(17,32,67,0.07)]"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-              <img src={imageUrl} alt={`${modelLabel} ${index + 2}`} className="h-[148px] w-full object-cover transition duration-300 group-hover:scale-[1.02] sm:h-[164px]" />
-              <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/18 bg-[rgba(9,18,33,0.5)] px-2.5 py-1 text-[11px] font-semibold text-white/82">
-                {index + 2}
-              </div>
-            </button>
-          ))}
-        </div>
+          )
+        })}
       </div>
 
-      {gallery.length > 5 ? (
-        <div className="mt-4 flex flex-wrap gap-3">
-          {gallery.slice(5).map((imageUrl, index) => (
-            <button
-              key={imageUrl}
-              type="button"
-              onClick={() => setActiveIndex(index + 5)}
-              className="group relative overflow-hidden rounded-[22px] border border-[rgba(20,33,61,0.08)] bg-[#eef3f9] text-left shadow-[0_14px_34px_rgba(17,32,67,0.06)]"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-              <img src={imageUrl} alt={`${modelLabel} ${index + 6}`} className="h-[92px] w-[132px] object-cover transition duration-300 group-hover:scale-[1.02]" />
-              <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/18 bg-[rgba(9,18,33,0.5)] px-2.5 py-1 text-[11px] font-semibold text-white/82">
-                {index + 6}
-              </div>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
       {activeIndex !== null ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(7,14,26,0.9)] px-4 py-6" role="dialog" aria-modal="true">
-          <button type="button" onClick={() => setActiveIndex(null)} className="absolute right-5 top-5 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/16">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(12,18,28,0.92)] px-4 py-6" role="dialog" aria-modal="true">
+          <button type="button" onClick={() => setActiveIndex(null)} className="absolute right-5 top-5 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/16">
             Zamknij
           </button>
           <button
             type="button"
-            onClick={() => setActiveIndex((activeIndex - 1 + gallery.length) % gallery.length)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 px-4 py-3 text-white transition hover:bg-white/16"
+            onClick={() => setActiveIndex((activeIndex - 1 + allImages.length) % allImages.length)}
+            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-white transition hover:bg-white/16"
             aria-label="Poprzednie zdjęcie"
           >
             ‹
           </button>
           <div className="mx-auto max-w-6xl">
-            {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-            <img src={gallery[activeIndex]} alt={`${modelLabel} ${activeIndex + 1}`} className="max-h-[78vh] w-auto max-w-full rounded-[28px] object-contain shadow-[0_30px_120px_rgba(0,0,0,0.35)]" />
-            <div className="mt-4 text-center text-sm text-white/74">
-              {activeIndex + 1} / {gallery.length}
+            {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses direct asset URLs */}
+            <img src={allImages[activeIndex]} alt={`${modelLabel} ${activeIndex + 1}`} className="max-h-[78vh] w-auto max-w-full rounded-[30px] object-contain" />
+            <div className="mt-4 text-center text-sm text-white/72">
+              {activeIndex + 1} / {allImages.length}
             </div>
           </div>
           <button
             type="button"
-            onClick={() => setActiveIndex((activeIndex + 1) % gallery.length)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 px-4 py-3 text-white transition hover:bg-white/16"
+            onClick={() => setActiveIndex((activeIndex + 1) % allImages.length)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-white transition hover:bg-white/16"
             aria-label="Następne zdjęcie"
           >
             ›

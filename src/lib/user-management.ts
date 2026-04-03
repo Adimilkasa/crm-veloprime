@@ -31,11 +31,11 @@ type CreateManagedUserInput = {
 
 function isSupervisorAllowed(role: UserRoleKey, supervisorRole: UserRoleKey) {
   if (role === 'MANAGER') {
-    return supervisorRole === 'DIRECTOR'
+    return supervisorRole === 'ADMIN' || supervisorRole === 'DIRECTOR'
   }
 
   if (role === 'SALES') {
-    return supervisorRole === 'MANAGER' || supervisorRole === 'DIRECTOR'
+    return supervisorRole === 'ADMIN' || supervisorRole === 'MANAGER' || supervisorRole === 'DIRECTOR'
   }
 
   return false

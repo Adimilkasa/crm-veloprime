@@ -12,7 +12,7 @@ import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSu
 import { createManagedLead, listManagedLeads, listManagedLeadStages, logManagedLeadActivity, type ManagedLead } from '@/lib/lead-management'
 import { calculateOfferSummary, type OfferCalculationSummary, type OfferCustomerType } from '@/lib/offer-calculations'
 import { syncLegacyCatalogItemsToDb, type SalesCatalogRuntimeItem } from '@/lib/sales-catalog-management'
-import { findPublishedSalesCatalogItemByKey, listPublishedSalesCatalogItems, listPublishedSalesModelColorPalettes } from '@/lib/update-management'
+import { findPublishedSalesCatalogItemByKey, findPublishedSalesCatalogVersionByKey, listPublishedSalesCatalogItems, listPublishedSalesModelColorPalettes } from '@/lib/update-management'
 import { listManagedUsers, type ManagedUser } from '@/lib/user-management'
 
 export type OfferStatus = 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
@@ -54,6 +54,14 @@ export type OfferCustomerSnapshot = {
 export type OfferInternalSnapshot = {
   catalogKey: string | null
   powertrainType?: string | null
+  year: string | null
+  powerHp: string | null
+  systemPowerHp: string | null
+  batteryCapacityKwh: string | null
+  combustionEnginePowerHp: string | null
+  engineDisplacementCc: string | null
+  driveType: string | null
+  rangeKm: string | null
   customerType: OfferCustomerType
   listPriceGross: number | null
   listPriceNet: number | null
@@ -272,6 +280,15 @@ function formatMoney(value: number | null) {
 
 function formatPercent(value: number) {
   return `${value.toFixed(2).replace('.', ',')}%`
+}
+
+function formatCatalogMetric(value: number | null | undefined, unit: string) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return null
+  }
+
+  const normalized = Number.isInteger(value) ? value : Number(value.toFixed(1))
+  return `${normalized} ${unit}`
 }
 
 function buildFinancingPersistence(input: {
@@ -548,6 +565,14 @@ function buildOfferVersionSnapshot(
   versionId: string,
   versionNumber: number,
   catalogItem: SalesCatalogRuntimeItem | null,
+  catalogVersion: {
+    systemPowerHp: number | null
+    batteryCapacityKwh: number | null
+    combustionEnginePowerHp: number | null
+    engineDisplacementCc: number | null
+    driveType: string | null
+    rangeKm: number | null
+  } | null,
 ): OfferDocumentPayload {
   const discountAmount = offer.calculation?.appliedDiscount ?? offer.discountValue ?? 0
   const referencePrice = offer.customerType === 'BUSINESS'
@@ -602,6 +627,14 @@ function buildOfferVersionSnapshot(
     internal: {
       catalogKey: offer.pricingCatalogKey,
       powertrainType: catalogItem?.powertrain ?? null,
+      year: catalogItem?.year ? String(catalogItem.year) : null,
+      powerHp: catalogItem?.powerHp ?? null,
+      systemPowerHp: formatCatalogMetric(catalogVersion?.systemPowerHp, 'KM'),
+      batteryCapacityKwh: formatCatalogMetric(catalogVersion?.batteryCapacityKwh, 'kWh'),
+      combustionEnginePowerHp: formatCatalogMetric(catalogVersion?.combustionEnginePowerHp, 'KM'),
+      engineDisplacementCc: formatCatalogMetric(catalogVersion?.engineDisplacementCc, 'cc'),
+      driveType: catalogVersion?.driveType ?? null,
+      rangeKm: formatCatalogMetric(catalogVersion?.rangeKm, 'km'),
       customerType: offer.customerType,
       listPriceGross: offer.calculation?.listPriceGross ?? null,
       listPriceNet: offer.calculation?.listPriceNet ?? null,
@@ -905,6 +938,7 @@ export async function getOfferDocumentSnapshot(session: AuthSession, offerId: st
     : offer.versions[0] ?? null
 
   const catalogItem = offer.pricingCatalogKey ? await findPublishedSalesCatalogItemByKey(offer.pricingCatalogKey) : null
+  const catalogVersion = offer.pricingCatalogKey ? await findPublishedSalesCatalogVersionByKey(offer.pricingCatalogKey) : null
 
   if (version?.payloadJson && version.customerSnapshotJson && version.internalSnapshotJson) {
     return {
@@ -917,7 +951,13 @@ export async function getOfferDocumentSnapshot(session: AuthSession, offerId: st
   return {
     offer,
     version,
-      payload: buildOfferVersionSnapshot(offer, version?.id ?? `offer-live-${offer.id}`, version?.versionNumber ?? offer.versions.length, catalogItem),
+      payload: buildOfferVersionSnapshot(
+        offer,
+        version?.id ?? `offer-live-${offer.id}`,
+        version?.versionNumber ?? offer.versions.length,
+        catalogItem,
+        catalogVersion,
+      ),
   }
 }
 
@@ -1378,9 +1418,10 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
   }
 
   const catalogItem = offer.pricingCatalogKey ? await findPublishedSalesCatalogItemByKey(offer.pricingCatalogKey) : null
+  const catalogVersion = offer.pricingCatalogKey ? await findPublishedSalesCatalogVersionByKey(offer.pricingCatalogKey) : null
   const versionId = `offer-version-${crypto.randomUUID()}`
   const versionNumber = offer.versions.length + 1
-  const payload = buildOfferVersionSnapshot(offer, versionId, versionNumber, catalogItem)
+  const payload = buildOfferVersionSnapshot(offer, versionId, versionNumber, catalogItem, catalogVersion)
 
   const nextVersion: OfferVersion = {
     id: versionId,

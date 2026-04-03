@@ -14,6 +14,8 @@ import 'offer_document_preview_page.dart';
 
 enum _OfferFlowMode { system, free }
 
+enum _InlineLeadPickerMode { createOffer, attachLead }
+
 class OfferWorkspaceLaunchRequest {
   const OfferWorkspaceLaunchRequest({
     required this.leadId,
@@ -61,6 +63,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
   bool _isOpeningPreview = false;
   bool _isSyncingToCrm = false;
   bool _isCreateInlineOpen = false;
+  _InlineLeadPickerMode? _inlineLeadPickerMode;
   String _createLeadSearchQuery = '';
   String? _createFeedback;
   String? _editorFeedback;
@@ -201,8 +204,21 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
     setState(() {
       _isCreateInlineOpen = false;
+      _inlineLeadPickerMode = null;
       _createFeedback = null;
       _editorFeedback = editorMessage ?? 'Oferta została otwarta.';
+    });
+  }
+
+  void _openLeadPicker(_InlineLeadPickerMode mode) {
+    setState(() {
+      _isCreateInlineOpen = true;
+      _inlineLeadPickerMode = mode;
+      _createFeedback = null;
+      _createLeadSearchQuery = '';
+      if (mode == _InlineLeadPickerMode.createOffer) {
+        _flowMode = _OfferFlowMode.system;
+      }
     });
   }
 
@@ -1086,6 +1102,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
       setState(() {
         _flowMode = _OfferFlowMode.system;
         _isCreateInlineOpen = false;
+        _inlineLeadPickerMode = null;
         _editorFeedback = editorMessage ?? 'Oferta dla wybranego klienta została otwarta.';
       });
     } catch (error) {
@@ -1100,6 +1117,66 @@ class _OffersHomePageState extends State<OffersHomePage> {
       if (mounted) {
         setState(() {
           _isSavingOffer = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _assignExistingLeadToActiveOffer(String leadId) async {
+    final offer = _activeOffer;
+    if (offer == null || _isSyncingToCrm || _isSavingOffer || _isCreatingVersion || _isOpeningPreview) {
+      return;
+    }
+
+    setState(() {
+      _isSyncingToCrm = true;
+      _createFeedback = 'Przypinamy istniejącego leada do oferty...';
+      _editorFeedback = null;
+    });
+
+    try {
+      final saved = await _saveOfferDraft(offer);
+
+      if (!mounted) {
+        return;
+      }
+
+      _replaceOffer(saved, replacingOfferId: offer.id);
+      _populateForm(saved);
+
+      final linkedOffer = await widget.offersRepository.assignLead(
+        offerId: saved.id,
+        leadId: leadId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _replaceOffer(linkedOffer, replacingOfferId: saved.id);
+      _populateForm(linkedOffer);
+      setState(() {
+        _flowMode = _OfferFlowMode.system;
+        _isCreateInlineOpen = false;
+        _inlineLeadPickerMode = null;
+        _createLeadSearchQuery = '';
+        _createFeedback = null;
+        _editorFeedback = 'Oferta została przypięta do istniejącego leada w CRM.';
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = 'Nie udało się przypiąć istniejącego leada do oferty. $error';
+      setState(() {
+        _createFeedback = message;
+        _editorFeedback = message;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncingToCrm = false;
         });
       }
     }
@@ -1250,19 +1327,17 @@ class _OffersHomePageState extends State<OffersHomePage> {
                         dateFormat: _dateFormat,
                         currentFlowMode: _currentFlowMode,
                         onSelectOffer: (offerId) => _loadOffer(offerId),
-                        onCreateForSystemCustomer: () {
-                          setState(() {
-                            _isCreateInlineOpen = true;
-                            _createFeedback = null;
-                            _createLeadSearchQuery = '';
-                            _flowMode = _OfferFlowMode.system;
-                          });
-                        },
+                        onCreateForSystemCustomer: () => _openLeadPicker(_InlineLeadPickerMode.createOffer),
                         onCreateFreeOffer: _createFreeOffer,
                       ),
                       if (_isCreateInlineOpen) ...[
                         const SizedBox(height: 18),
                         _InlineLeadPicker(
+                          title: _inlineLeadPickerMode == _InlineLeadPickerMode.attachLead ? 'Przypnij istniejącego leada' : 'Wybierz klienta z CRM',
+                          description: _inlineLeadPickerMode == _InlineLeadPickerMode.attachLead
+                              ? 'Wybierz istniejącego leada, aby przypiąć go do otwartej oferty zamiast tworzyć nowego klienta.'
+                              : 'Wybierz klienta z CRM, aby od razu przejść do przygotowania oferty.',
+                          actionLabel: _inlineLeadPickerMode == _InlineLeadPickerMode.attachLead ? 'Przypnij' : 'Wybierz',
                           query: _createLeadSearchQuery,
                           leadOptions: _filteredLeadOptions,
                           feedback: _createFeedback,
@@ -1275,11 +1350,14 @@ class _OffersHomePageState extends State<OffersHomePage> {
                           onClose: () {
                             setState(() {
                               _isCreateInlineOpen = false;
+                              _inlineLeadPickerMode = null;
                               _createLeadSearchQuery = '';
                               _createFeedback = null;
                             });
                           },
-                          onSelectLead: _createOfferForLead,
+                          onSelectLead: _inlineLeadPickerMode == _InlineLeadPickerMode.attachLead
+                              ? _assignExistingLeadToActiveOffer
+                              : _createOfferForLead,
                         ),
                       ],
                       const SizedBox(height: 18),
@@ -1297,12 +1375,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                       else if (activeOffer == null)
                         _OfferEmptyState(
                           onCreateFreeOffer: _createFreeOffer,
-                          onCreateForSystemCustomer: () {
-                            setState(() {
-                              _isCreateInlineOpen = true;
-                              _flowMode = _OfferFlowMode.system;
-                            });
-                          },
+                          onCreateForSystemCustomer: () => _openLeadPicker(_InlineLeadPickerMode.createOffer),
                         )
                       else if (isWide)
                         Row(
@@ -1351,6 +1424,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 onPricingChanged: _handlePricingChanged,
                                 onColorChanged: _handleColorChanged,
                                 onSyncToCrm: _syncActiveOfferToCrm,
+                                onAttachExistingLead: () => _openLeadPicker(_InlineLeadPickerMode.attachLead),
                                 onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
                                 onCreatePdf: _createVersionForSelected,
                               ),
@@ -1426,6 +1500,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               onPricingChanged: _handlePricingChanged,
                               onColorChanged: _handleColorChanged,
                               onSyncToCrm: _syncActiveOfferToCrm,
+                              onAttachExistingLead: () => _openLeadPicker(_InlineLeadPickerMode.attachLead),
                               onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
                               onCreatePdf: _createVersionForSelected,
                             ),
@@ -1634,6 +1709,9 @@ class _InlineOffersWorkspaceHeader extends StatelessWidget {
 
 class _InlineLeadPicker extends StatelessWidget {
   const _InlineLeadPicker({
+    required this.title,
+    required this.description,
+    required this.actionLabel,
     required this.query,
     required this.leadOptions,
     required this.feedback,
@@ -1643,6 +1721,9 @@ class _InlineLeadPicker extends StatelessWidget {
     required this.onSelectLead,
   });
 
+  final String title;
+  final String description;
+  final String actionLabel;
   final String query;
   final List<OfferLeadOption> leadOptions;
   final String? feedback;
@@ -1663,16 +1744,16 @@ class _InlineLeadPicker extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    VeloPrimeSectionEyebrow(label: 'Klient z CRM'),
-                    SizedBox(height: 6),
-                    Text('Wybierz klienta z CRM', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
-                    SizedBox(height: 8),
+                    const VeloPrimeSectionEyebrow(label: 'Klient z CRM'),
+                    const SizedBox(height: 6),
+                    Text(title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
+                    const SizedBox(height: 8),
                     Text(
-                      'Wybierz klienta z CRM, aby od razu przejść do przygotowania oferty.',
+                      description,
                       style: TextStyle(color: VeloPrimePalette.muted, height: 1.55),
                     ),
                   ],
@@ -1727,7 +1808,7 @@ class _InlineLeadPicker extends StatelessWidget {
                               ],
                             ),
                           ),
-                          Text(isBusy ? 'Tworzę...' : 'Wybierz', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: VeloPrimePalette.bronzeDeep)),
+                          Text(isBusy ? 'Przetwarzam...' : actionLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: VeloPrimePalette.bronzeDeep)),
                         ],
                       ),
                     ),
@@ -1822,6 +1903,7 @@ class _OfferEditorWorkspace extends StatelessWidget {
     required this.onPricingChanged,
     required this.onColorChanged,
     required this.onSyncToCrm,
+    required this.onAttachExistingLead,
     required this.onOpenPreview,
     required this.onCreatePdf,
   });
@@ -1866,6 +1948,7 @@ class _OfferEditorWorkspace extends StatelessWidget {
   final ValueChanged<String?> onPricingChanged;
   final ValueChanged<String?> onColorChanged;
   final VoidCallback? onSyncToCrm;
+  final VoidCallback? onAttachExistingLead;
   final VoidCallback? onOpenPreview;
   final VoidCallback? onCreatePdf;
 
@@ -2319,6 +2402,20 @@ class _OfferEditorWorkspace extends StatelessWidget {
                           label: Text(isSyncingToCrm ? 'Zapisuję do CRM...' : 'Zapisz klienta do CRM'),
                         )
                       : null;
+                  final attachLeadButton = needsCrmSync
+                      ? OutlinedButton.icon(
+                          onPressed: isSyncingToCrm ? null : onAttachExistingLead,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: VeloPrimePalette.sea,
+                            side: BorderSide(color: VeloPrimePalette.sea.withValues(alpha: 0.34)),
+                            backgroundColor: Colors.white.withValues(alpha: 0.85),
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          ),
+                          icon: const Icon(Icons.link_outlined),
+                          label: const Text('Przypnij istniejącego leada'),
+                        )
+                      : null;
                   final previewButton = OutlinedButton.icon(
                     onPressed: isOpeningPreview ? null : onOpenPreview,
                     style: OutlinedButton.styleFrom(
@@ -2366,6 +2463,10 @@ class _OfferEditorWorkspace extends StatelessWidget {
                           syncButton,
                           const SizedBox(height: 10),
                         ],
+                        if (attachLeadButton != null) ...[
+                          attachLeadButton,
+                          const SizedBox(height: 10),
+                        ],
                         previewButton,
                         const SizedBox(height: 10),
                         pdfButton,
@@ -2377,6 +2478,10 @@ class _OfferEditorWorkspace extends StatelessWidget {
                     children: [
                       if (syncButton != null) ...[
                         Expanded(child: syncButton),
+                        const SizedBox(width: 12),
+                      ],
+                      if (attachLeadButton != null) ...[
+                        Expanded(child: attachLeadButton),
                         const SizedBox(width: 12),
                       ],
                       Expanded(child: previewButton),

@@ -38,6 +38,22 @@ class _UsersHomePageState extends State<UsersHomePage> {
   String? _reportsToUserId;
   bool _isCreating = false;
 
+  List<SupervisorOptionModel> get _supervisorOptions {
+    final overview = _overview;
+    if (overview == null) {
+      return const [];
+    }
+
+    switch (_role) {
+      case 'MANAGER':
+        return overview.supervisors.where((user) => user.role == 'ADMIN' || user.role == 'DIRECTOR').toList();
+      case 'SALES':
+        return overview.supervisors.where((user) => user.role == 'ADMIN' || user.role == 'DIRECTOR' || user.role == 'MANAGER').toList();
+      default:
+        return const [];
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -363,6 +379,17 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                         }
                                         setState(() {
                                           _role = value;
+
+                                          final roleAllowsSupervisor = value == 'MANAGER' || value == 'SALES';
+                                          if (!roleAllowsSupervisor) {
+                                            _reportsToUserId = null;
+                                            return;
+                                          }
+
+                                          final allowedSupervisors = _supervisorOptions.map((user) => user.id).toSet();
+                                          if (_reportsToUserId != null && !allowedSupervisors.contains(_reportsToUserId)) {
+                                            _reportsToUserId = null;
+                                          }
                                         });
                                       },
                                       decoration: veloPrimeInputDecoration('Rola'),
@@ -374,21 +401,27 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                     width: 320,
                                     child: DropdownButtonFormField<String>(
                                       initialValue: _reportsToUserId,
+                                      onChanged: _role == 'MANAGER' || _role == 'SALES'
+                                          ? (value) {
+                                              setState(() {
+                                                _reportsToUserId = value == null || value.isEmpty ? null : value;
+                                              });
+                                            }
+                                          : null,
                                       items: [
                                         const DropdownMenuItem<String>(value: '', child: Text('Brak przypisania')),
-                                        ...overview.supervisors.map(
+                                        ..._supervisorOptions.map(
                                           (user) => DropdownMenuItem<String>(
                                             value: user.id,
                                             child: Text('${user.fullName} (${_roleLabel(user.role)})'),
                                           ),
                                         ),
                                       ],
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _reportsToUserId = value == null || value.isEmpty ? null : value;
-                                        });
-                                      },
-                                      decoration: veloPrimeInputDecoration('Przełożony'),
+                                      decoration: veloPrimeInputDecoration('Przełożony').copyWith(
+                                        helperText: _role == 'MANAGER' || _role == 'SALES'
+                                            ? 'Możesz przypisać handlowca lub managera także bezpośrednio do administratora.'
+                                            : 'Ta rola nie wymaga przypisanego przełożonego.',
+                                      ),
                                     ),
                                   ),
                                 ],
