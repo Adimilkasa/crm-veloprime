@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 
 const advisoryLockTimeoutPattern = /Timed out trying to acquire a postgres advisory lock|pg_advisory_lock|Error:\s*P1002/i
+const databaseUnavailablePattern = /Error:\s*P1001|Can't reach database server|Can’t reach database server|ECONNREFUSED|ENOTFOUND|getaddrinfo|server has closed the connection/i
 
 function sleep(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
@@ -44,6 +45,12 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 
   const combinedOutput = `${result.stdout ?? ''}\n${result.stderr ?? ''}`
   const isAdvisoryLockTimeout = advisoryLockTimeoutPattern.test(combinedOutput)
+  const isDatabaseUnavailable = databaseUnavailablePattern.test(combinedOutput)
+
+  if (isDatabaseUnavailable) {
+    console.warn('Skipping prisma migrate deploy because the configured database is currently unavailable.')
+    process.exit(0)
+  }
 
   if (!isAdvisoryLockTimeout || attempt === maxAttempts) {
     process.exit(result.status ?? 1)
