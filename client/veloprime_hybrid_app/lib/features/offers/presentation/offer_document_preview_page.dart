@@ -1611,19 +1611,16 @@ class _PreviewPdfStrip extends StatelessWidget {
           ),
         ],
       ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        alignment: WrapAlignment.spaceBetween,
-        runSpacing: 10,
-        spacing: 16,
-        children: [
-          const Row(
-            mainAxisSize: MainAxisSize.min,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 760;
+
+          final descriptionBlock = const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _PreviewCircleIcon(icon: Icons.description_outlined),
               SizedBox(width: 14),
-              Flexible(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1640,8 +1637,9 @@ class _PreviewPdfStrip extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          FilledButton.icon(
+          );
+
+          final actionButton = FilledButton.icon(
             onPressed: onPressed,
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFBE933E),
@@ -1651,8 +1649,28 @@ class _PreviewPdfStrip extends StatelessWidget {
             ),
             icon: const Icon(Icons.download_rounded),
             label: const Text('Pobierz PDF'),
-          ),
-        ],
+          );
+
+          if (isCompact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                descriptionBlock,
+                const SizedBox(height: 16),
+                actionButton,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: descriptionBlock),
+              const SizedBox(width: 20),
+              actionButton,
+            ],
+          );
+        },
       ),
     );
   }
