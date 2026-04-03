@@ -17,8 +17,8 @@ const modules = [
     body: 'Zarządzanie dostępnymi autami, cenami bazowymi, rabatami i konfiguracją ofert.',
   },
   {
-    title: 'Oferty PDF',
-    body: 'Generator ofert dla klienta z wariantami finansowania i historią wersji dokumentu.',
+    title: 'Oferty online',
+    body: 'Generator ofert dla klienta z wariantami finansowania i historią wersji online.',
   },
   {
     title: 'Uprawnienia i konta',
@@ -39,7 +39,7 @@ export default function Home() {
             Osobny panel CRM dla zespołu sprzedaży VeloPrime.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-[#5f5a4f]">
-            Starter projektu pod logowanie, role, leady, samochody, wyceny i generowanie ofert PDF. Ten projekt jest niezależny od strony publicznej.
+            Starter projektu pod logowanie, role, leady, samochody, wyceny i generowanie ofert online. Ten projekt jest niezależny od strony publicznej.
           </p>
         </div>
 

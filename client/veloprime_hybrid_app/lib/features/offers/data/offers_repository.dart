@@ -3,7 +3,7 @@ import '../../../core/config/client_artifact_versions.dart';
 import '../models/offer_detail.dart';
 import '../models/offer_document.dart';
 import '../models/offer_finalization.dart';
-import '../models/offer_pdf_version.dart';
+import '../models/offer_version_result.dart';
 
 class OfferShareLinkResult {
   const OfferShareLinkResult({
@@ -89,11 +89,11 @@ class OffersRepository {
     }
   }
 
-  Future<OfferPdfVersionResult> createPdfVersion({
+  Future<OfferVersionResult> createOfferVersion({
     required String offerId,
   }) async {
-    final json = await _apiClient.postJson('/api/client/offers/$offerId/pdf-version', const {});
-    return OfferPdfVersionResult.fromJson(json['version'] as Map<String, dynamic>? ?? const {});
+    final json = await _apiClient.postJson('/api/client/offers/$offerId/version', const {});
+    return OfferVersionResult.fromJson(json['version'] as Map<String, dynamic>? ?? const {});
   }
 
   Future<OfferDocumentSnapshot> fetchDocumentSnapshot({

@@ -22,7 +22,6 @@ export type OfferVersion = {
   versionNumber: number
   summary: string
   createdAt: string
-  pdfUrl: string | null
   shareToken: string | null
   sharedAt: string | null
   shareExpiresAt: string | null
@@ -522,7 +521,6 @@ async function buildSeedOffers() {
           versionNumber: 1,
           summary: `Wersja startowa / ${lead.interestedModel ?? 'model'} / ${formatMoney(index === 0 ? 184900 : 203500)}`,
           createdAt,
-          pdfUrl: null,
           shareToken: null,
           sharedAt: null,
           shareExpiresAt: null,
@@ -1377,7 +1375,6 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
     versionNumber,
     summary: `${offer.title} / ${offer.selectedColorName ?? 'kolor bazowy'} / ${offer.financingVariant ?? 'wariant bez finansowania'} / ${formatMoney(offer.totalGross)}`,
     createdAt: payload.createdAt,
-    pdfUrl: `/offers/${offer.id}/pdf?versionId=${versionId}`,
     shareToken: null,
     sharedAt: null,
     shareExpiresAt: null,
@@ -1392,7 +1389,7 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
         id: nextVersion.id,
         offerId: offer.id,
         versionNumber: nextVersion.versionNumber,
-        pdfUrl: nextVersion.pdfUrl,
+        pdfUrl: null,
         shareToken: nextVersion.shareToken,
         sharedAt: nextVersion.sharedAt ? new Date(nextVersion.sharedAt) : null,
         shareExpiresAt: nextVersion.shareExpiresAt ? new Date(nextVersion.shareExpiresAt) : null,
@@ -1547,7 +1544,6 @@ export async function getPublicOfferDocumentSnapshot(token: string) {
         versionNumber: version.versionNumber,
         summary: `${version.offer.title} / ${payload.customer.finalGrossLabel}`,
         createdAt: version.createdAt.toISOString(),
-        pdfUrl: version.pdfUrl,
         shareToken: version.shareToken,
         sharedAt: version.sharedAt?.toISOString() ?? null,
         shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,
@@ -1959,7 +1955,6 @@ function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
           ? `${offer.title} / ${offer.selectedColorName ?? 'kolor bazowy'} / ${offer.financingVariant ?? 'wariant bez finansowania'} / ${formatMoney(offer.totalGross ? Number(offer.totalGross) : null)}`
           : `${offer.title} / ${formatMoney(offer.totalGross ? Number(offer.totalGross) : null)}`,
         createdAt: version.createdAt.toISOString(),
-        pdfUrl: version.pdfUrl,
         shareToken: version.shareToken,
         sharedAt: version.sharedAt?.toISOString() ?? null,
         shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,

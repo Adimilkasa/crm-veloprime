@@ -4,14 +4,12 @@ class OfferDocumentVersion {
     required this.versionNumber,
     required this.summary,
     required this.createdAt,
-    required this.pdfUrl,
   });
 
   final String id;
   final int versionNumber;
   final String summary;
   final String createdAt;
-  final String? pdfUrl;
 
   factory OfferDocumentVersion.fromJson(Map<String, dynamic> json) {
     return OfferDocumentVersion(
@@ -19,7 +17,6 @@ class OfferDocumentVersion {
       versionNumber: json['versionNumber'] as int? ?? 0,
       summary: json['summary'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',
-      pdfUrl: json['pdfUrl'] as String?,
     );
   }
 }

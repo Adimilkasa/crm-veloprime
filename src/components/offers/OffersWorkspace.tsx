@@ -1,9 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ExternalLink, FileDown, FilePlus2, Search, X } from 'lucide-react'
+import { FilePlus2, Search, Sparkles, X } from 'lucide-react'
 
 import type { OfferCalculationSummary } from '@/lib/offer-calculations-shared'
 import { calculateOfferFinancing, getBuyoutLimit } from '@/lib/offer-financing-shared'
@@ -45,7 +44,6 @@ type ManagedOffer = {
     versionNumber: number
     summary: string
     createdAt: string
-    pdfUrl: string | null
   }>
   createdAt: string
   updatedAt: string
@@ -319,6 +317,7 @@ export function OffersWorkspace({
   offers,
   leadOptions,
   initialLeadId,
+  initialOfferId,
   pricingOptions,
   statusOptions,
   createOfferAction,
@@ -329,12 +328,13 @@ export function OffersWorkspace({
   offers: ManagedOffer[]
   leadOptions: OfferLeadOption[]
   initialLeadId: string | null
+  initialOfferId: string | null
   pricingOptions: OfferPricingOption[]
   statusOptions: Array<{ value: OfferStatus; label: string }>
   createOfferAction: (formData: FormData) => Promise<{ ok: boolean; error?: string; offerId?: string }>
   assignOfferLeadAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
   updateOfferAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
-  createOfferVersionAction: (formData: FormData) => Promise<{ ok: boolean; error?: string; versionId?: string; pdfUrl?: string }>
+  createOfferVersionAction: (formData: FormData) => Promise<{ ok: boolean; error?: string; versionId?: string; publicUrl?: string }>
 }) {
   const router = useRouter()
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null)
@@ -344,7 +344,6 @@ export function OffersWorkspace({
   const [editorFeedback, setEditorFeedback] = useState<string | null>(null)
   const [leadBindingFeedback, setLeadBindingFeedback] = useState<string | null>(null)
   const [isGeneratingVersion, setIsGeneratingVersion] = useState(false)
-  const [isOpeningPreview, setIsOpeningPreview] = useState(false)
   const [createSelectedLeadId, setCreateSelectedLeadId] = useState(initialLeadId ?? '')
   const [createLeadSearchQuery, setCreateLeadSearchQuery] = useState('')
   const [editorPricingCatalogKey, setEditorPricingCatalogKey] = useState(offers[0]?.pricingCatalogKey ?? '')
@@ -380,22 +379,19 @@ export function OffersWorkspace({
   }, [createLeadSearchQuery, leadOptions])
 
   useEffect(() => {
-    if (!selectedOfferId && offers.length > 0) {
-      setSelectedOfferId(offers[0].id)
-    }
-  }, [offers, selectedOfferId])
-
-  useEffect(() => {
-    if (!isOpeningPreview) {
+    if (selectedOfferId) {
       return
     }
 
-    const timeout = window.setTimeout(() => {
-      setIsOpeningPreview(false)
-    }, 8000)
+    if (initialOfferId && offers.some((offer) => offer.id === initialOfferId)) {
+      setSelectedOfferId(initialOfferId)
+      return
+    }
 
-    return () => window.clearTimeout(timeout)
-  }, [isOpeningPreview])
+    if (offers.length > 0) {
+      setSelectedOfferId(offers[0].id)
+    }
+  }, [initialOfferId, offers, selectedOfferId])
 
   useEffect(() => {
     if (!initialLeadId || hasHandledInitialLeadRef.current) {
@@ -576,10 +572,9 @@ export function OffersWorkspace({
     setIsGeneratingVersion(true)
     setEditorFeedback(null)
     setLeadBindingFeedback(null)
-    setIsOpeningPreview(false)
 
     try {
-      setEditorFeedback('Trwa zapisywanie konfiguracji i przygotowanie dokumentu PDF. To może potrwać kilka sekund.')
+      setEditorFeedback('Trwa zapisywanie konfiguracji, tworzenie wersji i przygotowanie linku online. To może potrwać kilka sekund.')
 
       if (!selectedOffer) {
         setEditorFeedback('Nie wybrano aktywnej oferty.')
@@ -589,7 +584,7 @@ export function OffersWorkspace({
       const updateResult = await updateOfferAction(buildEditorFormData(selectedOffer.id))
 
       if (!updateResult.ok) {
-        setEditorFeedback(updateResult.error || 'Nie udało się zapisać aktualnych danych oferty przed wygenerowaniem PDF.')
+        setEditorFeedback(updateResult.error || 'Nie udało się zapisać aktualnych danych oferty przed utworzeniem wersji.')
         return
       }
 
@@ -604,7 +599,7 @@ export function OffersWorkspace({
           return
         }
 
-        setLeadBindingFeedback('Istniejący lead został przypisany do oferty przed wygenerowaniem PDF.')
+        setLeadBindingFeedback('Istniejący lead został przypisany do oferty przed utworzeniem wersji online.')
       }
 
       const result = await createOfferVersionAction(formData)
@@ -614,9 +609,9 @@ export function OffersWorkspace({
         return
       }
 
-      if (result.pdfUrl) {
-        setEditorFeedback('Dokument jest gotowy. Otwieram podgląd PDF...')
-        window.location.assign(result.pdfUrl)
+      if (result.publicUrl) {
+        setEditorFeedback('Wersja oferty jest gotowa. Otwieram widok online...')
+        window.location.assign(result.publicUrl)
         return
       }
 
@@ -625,15 +620,6 @@ export function OffersWorkspace({
     } finally {
       setIsGeneratingVersion(false)
     }
-  }
-
-  function handleOpenPreview() {
-    if (isGeneratingVersion || isOpeningPreview) {
-      return
-    }
-
-    setEditorFeedback('Otwieram podgląd dokumentu. Jeżeli serwer kończy przygotowanie danych, przejście może potrwać kilka sekund.')
-    setIsOpeningPreview(true)
   }
 
   function handleEditorPricingChange(nextKey: string) {
@@ -645,7 +631,7 @@ export function OffersWorkspace({
       <section className="crm-card-strong overflow-hidden rounded-[26px] px-4 py-4 lg:px-5 lg:py-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Oferty PDF</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Oferty online</div>
             <h2 className="mt-1 text-[22px] font-semibold text-[#1f1f1f]">Generator ofert</h2>
           </div>
 
@@ -698,32 +684,18 @@ export function OffersWorkspace({
 
             <form action={handleCreateVersion} className="flex flex-wrap gap-3 xl:justify-end">
               <input type="hidden" name="offerId" value={selectedOffer.id} />
-              <Link
-                href={`/offers/${selectedOffer.id}/pdf`}
-                onClick={handleOpenPreview}
-                aria-disabled={isGeneratingVersion || isOpeningPreview}
-                className={cx(
-                  'inline-flex h-10 items-center justify-center gap-2 rounded-[16px] px-4 text-sm font-medium transition',
-                  isGeneratingVersion || isOpeningPreview
-                    ? 'cursor-wait border-[rgba(0,0,0,0.04)] bg-[rgba(255,255,255,0.7)] text-[#9a9384]'
-                    : 'crm-button-secondary'
-                )}
-              >
-                <ExternalLink className="h-4 w-4" />
-                <span>{isOpeningPreview ? 'Otwieranie podglądu...' : 'Otwórz podgląd dokumentu'}</span>
-              </Link>
               <button
                 type="submit"
-                disabled={isGeneratingVersion || isOpeningPreview}
+                disabled={isGeneratingVersion}
                 className={cx(
                   'inline-flex h-10 items-center justify-center gap-2 rounded-[16px] px-4 text-sm font-medium transition',
-                  isGeneratingVersion || isOpeningPreview
+                  isGeneratingVersion
                     ? 'cursor-wait border border-[rgba(190,147,62,0.18)] bg-[#d7c28b] text-[#181512]'
                     : 'crm-button-primary'
                 )}
               >
-                <FileDown className="h-4 w-4" />
-                <span>{isGeneratingVersion ? 'Przygotowuję PDF...' : 'Wygeneruj ofertę PDF'}</span>
+                <Sparkles className="h-4 w-4" />
+                <span>{isGeneratingVersion ? 'Tworzę wersję online...' : 'Zapisz i otwórz ofertę online'}</span>
               </button>
             </form>
           </div>
@@ -910,11 +882,9 @@ export function OffersWorkspace({
                   <div className="crm-feedback rounded-[18px] px-4 py-3 text-sm text-[#555555]">{editorFeedback}</div>
                 ) : null}
 
-                {isGeneratingVersion || isOpeningPreview ? (
+                {isGeneratingVersion ? (
                   <div className="crm-feedback rounded-[18px] border-[rgba(212,168,79,0.18)] bg-[#fffaf0] px-4 py-3 text-sm text-[#7c6840]">
-                    {isGeneratingVersion
-                      ? 'System zapisuje dane oferty i przygotowuje dokument. Nie klikaj ponownie, aż zakończy się otwieranie PDF.'
-                      : 'System otwiera podgląd dokumentu. Przy pierwszym wejściu serwer może potrzebować kilku sekund.'}
+                    System zapisuje dane oferty i przygotowuje wersję online. Nie klikaj ponownie, aż otworzy się widok klienta.
                   </div>
                 ) : null}
 

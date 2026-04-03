@@ -46,7 +46,7 @@ type LeadOfferSummary = {
   status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
   updatedAt: string
   versionCount: number
-  pdfHref: string
+  offerHref: string
 }
 
 function getStageKindLabel(kind: LeadStage['kind']) {
@@ -305,7 +305,7 @@ function LeadDetailsScreen({
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b27]">Oferty klienta</div>
               {leadOffers.length > 0 ? (
                 <>
-                  <div className="mt-2 text-sm leading-6 text-[#666666]">Dla tego leada są już przypisane oferty. Możesz wejść od razu do dokumentu PDF albo utworzyć kolejną wersję oferty.</div>
+                  <div className="mt-2 text-sm leading-6 text-[#666666]">Dla tego leada są już przypisane oferty. Możesz wejść od razu do workspace tej oferty albo utworzyć kolejną wersję online.</div>
                   <div className="mt-3 grid gap-3">
                     {leadOffers.map((offer) => (
                       <article key={offer.id} className="rounded-[18px] border border-[#e8e1d4] bg-[#fcfbf8] p-3.5">
@@ -323,9 +323,9 @@ function LeadDetailsScreen({
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-3">
                           <div className="text-xs uppercase tracking-[0.14em] text-[#8a826f]">Wersje: {offer.versionCount}</div>
-                          <Link href={offer.pdfHref} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-3 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
+                          <Link href={offer.offerHref} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-3 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
                             <FileText className="h-4 w-4" />
-                            <span>PDF</span>
+                            <span>Oferta</span>
                           </Link>
                         </div>
                       </article>
@@ -333,7 +333,7 @@ function LeadDetailsScreen({
                   </div>
                 </>
               ) : (
-                <div className="mt-2 text-sm leading-6 text-[#666666]">Ten lead nie ma jeszcze przypisanej oferty. Jeśli chcesz, możesz od razu przejść do generatora i utworzyć pierwszy dokument PDF dla tego klienta.</div>
+                <div className="mt-2 text-sm leading-6 text-[#666666]">Ten lead nie ma jeszcze przypisanej oferty. Jeśli chcesz, możesz od razu przejść do generatora i utworzyć pierwszą ofertę online dla tego klienta.</div>
               )}
               <Link href={`/offers?leadId=${selectedLead.id}`} className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white transition hover:bg-[#b8932f]">
                 <FilePlus2 className="h-4 w-4" />

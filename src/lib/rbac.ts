@@ -42,7 +42,7 @@ export const roleDefinitions: RoleDefinition[] = [
   {
     key: 'SALES',
     label: 'Handlowiec',
-    description: 'Obsługuje klientów, leady i generuje oferty PDF.',
+    description: 'Obsługuje klientów, leady i przygotowuje oferty online.',
   },
 ]
 
@@ -61,7 +61,7 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     href: '/offers',
-    label: 'Oferty PDF',
+    label: 'Oferty',
     icon: FileText,
     roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'SALES'],
   },

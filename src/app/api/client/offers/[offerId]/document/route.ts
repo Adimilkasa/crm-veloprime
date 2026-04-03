@@ -41,7 +41,6 @@ export async function GET(
             versionNumber: document.version.versionNumber,
             summary: document.version.summary,
             createdAt: document.version.createdAt,
-            pdfUrl: document.version.pdfUrl,
           }
         : null,
       payload: document.payload,

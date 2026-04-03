@@ -21,7 +21,7 @@ try {
     -SmokeLeadName $smokeLeadName `
     -SmokeLeadEmail $smokeLeadEmail `
     -SmokePhone '+48500000000' `
-    -SmokeMessage 'Smoke flow lead-offer-pdf' `
+    -SmokeMessage 'Smoke flow lead-offer-online' `
     -ValidatedNotes 'Smoke flow validated' `
     -StepLabelPrefix '2'
   $offerId = [string]$prepared.OfferId
@@ -44,15 +44,34 @@ try {
     throw 'Document snapshot returned a different versionId'
   }
 
-  Write-Host '9. Open PDF page'
-  $pdfResponse = Invoke-WebRequest -Uri ($baseUrl + '/offers/' + $offerId + '/pdf?versionId=' + $versionId) -WebSession $adminSession -UseBasicParsing
+  Write-Host '9. Open online offer page'
+  $shareBody = @{ versionId = $versionId } | ConvertTo-Json
+  $shareResponse = Invoke-WebRequest `
+    -Uri ($baseUrl + '/api/client/offers/' + $offerId + '/share') `
+    -Method Post `
+    -WebSession $adminSession `
+    -ContentType 'application/json' `
+    -Body $shareBody `
+    -UseBasicParsing
+  $sharePayload = $shareResponse.Content | ConvertFrom-Json
 
-  if ($pdfResponse.StatusCode -ne 200) {
-    throw 'PDF page did not return 200'
+  if (-not $sharePayload.ok) {
+    throw 'Offer share failed: ' + $sharePayload.error
   }
 
-  if ($pdfResponse.Content -notmatch 'offer-pdf-document') {
-    throw 'PDF page content does not include document marker'
+  $shareUrl = [string]$sharePayload.share.url
+  if (-not $shareUrl -or $shareUrl -notmatch '/oferta/') {
+    throw 'Offer share did not return a public offer URL'
+  }
+
+  $publicResponse = Invoke-WebRequest -Uri $shareUrl -UseBasicParsing
+
+  if ($publicResponse.StatusCode -ne 200) {
+    throw 'Online offer page did not return 200'
+  }
+
+  if ($publicResponse.Content -notmatch 'Oferta online') {
+    throw 'Online offer page content does not include offer header marker'
   }
 
   Write-Host ('SMOKE_OK offerId=' + $offerId + ' offerNumber=' + $offerNumber + ' versionId=' + $versionId)

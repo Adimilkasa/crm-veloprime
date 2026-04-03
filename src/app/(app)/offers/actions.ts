@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/auth'
-import { assignManagedOfferLead, createManagedOffer, createManagedOfferVersion, updateManagedOffer } from '@/lib/offer-management'
+import { assignManagedOfferLead, createManagedOffer, createManagedOfferShare, createManagedOfferVersion, updateManagedOffer } from '@/lib/offer-management'
 
 async function requireSession() {
   const session = await getSession()
@@ -95,12 +95,22 @@ export async function updateOfferAction(formData: FormData) {
 
 export async function createOfferVersionAction(formData: FormData) {
   const session = await requireSession()
-  const result = await createManagedOfferVersion(session, String(formData.get('offerId') || ''))
+  const offerId = String(formData.get('offerId') || '')
+  const result = await createManagedOfferVersion(session, offerId)
 
   if (!result.ok) {
     return result
   }
 
+  const shareResult = await createManagedOfferShare(session, {
+    offerId,
+    versionId: result.version.id,
+  })
+
+  if (!shareResult.ok) {
+    return shareResult
+  }
+
   revalidatePath('/offers')
-  return { ok: true as const, versionId: result.version.id, pdfUrl: result.version.pdfUrl ?? undefined }
+  return { ok: true as const, versionId: result.version.id, publicUrl: `/oferta/${shareResult.share.token}` }
 }

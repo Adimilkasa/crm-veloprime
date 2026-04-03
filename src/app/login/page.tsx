@@ -42,7 +42,7 @@ export default async function LoginPage({
             </div>
             <div className="rounded-[24px] border border-[#ece6d9] bg-white/90 p-5 shadow-[0_16px_34px_rgba(31,31,31,0.04)]">
               <div className="text-sm font-semibold text-[#1f1f1f]">Sprzedaż</div>
-              <p className="mt-2 text-sm leading-6 text-[#6b6b6b]">Pracuje na leadach, klientach i generuje oferty PDF dla klientów.</p>
+              <p className="mt-2 text-sm leading-6 text-[#6b6b6b]">Pracuje na leadach, klientach i przygotowuje oferty online dla klientów.</p>
             </div>
           </div>
 

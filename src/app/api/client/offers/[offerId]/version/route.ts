@@ -27,7 +27,6 @@ export async function POST(
       versionNumber: result.version.versionNumber,
       summary: result.version.summary,
       createdAt: result.version.createdAt,
-      pdfUrl: result.version.pdfUrl,
     },
   })
 }

@@ -8,7 +8,7 @@ import { listManagedOffers, listOfferLeadOptions, listOfferPricingOptions, offer
 export default async function OffersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ leadId?: string }>
+  searchParams: Promise<{ leadId?: string; offerId?: string }>
 }) {
   const session = await getSession()
 
@@ -16,7 +16,7 @@ export default async function OffersPage({
     redirect('/login')
   }
 
-  const { leadId } = await searchParams
+  const { leadId, offerId } = await searchParams
 
   const [offers, leadOptions, pricingOptions] = await Promise.all([
     listManagedOffers(session),
@@ -29,6 +29,7 @@ export default async function OffersPage({
       offers={offers}
       leadOptions={leadOptions}
       initialLeadId={leadId ?? null}
+      initialOfferId={offerId ?? null}
       pricingOptions={pricingOptions}
       statusOptions={offerStatusOptions}
       createOfferAction={createOfferAction}

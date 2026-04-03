@@ -57,7 +57,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
   OfferDetail? _activeOffer;
   bool _isLoadingOffer = false;
   bool _isSavingOffer = false;
-  bool _isCreatingPdf = false;
+  bool _isCreatingVersion = false;
   bool _isOpeningPreview = false;
   bool _isSyncingToCrm = false;
   bool _isCreateInlineOpen = false;
@@ -657,7 +657,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
   void _populateForm(OfferDetail detail) {
     _customerNameController.text = detail.customerName;
-    _customerEmailController.text = detail.customerEmail ?? '';
+        _customerEmailController.text = detail.customerEmail?.trim() ?? '';
     _customerPhoneController.text = detail.customerPhone ?? '';
     _customerRegionController.text = _localDraftRegions[detail.id] ?? '';
     _discountController.text = detail.calculation?.appliedDiscount.toString() ?? '';
@@ -1161,9 +1161,9 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
   }
 
-  Future<void> _createPdfForSelected() async {
+  Future<void> _createVersionForSelected() async {
     final offer = _activeOffer;
-    if (offer == null || _isCreatingPdf) {
+    if (offer == null || _isCreatingVersion) {
       return;
     }
 
@@ -1176,12 +1176,12 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
 
     setState(() {
-      _isCreatingPdf = true;
-      _editorFeedback = 'Zapisujemy ofertę i przygotowujemy dokument PDF...';
+      _isCreatingVersion = true;
+      _editorFeedback = 'Zapisujemy ofertę i przygotowujemy nową wersję...';
     });
 
     try {
-      final saved = await _saveOfferDraft(offer);
+      final saved = await _saveOfferDraft(offer!);
 
       if (!mounted) {
         return;
@@ -1190,14 +1190,14 @@ class _OffersHomePageState extends State<OffersHomePage> {
       _replaceOffer(saved, replacingOfferId: offer.id);
       _populateForm(saved);
 
-      final version = await widget.offersRepository.createPdfVersion(offerId: saved.id);
+      final version = await widget.offersRepository.createOfferVersion(offerId: saved.id);
 
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _editorFeedback = 'Przygotowano wersję PDF ${version.versionNumber} dla ${saved.number}. Otwieram podgląd dokumentu.';
+        _editorFeedback = 'Przygotowano wersję ${version.versionNumber} dla ${saved.number}. Otwieram podgląd oferty.';
       });
 
       await _openPreview(_mapDetailToSummary(saved), versionId: version.id);
@@ -1207,12 +1207,12 @@ class _OffersHomePageState extends State<OffersHomePage> {
       }
 
       setState(() {
-        _editorFeedback = 'Nie udało się przygotować PDF. $error';
+        _editorFeedback = 'Nie udało się przygotować wersji oferty. $error';
       });
     } finally {
       if (mounted) {
         setState(() {
-          _isCreatingPdf = false;
+          _isCreatingVersion = false;
         });
       }
     }

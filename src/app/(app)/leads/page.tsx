@@ -37,16 +37,13 @@ export default async function LeadsPage({
     status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
     updatedAt: string
     versionCount: number
-    pdfHref: string
+    offerHref: string
   }>>>((accumulator, offer) => {
     if (!offer.leadId) {
       return accumulator
     }
 
-    const latestVersion = offer.versions[0] ?? null
-    const pdfHref = latestVersion
-      ? `/offers/${offer.id}/pdf?versionId=${latestVersion.id}`
-      : `/offers/${offer.id}/pdf`
+    const offerHref = `/offers?leadId=${offer.leadId}&offerId=${offer.id}`
 
     if (!accumulator[offer.leadId]) {
       accumulator[offer.leadId] = []
@@ -59,7 +56,7 @@ export default async function LeadsPage({
       status: offer.status,
       updatedAt: offer.updatedAt,
       versionCount: offer.versions.length,
-      pdfHref,
+      offerHref,
     })
 
     return accumulator

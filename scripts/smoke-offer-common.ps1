@@ -201,21 +201,21 @@ function Ensure-SmokeOfferVersion {
     throw 'Offer update failed: ' + $patchPayload.error
   }
 
-  Write-Host (([int]$StepLabelPrefix + 5).ToString() + '. Create PDF version')
+  Write-Host (([int]$StepLabelPrefix + 5).ToString() + '. Create offer version')
   $versionResponse = Invoke-WebRequest `
-    -Uri ($BaseUrl.TrimEnd('/') + '/api/client/offers/' + $offerId + '/pdf-version') `
+    -Uri ($BaseUrl.TrimEnd('/') + '/api/client/offers/' + $offerId + '/version') `
     -Method Post `
     -WebSession $Session `
     -UseBasicParsing
   $versionPayload = $versionResponse.Content | ConvertFrom-Json
 
   if (-not $versionPayload.ok) {
-    throw 'PDF version creation failed: ' + $versionPayload.error
+    throw 'Offer version creation failed: ' + $versionPayload.error
   }
 
   $versionId = [string]$versionPayload.version.id
   if (-not $versionId) {
-    throw 'Missing version id after PDF version creation'
+    throw 'Missing version id after offer version creation'
   }
 
   return [pscustomobject]@{

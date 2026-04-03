@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { PublicOfferGallery } from '@/components/offers/PublicOfferGallery'
 import { getPublicOfferDocumentSnapshot } from '@/lib/offer-management'
 
 function formatDate(value: string | null) {
@@ -24,18 +25,28 @@ function isCompanyCustomer(customerType: string | null | undefined) {
   return normalized.includes('firm') || normalized === 'b2b' || normalized === 'company'
 }
 
-function buildOfferNarrative(input: {
+function buildHeroNarrative(input: {
   modelName: string
   customerName: string
-  effectivePriceLabel: string
-  pricingDisplayMode: 'netto' | 'brutto'
-  financingSummary: string | null
-  financingVariant: string | null
+  selectedColorName: string | null
+  powertrainType: string | null | undefined
 }) {
-  const financing = input.financingSummary ?? input.financingVariant ?? 'warunki ustalane indywidualnie'
-  const priceLabel = input.pricingDisplayMode === 'netto' ? 'netto' : 'brutto'
+  const color = input.selectedColorName?.trim() || 'kolor bazowy'
+  const powertrain = input.powertrainType?.trim() || 'napęd zgodny z konfiguracją'
 
-  return `Konfiguracja ${input.modelName} została przygotowana indywidualnie dla ${input.customerName}. Punktem wyjścia do rozmowy jest cena końcowa ${input.effectivePriceLabel} ${priceLabel} oraz scenariusz finansowania: ${financing}.`
+  return `Konfiguracja ${input.modelName} została przygotowana indywidualnie dla ${input.customerName}. Hero pokazuje sam pojazd i jego główne cechy: kolor ${color} oraz ${powertrain}.`
+}
+
+function formatMoney(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return 'Do potwierdzenia'
+  }
+
+  return new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: 'PLN',
+    maximumFractionDigits: 2,
+  }).format(value)
 }
 
 const defaultFinancingDisclaimer =
@@ -168,34 +179,48 @@ export default async function PublicOfferPage({
   const secondaryPriceLabel = pricingDisplayMode === 'netto' ? payload.customer.finalGrossLabel : payload.customer.finalNetLabel
   const effectivePriceTitle = pricingDisplayMode === 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto'
   const secondaryPriceTitle = pricingDisplayMode === 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto'
-  const offerNarrative = buildOfferNarrative({
+  const heroNarrative = buildHeroNarrative({
     modelName: modelLabel,
     customerName: payload.customer.customerName,
-    effectivePriceLabel,
-    pricingDisplayMode,
-    financingSummary: payload.customer.financingSummary,
-    financingVariant: payload.customer.financingVariant,
+    selectedColorName: payload.customer.selectedColorName,
+    powertrainType: payload.internal.powertrainType,
   })
   const advisorName = payload.advisor.fullName || payload.internal.ownerName || 'Opiekun VeloPrime'
   const advisorRole = payload.advisor.role || payload.internal.ownerRole || 'Handlowiec'
   const advisorAvatarUrl = payload.advisor.avatarUrl?.trim() || null
   const customerContactLine = buildContactLine(payload.customer.customerEmail, payload.customer.customerPhone)
   const advisorContactLine = buildContactLine(payload.advisor.email, payload.advisor.phone)
-  const accentGallery = gallery.slice(0, 5)
   const validUntilLabel = formatDate(payload.customer.validUntil ?? document.shareExpiresAt)
   const generatedAtLabel = formatDate(payload.createdAt)
   const onlineStatusSummary = `To jest aktywna wersja oferty online. Link prowadzi do tej samej konfiguracji przygotowanej przez opiekuna i pozostaje ważny do ${validUntilLabel}.`
   const formalNotice = payload.customer.financingDisclaimer ?? defaultFinancingDisclaimer
+  const baseColorName = payload.internal.baseColorName?.trim() || null
+  const technicalItems = [
+    { label: 'Model', value: modelLabel },
+    { label: 'Kolor konfiguracji', value: payload.customer.selectedColorName ?? 'Bazowy' },
+    { label: 'Typ napędu', value: payload.internal.powertrainType?.trim() || 'Do potwierdzenia' },
+    ...(baseColorName ? [{ label: 'Kolor bazowy modelu', value: baseColorName }] : []),
+  ]
+  const notesText = payload.customer.notes?.trim() || 'Brak dodatkowych uwag do oferty.'
+  const financingSummary = payload.internal.financing
+  const financingFacts = financingSummary
+    ? [
+        { label: 'Szacowana rata', value: formatMoney(financingSummary.estimatedInstallment) },
+        { label: 'Okres', value: `${financingSummary.termMonths} mies.` },
+        { label: 'Wpłata własna', value: formatMoney(financingSummary.downPaymentAmount) },
+        { label: 'Wykup', value: `${financingSummary.buyoutPercent}%` },
+      ]
+    : []
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(212,168,79,0.12),transparent_28%),radial-gradient(circle_at_85%_14%,rgba(31,82,147,0.16),transparent_24%),linear-gradient(180deg,#fcfcfb_0%,#f1f5f8_100%)] px-4 py-5 text-[#172033] sm:px-6 lg:px-8 lg:py-8">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(212,168,79,0.12),transparent_28%),radial-gradient(circle_at_85%_14%,rgba(31,82,147,0.16),transparent_24%),linear-gradient(180deg,#fcfcfb_0%,#f1f5f8_100%)] px-4 py-6 text-[#172033] sm:px-6 lg:px-8 lg:py-10">
       <div className="mx-auto max-w-7xl">
-        <section className="relative overflow-hidden rounded-[38px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(135deg,rgba(255,255,255,0.9),rgba(247,250,255,0.88))] shadow-[0_34px_110px_rgba(17,32,67,0.14)]">
+        <section className="relative overflow-hidden rounded-[40px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(135deg,rgba(255,255,255,0.9),rgba(247,250,255,0.88))] shadow-[0_34px_110px_rgba(17,32,67,0.14)]">
           <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(212,168,79,0.48),transparent)]" />
           <div className="absolute -left-16 top-12 h-44 w-44 rounded-full bg-[rgba(212,168,79,0.12)] blur-3xl" />
           <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[rgba(32,83,149,0.12)] blur-3xl" />
 
-          <div className="relative px-6 py-6 lg:px-10 lg:py-8">
+          <div className="relative px-6 py-7 lg:px-10 lg:py-9">
             <div className="flex flex-col gap-4 border-b border-[rgba(20,33,61,0.07)] pb-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-4">
                 <div className="rounded-[22px] border border-white/70 bg-white/78 px-4 py-3 shadow-[0_14px_34px_rgba(17,32,67,0.08)] backdrop-blur-sm">
@@ -209,9 +234,9 @@ export default async function PublicOfferPage({
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <InfoPill label="Numer" value={payload.customer.offerNumber} />
-                <InfoPill label="Ważność" value={formatDate(payload.customer.validUntil ?? document.shareExpiresAt)} />
-                <InfoPill label="Wersja" value={String(document.version.versionNumber)} />
+                <InfoPill label="Dla klienta" value={payload.customer.customerName} />
+                <InfoPill label="Kolor" value={payload.customer.selectedColorName ?? 'Bazowy'} />
+                <InfoPill label="Napęd" value={payload.internal.powertrainType?.trim() || 'Do potwierdzenia'} />
               </div>
             </div>
 
@@ -222,50 +247,19 @@ export default async function PublicOfferPage({
                   {modelLabel}
                 </h1>
                 <p className="mt-5 max-w-2xl text-[16px] leading-8 text-[#58657f]">
-                  {offerNarrative}
+                  {heroNarrative}
                 </p>
 
                 <div className="mt-7 flex flex-wrap gap-3">
-                  <InfoPill label="Dla klienta" value={payload.customer.customerName} />
-                  <InfoPill label="Kolor" value={payload.customer.selectedColorName ?? 'Bazowy'} />
                   <InfoPill label="Kontakt" value={customerContactLine} />
+                  <InfoPill label="Opiekun" value={advisorName} />
                 </div>
 
-                <div className="mt-8 grid gap-4 sm:grid-cols-3">
-                  <MetricCard
-                    eyebrow={effectivePriceTitle}
-                    value={effectivePriceLabel}
-                    detail={`Cena prezentowana w trybie ${pricingDisplayMode} dla przygotowanej konfiguracji, po uwzględnieniu warunków oferty.`}
-                    accent
-                  />
-                  <MetricCard
-                    eyebrow={secondaryPriceTitle}
-                    value={secondaryPriceLabel}
-                    detail={`Cena katalogowa ${payload.customer.listPriceLabel} z rabatem ${payload.customer.discountLabel}.`}
-                  />
-                  <MetricCard
-                    eyebrow="Finansowanie"
-                    value={payload.customer.financingVariant ?? 'Ustalane'}
-                    detail={payload.customer.financingSummary ?? 'Szczegóły finansowania są gotowe do omówienia z opiekunem oferty.'}
-                  />
-                </div>
-
-                <div className="mt-8 flex flex-wrap gap-3">
-                  {payload.advisor.email ? (
-                    <a href={`mailto:${payload.advisor.email}`} className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#e3c986_0%,#d6ad56_100%)] px-5 py-3 text-sm font-semibold text-[#1c1711] shadow-[0_14px_34px_rgba(212,168,79,0.2)] transition hover:translate-y-[-1px] hover:brightness-[1.02]">
-                      Wyślij wiadomość do opiekuna
-                    </a>
-                  ) : null}
-                  {payload.advisor.phone ? (
-                    <a href={`tel:${payload.advisor.phone.replace(/\s+/g, '')}`} className="inline-flex items-center rounded-full border border-[rgba(20,33,61,0.1)] bg-white/88 px-5 py-3 text-sm font-medium text-[#172033] shadow-[0_12px_30px_rgba(17,32,67,0.06)] transition hover:translate-y-[-1px] hover:border-[rgba(157,123,39,0.24)]">
-                      Zadzwoń: {payload.advisor.phone}
-                    </a>
-                  ) : null}
-                  {assets.specPdfUrl ? (
-                    <Link href={assets.specPdfUrl} target="_blank" className="inline-flex items-center rounded-full border border-[rgba(20,33,61,0.1)] bg-[#f8fbff] px-5 py-3 text-sm font-medium text-[#244167] shadow-[0_12px_30px_rgba(17,32,67,0.05)] transition hover:translate-y-[-1px] hover:border-[rgba(36,65,103,0.22)]">
-                      Otwórz specyfikację PDF
-                    </Link>
-                  ) : null}
+                <div className="mt-8 max-w-xl rounded-[28px] border border-white/70 bg-white/74 p-5 shadow-[0_20px_60px_rgba(17,32,67,0.08)] backdrop-blur-md lg:p-6">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Gotowe do prezentacji</div>
+                  <p className="mt-3 text-[15px] leading-8 text-[#56627a]">
+                    Poniżej znajdziesz PDF specyfikacji, galerię modelu, wycenę oraz finansowanie w kolejności zgodnej z finalnym układem oferty.
+                  </p>
                 </div>
               </div>
 
@@ -284,7 +278,7 @@ export default async function PublicOfferPage({
                     <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent_0%,rgba(8,17,35,0.75)_100%)] p-6 text-white sm:p-7">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/68">Wybrana konfiguracja</div>
                       <div className="mt-3 text-[28px] font-semibold leading-tight">{payload.customer.selectedColorName ?? modelLabel}</div>
-                      <div className="mt-2 max-w-xl text-sm leading-7 text-white/78">{payload.customer.financingSummary ?? 'Wariant finansowania oraz detale zakupu są gotowe do omówienia z opiekunem oferty.'}</div>
+                      <div className="mt-2 max-w-xl text-sm leading-7 text-white/78">Hero pozostaje czysty: skupia się na samochodzie, kolorze i materiale wizualnym, bez sekcji cenowej i metadanych dokumentu.</div>
                     </div>
                   </div>
 
@@ -312,27 +306,88 @@ export default async function PublicOfferPage({
           </div>
         </section>
 
-        <section className="mt-6 grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+        {assets.specPdfUrl ? (
+          <section className="mt-8 rounded-[30px] border border-[rgba(20,33,61,0.08)] bg-white/94 p-6 shadow-[0_20px_60px_rgba(17,32,67,0.08)] lg:p-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">PDF</div>
+                <h2 className="mt-3 text-[28px] font-semibold leading-tight text-[#172033]">Specyfikacja pojazdu dostępna do pobrania</h2>
+                <p className="mt-3 max-w-3xl text-[15px] leading-8 text-[#58657f]">
+                  PDF pozostaje tuż pod hero, zanim użytkownik przejdzie do sekcji technicznej, galerii, wyceny i finansowania.
+                </p>
+              </div>
+              <Link href={assets.specPdfUrl} target="_blank" className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#e3c986_0%,#d6ad56_100%)] px-5 py-3 text-sm font-semibold text-[#1c1711] shadow-[0_14px_34px_rgba(212,168,79,0.2)] transition hover:translate-y-[-1px] hover:brightness-[1.02]">
+                Otwórz specyfikację PDF
+              </Link>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="mt-8 grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
           <SectionCard
-            eyebrow="Podsumowanie handlowe"
-            title="Najważniejsze parametry przygotowane dla tej wersji oferty"
-            description="Kluczowe liczby i ustalenia zebrane tak, aby klient od razu rozumiał punkt wyjścia do rozmowy oraz zakres oferty."
+            eyebrow="Konfiguracja techniczna"
+            title="Dane pojazdu i wybranej konfiguracji"
+            description="Ta sekcja zawiera wyłącznie parametry samochodu. Metadane dokumentu i formalności pozostają przeniesione na sam dół oferty."
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <DetailTile label="Model" value={modelLabel} />
-              <DetailTile label="Kolor" value={payload.customer.selectedColorName ?? 'Bazowy'} />
-              <DetailTile label="Cena katalogowa" value={payload.customer.listPriceLabel} />
-              <DetailTile label="Rabat" value={`${payload.customer.discountLabel} (${payload.customer.discountPercentLabel})`} />
+              {technicalItems.map((item) => (
+                <DetailTile key={item.label} label={item.label} value={item.value} />
+              ))}
             </div>
 
             <div className="mt-5 rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,#f9fbfe_0%,#f4f7fb_100%)] p-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Narracja oferty</div>
-              <p className="mt-4 text-[15px] leading-8 text-[#55627d]">{offerNarrative}</p>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Opis konfiguracji</div>
+              <p className="mt-4 text-[15px] leading-8 text-[#55627d]">
+                Sekcja techniczna pozostaje czysta: pokazuje model, kolor i napęd, zanim użytkownik przejdzie do materiałów wizualnych oraz części handlowej oferty.
+              </p>
             </div>
+          </SectionCard>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-6">
+            <SectionCard
+              eyebrow="Materiały modelu"
+              title={`Galeria dla konfiguracji ${modelLabel}`}
+              description="Galeria jest celowo pokazana przed sekcją wartości i finansowania, żeby najpierw sprzedawać sam samochód i jego wygląd."
+            >
+              <PublicOfferGallery modelLabel={modelLabel} gallery={gallery} />
+            </SectionCard>
+
+            <SectionCard
+              eyebrow="Wartość pojazdu"
+              title="Cena i rabat dla tej konfiguracji"
+              description="Wycena pozostaje oddzielona od finansowania. Najpierw pokazujemy wartość pojazdu i pełny kontekst cenowy, a dopiero potem scenariusz finansowania."
+            >
+              <div className="grid gap-4 sm:grid-cols-3">
+                <MetricCard
+                  eyebrow={effectivePriceTitle}
+                  value={effectivePriceLabel}
+                  detail={`Cena prezentowana w trybie ${pricingDisplayMode} dla przygotowanej konfiguracji, po uwzględnieniu warunków oferty.`}
+                  accent
+                />
+                <MetricCard
+                  eyebrow={secondaryPriceTitle}
+                  value={secondaryPriceLabel}
+                  detail={`Cena alternatywna względem trybu ${pricingDisplayMode} dla tej samej konfiguracji.`}
+                />
+                <MetricCard
+                  eyebrow="Rabat"
+                  value={payload.customer.discountLabel}
+                  detail={`Cena katalogowa ${payload.customer.listPriceLabel} oraz rabat procentowy ${payload.customer.discountPercentLabel}.`}
+                />
+              </div>
+            </SectionCard>
+          </div>
+        </section>
+
+        <section className="mt-8 grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+          <SectionCard
+            eyebrow="Finansowanie"
+            title="Osobna sekcja warunków finansowania"
+            description="Finansowanie nie miesza się z wartością pojazdu. Tu trafiają wyłącznie wariant, parametry kalkulacji oraz zastrzeżenie formalne."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-white p-5">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Finansowanie</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Wariant finansowania</div>
                 <div className="mt-3 text-[22px] font-semibold leading-tight text-[#172033]">
                   {payload.customer.financingVariant ?? 'Warunki ustalane indywidualnie'}
                 </div>
@@ -340,94 +395,68 @@ export default async function PublicOfferPage({
                   {payload.customer.financingSummary ?? 'W tej wersji dokumentu scenariusz finansowania pozostaje gotowy do doprecyzowania z opiekunem oferty.'}
                 </p>
               </div>
-              <div className="rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-white p-5">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Uwagi</div>
-                <p className="mt-3 text-sm leading-7 text-[#5b6881]">
-                  {payload.customer.notes?.trim() || 'Dokument stanowi gotowy punkt wyjścia do rozmowy handlowej, porównania wariantów oraz finalizacji konfiguracji.'}
+              <div className="rounded-[26px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(145deg,#18325f_0%,#214b87_100%)] p-5 text-white shadow-[0_22px_60px_rgba(23,45,87,0.28)]">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">Podstawa kalkulacji</div>
+                <div className="mt-3 text-[22px] font-semibold leading-tight">
+                  {financingSummary?.calculationBaseLabel ? `Wartości ${financingSummary.calculationBaseLabel}` : 'Wartości do potwierdzenia'}
+                </div>
+                <p className="mt-3 text-sm leading-7 text-white/76">
+                  {financingSummary
+                    ? `Kalkulacja obejmuje okres ${financingSummary.termMonths} mies., wpłatę własną ${formatMoney(financingSummary.downPaymentAmount)} i wykup ${financingSummary.buyoutPercent}%.`
+                    : 'Szczegółowa kalkulacja finansowania zostanie przedstawiona po pełnym potwierdzeniu parametrów.'}
                 </p>
               </div>
             </div>
 
-            {payload.customer.financingDisclaimer ? (
-              <div className="mt-5 rounded-[24px] border border-[rgba(157,123,39,0.16)] bg-[linear-gradient(180deg,#fff9ee_0%,#fffdf8_100%)] px-5 py-4 text-sm leading-7 text-[#6b654d]">
-                {payload.customer.financingDisclaimer}
-              </div>
-            ) : null}
-          </SectionCard>
-
-          <div className="grid gap-6">
-            <SectionCard
-              eyebrow="Kontakt"
-              title="Osoba odpowiedzialna za ofertę"
-              description="W przypadku pytań, potrzeby korekty konfiguracji lub chęci zamówienia jazdy próbnej, kontakt odbywa się bezpośrednio z opiekunem dokumentu."
-            >
-              <div className="rounded-[28px] bg-[linear-gradient(145deg,#18325f_0%,#214b87_100%)] p-6 text-white shadow-[0_22px_60px_rgba(23,45,87,0.28)]">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">{advisorRole}</div>
-                <div className="mt-4 flex items-center gap-4">
-                  <AdvisorAvatar avatarUrl={advisorAvatarUrl} fullName={advisorName} size="h-20 w-20" textClassName="text-xl" />
-                  <div>
-                    <div className="text-[30px] font-semibold leading-tight">{advisorName}</div>
-                    <div className="mt-3 text-sm leading-8 text-white/76">{advisorContactLine}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-3">
-                <DetailTile label="Numer oferty" value={payload.customer.offerNumber} />
-                <DetailTile label="Wersja dokumentu" value={String(document.version.versionNumber)} />
-                <DetailTile label="Wygenerowano" value={formatDate(payload.createdAt)} />
-                <DetailTile label="Ważna do" value={formatDate(payload.customer.validUntil ?? document.shareExpiresAt)} />
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              eyebrow="Następny krok"
-              title="Jak korzystać z tej oferty"
-              description="To jest aktywny podgląd online. Link może służyć do spokojnego przejrzenia konfiguracji, porównania warunków i powrotu do rozmowy z doradcą."
-            >
-              <div className="grid gap-3">
-                <div className="rounded-[22px] border border-[rgba(20,33,61,0.07)] bg-white/90 px-5 py-4 text-sm leading-7 text-[#56627a]">
-                  1. Sprawdź model, cenę końcową i wariant finansowania.
-                </div>
-                <div className="rounded-[22px] border border-[rgba(20,33,61,0.07)] bg-white/90 px-5 py-4 text-sm leading-7 text-[#56627a]">
-                  2. Obejrzyj galerię i otwórz specyfikację PDF, jeśli chcesz przejść do szczegółów technicznych.
-                </div>
-                <div className="rounded-[22px] border border-[rgba(20,33,61,0.07)] bg-white/90 px-5 py-4 text-sm leading-7 text-[#56627a]">
-                  3. Skontaktuj się z opiekunem oferty, aby dopracować finansowanie lub finalny wariant zamówienia.
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-        </section>
-
-        <SectionCard
-          eyebrow="Galeria modelu"
-          title={`Materiały dla konfiguracji ${modelLabel}`}
-          description="Zestaw materiałów wizualnych wspierających ocenę finalnego wyglądu samochodu. Ta sekcja ma sprzedawać auto, a nie przypominać panel administracyjny."
-        >
-          {accentGallery.length > 0 ? (
-            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="overflow-hidden rounded-[28px] border border-[rgba(20,33,61,0.08)] bg-[#eef3f9] shadow-[0_18px_50px_rgba(17,32,67,0.08)]">
-                {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-                <img src={accentGallery[0]} alt={modelLabel} className="h-[420px] w-full object-cover" />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                {accentGallery.slice(1).map((imageUrl) => (
-                  <div key={imageUrl} className="overflow-hidden rounded-[24px] border border-[rgba(20,33,61,0.08)] bg-[#eef3f9] shadow-[0_16px_40px_rgba(17,32,67,0.07)]">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses static asset URLs */}
-                    <img src={imageUrl} alt={modelLabel} className="h-[198px] w-full object-cover" />
-                  </div>
+            {financingFacts.length > 0 ? (
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {financingFacts.map((item) => (
+                  <DetailTile key={item.label} label={item.label} value={item.value} />
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="rounded-[26px] border border-dashed border-[rgba(20,33,61,0.14)] bg-[linear-gradient(180deg,#f8fbfe_0%,#f5f8fc_100%)] px-6 py-10 text-sm leading-8 text-[#5f6d87]">
-              Ta oferta nie ma jeszcze kompletnej galerii. Sam link pozostaje aktywny, a opiekun może uzupełnić materiały lub dosłać dodatkową prezentację produktu.
-            </div>
-          )}
-        </SectionCard>
+            ) : null}
 
-        <section className="mt-6 rounded-[30px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,249,252,0.96))] p-6 shadow-[0_20px_60px_rgba(17,32,67,0.08)] lg:p-8">
+            <div className="mt-5 rounded-[24px] border border-[rgba(157,123,39,0.16)] bg-[linear-gradient(180deg,#fff9ee_0%,#fffdf8_100%)] px-5 py-4 text-sm leading-7 text-[#6b654d]">
+              {formalNotice}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            eyebrow="Opiekun"
+            title="Osoba odpowiedzialna za ofertę"
+            description="Sekcja kontaktowa pozostaje oddzielona od danych systemowych dokumentu. Tu klient widzi wyłącznie opiekuna i ewentualne uwagi do rozmowy."
+          >
+            <div className="rounded-[28px] bg-[linear-gradient(145deg,#18325f_0%,#214b87_100%)] p-6 text-white shadow-[0_22px_60px_rgba(23,45,87,0.28)]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62">{advisorRole}</div>
+              <div className="mt-4 flex items-center gap-4">
+                <AdvisorAvatar avatarUrl={advisorAvatarUrl} fullName={advisorName} size="h-20 w-20" textClassName="text-xl" />
+                <div>
+                  <div className="text-[30px] font-semibold leading-tight">{advisorName}</div>
+                  <div className="mt-3 text-sm leading-8 text-white/76">{advisorContactLine}</div>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {payload.advisor.email ? (
+                  <a href={`mailto:${payload.advisor.email}`} className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#e3c986_0%,#d6ad56_100%)] px-5 py-3 text-sm font-semibold text-[#1c1711] shadow-[0_14px_34px_rgba(212,168,79,0.2)] transition hover:translate-y-[-1px] hover:brightness-[1.02]">
+                    Wyślij wiadomość do opiekuna
+                  </a>
+                ) : null}
+                {payload.advisor.phone ? (
+                  <a href={`tel:${payload.advisor.phone.replace(/\s+/g, '')}`} className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-medium text-white transition hover:translate-y-[-1px] hover:border-white/35">
+                    Zadzwoń: {payload.advisor.phone}
+                  </a>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,#f9fbfe_0%,#f4f7fb_100%)] p-5 text-sm leading-8 text-[#55627d]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Uwagi do oferty</div>
+              <p className="mt-3">{notesText}</p>
+            </div>
+          </SectionCard>
+        </section>
+
+        <section className="mt-8 rounded-[30px] border border-[rgba(20,33,61,0.08)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,249,252,0.96))] p-6 shadow-[0_20px_60px_rgba(17,32,67,0.08)] lg:p-8">
           <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Finalizacja</div>
           <h2 className="mt-3 text-[28px] font-semibold leading-tight text-[#172033]">Oficjalny status tej wersji oferty</h2>
           <p className="mt-3 max-w-3xl text-[15px] leading-8 text-[#58657f]">
@@ -446,17 +475,14 @@ export default async function PublicOfferPage({
                 <DetailTile label="Wersja dokumentu" value={String(document.version.versionNumber)} />
                 <DetailTile label="Wygenerowano" value={generatedAtLabel} />
                 <DetailTile label="Ważna do" value={validUntilLabel} />
-                <DetailTile label="Opiekun" value={advisorName} />
                 <DetailTile label="Specyfikacja" value={assets.specPdfUrl ? 'PDF dostępny' : 'Brak osobnego PDF'} />
+                <DetailTile label="Typ klienta" value={isCompanyCustomer(payload.internal.customerType) ? 'Firma' : 'Klient prywatny'} />
               </div>
             </div>
 
             <div className="rounded-[26px] border border-[rgba(157,123,39,0.16)] bg-[linear-gradient(180deg,#fff9ee_0%,#fffdf8_100%)] p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#9d7b27]">Zastrzeżenie formalne</div>
               <p className="mt-3 text-sm leading-8 text-[#6b654d]">{formalNotice}</p>
-              <div className="mt-4 border-t border-[rgba(157,123,39,0.12)] pt-4 text-sm leading-7 text-[#786f56]">
-                Kontakt do opiekuna: {advisorContactLine}
-              </div>
             </div>
           </div>
         </section>

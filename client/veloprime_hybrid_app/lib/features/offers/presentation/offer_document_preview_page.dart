@@ -321,9 +321,10 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
             _PreviewHeroAttribute(label: 'Model', value: customer.modelName ?? document.title),
             _PreviewHeroAttribute(label: 'Kolor', value: customer.selectedColorName ?? 'Bazowy'),
             _PreviewHeroAttribute(label: 'Napęd', value: _formatPowertrainType(document.payload.internal.powertrainType)),
-            _PreviewHeroAttribute(label: 'Klient', value: _formatCustomerType(document.payload.internal.customerType)),
-            _PreviewHeroAttribute(label: 'Wersja', value: 'Dokument v${document.payload.versionNumber}'),
           ];
+          final heroSupportMessage = specDocumentSource != null
+              ? 'Niżej znajdziesz specyfikację PDF, galerię modelu oraz uporządkowane podsumowanie wartości i finansowania.'
+              : 'Niżej znajdziesz galerię modelu oraz uporządkowane podsumowanie wartości i finansowania tej konfiguracji.';
           final pricingDisplayMode = _isCompanyCustomer(document.payload.internal.customerType) ? 'netto' : 'brutto';
           final financingInsights = _extractFinancingInsights(customer.financingSummary, customer.financingVariant);
           final generatedAtLabel = _formatNullableDate(document.payload.createdAt, _dateFormat) ?? '-';
@@ -332,19 +333,17 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               ? 'Ta wersja dokumentu jest gotowa do wysyłki klientowi i stanowi podstawę dla widoku online oferty.'
               : 'Po zapisaniu wersji dokument będzie gotowy do wysyłki klientowi i publikacji w widoku online oferty.';
           final formalNotice = customer.financingDisclaimer ?? _defaultFinancingDisclaimer;
-          final technicalItems = [
-            _PreviewTechnicalItem(Icons.confirmation_number_outlined, 'Numer oferty', customer.offerNumber),
+          final technicalItems = <_PreviewTechnicalItem>[
             _PreviewTechnicalItem(Icons.directions_car_filled_outlined, 'Model', customer.modelName ?? document.title),
-            _PreviewTechnicalItem(Icons.palette_outlined, 'Kolor', customer.selectedColorName ?? document.payload.internal.selectedColorName ?? 'Bazowy'),
+            _PreviewTechnicalItem(Icons.palette_outlined, 'Kolor konfiguracji', customer.selectedColorName ?? document.payload.internal.selectedColorName ?? 'Bazowy'),
             _PreviewTechnicalItem(Icons.bolt_outlined, 'Typ napędu', _formatPowertrainType(document.payload.internal.powertrainType)),
-            _PreviewTechnicalItem(Icons.apartment_outlined, 'Typ klienta', _formatCustomerType(document.payload.internal.customerType)),
-            _PreviewTechnicalItem(Icons.person_outline_rounded, 'Opiekun', advisor.fullName.isNotEmpty ? advisor.fullName : document.payload.internal.ownerName),
-            _PreviewTechnicalItem(Icons.event_outlined, 'Ważność', _formatNullableDate(customer.validUntil) ?? 'Do uzupełnienia'),
-            _PreviewTechnicalItem(Icons.schedule_outlined, 'Wygenerowano', _formatNullableDate(document.payload.createdAt, _dateFormat) ?? '-'),
-            _PreviewTechnicalItem(Icons.layers_outlined, 'Wersja dokumentu', 'v${document.payload.versionNumber}'),
           ];
-          final offerNarrative = 'Dokument zbiera konfigurację ${customer.modelName ?? document.title} '
-              'dla ${customer.customerName}, poziom ceny końcowej i proponowany scenariusz rozmowy o finansowaniu: $commercialSummary.';
+          final baseColorName = document.payload.internal.baseColorName?.trim();
+          if (baseColorName != null && baseColorName.isNotEmpty) {
+            technicalItems.add(
+              _PreviewTechnicalItem(Icons.format_paint_outlined, 'Kolor bazowy modelu', baseColorName),
+            );
+          }
 
           return Center(
             child: ConstrainedBox(
@@ -359,11 +358,9 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         _PreviewHeroCard(
                           document: document,
                           heroImageSource: heroImageSource,
-                          dateFormat: _dateFormat,
                           contactLine: contactLine,
-                          commercialSummary: commercialSummary,
-                          effectivePriceLabel: effectivePriceLabel,
                           heroAttributes: heroAttributes,
+                          supportingMessage: heroSupportMessage,
                         ),
                         if (specDocumentSource != null) ...[
                           const SizedBox(height: 16),
@@ -374,155 +371,66 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                         const SizedBox(height: 20),
                         _PreviewSectionCard(
                           title: 'Konfiguracja techniczna',
-                          subtitle: 'Sekcja porządkuje dane pojazdu i dokumentu w formie gotowej do rozmowy z klientem.',
+                          subtitle: 'Sekcja zbiera wyłącznie dane pojazdu i wybranej konfiguracji, bez metadanych systemowych dokumentu.',
                           child: _PreviewTechnicalGrid(items: technicalItems),
                         ),
                         const SizedBox(height: 20),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isWide = constraints.maxWidth >= 960;
-                            final valueSection = _PreviewValueSection(
-                              listPriceLabel: customer.listPriceLabel,
-                              discountLabel: customer.discountLabel,
-                              discountPercentLabel: customer.discountPercentLabel,
-                              effectivePriceLabel: effectivePriceLabel,
-                              secondaryPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
-                              pricingDisplayMode: pricingDisplayMode,
-                            );
-                            final financingSection = _PreviewFinancingSection(
-                              insights: financingInsights,
-                              pricingDisplayMode: pricingDisplayMode,
-                              financingVariant: customer.financingVariant ?? 'Do uzupełnienia',
-                              disclaimer: customer.financingDisclaimer ?? _defaultFinancingDisclaimer,
-                            );
-
-                            if (isWide) {
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(child: valueSection),
-                                  const SizedBox(width: 20),
-                                  Expanded(child: financingSection),
-                                ],
-                              );
-                            }
-
-                            return Column(
-                              children: [
-                                valueSection,
-                                const SizedBox(height: 20),
-                                financingSection,
-                              ],
-                            );
-                          },
+                        _PreviewSectionCard(
+                          title: 'Materiały modelu',
+                          subtitle: 'Galeria wspiera prezentację samochodu i pozwala przejść od ogólnego wrażenia do detali konfiguracji.',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Galeria jest umieszczona przed sekcjami wartości i finansowania, aby najpierw sprzedać sam samochód.',
+                                style: TextStyle(color: Colors.black54, height: 1.55),
+                              ),
+                              const SizedBox(height: 14),
+                              _AssetGallery(
+                                media: resolvedMedia,
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 20),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isWide = constraints.maxWidth >= 980;
-                            final left = Column(
-                              children: [
-                                _PreviewSectionCard(
-                                  title: 'Skrót oferty',
-                                  subtitle: 'Narracja porządkuje gotowy scenariusz rozmowy handlowej dla tej konfiguracji i prowadzi klienta przez kluczowe ustalenia.',
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        offerNarrative,
-                                        style: const TextStyle(color: Colors.black87, height: 1.6),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      _PreviewInfoGrid(items: [
-                                        _PreviewInfoItem('Numer oferty', customer.offerNumber),
-                                        _PreviewInfoItem('Kontakt', contactLine),
-                                        _PreviewInfoItem('Konfiguracja', '${customer.modelName ?? '-'} • ${customer.selectedColorName ?? 'Bazowy'}'),
-                                        _PreviewInfoItem('Ważność', _formatNullableDate(customer.validUntil) ?? '-'),
-                                      ]),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _PreviewSectionCard(
-                                  title: 'Dane dokumentu',
-                                  child: _PreviewInfoGrid(items: [
-                                    _PreviewInfoItem('Numer oferty', customer.offerNumber),
-                                    _PreviewInfoItem('Klient', customer.customerName),
-                                    _PreviewInfoItem('Email', customer.customerEmail ?? '-'),
-                                    _PreviewInfoItem('Telefon', customer.customerPhone ?? '-'),
-                                    _PreviewInfoItem('Model', customer.modelName ?? '-'),
-                                    _PreviewInfoItem('Kolor', customer.selectedColorName ?? '-'),
-                                    _PreviewInfoItem('Ważna do', _formatNullableDate(customer.validUntil) ?? '-'),
-                                    _PreviewInfoItem('Utworzono', _formatNullableDate(customer.createdAt, _dateFormat) ?? '-'),
-                                  ]),
-                                ),
-                              ],
-                            );
-
-                            final right = Column(
-                              children: [
-                                _PreviewSectionCard(
-                                  title: 'Uwagi i opiekun',
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      _PreviewCalloutBox(
-                                        title: 'Uwagi do oferty',
-                                        value: customer.notes?.isNotEmpty == true
-                                            ? customer.notes!
-                                            : 'Brak dodatkowych uwag do oferty.',
-                                        tint: const Color(0xFFF3EFE7),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      _PreviewAdvisorCard(
-                                        advisor: advisor,
-                                        fallbackName: document.payload.internal.ownerName,
-                                        advisorLine: advisorLine,
-                                        onContact: () => _contactAdvisor(advisor),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _PreviewSectionCard(
-                                  title: 'Materiały modelu',
-                                  subtitle: 'Galeria wspiera prezentację samochodu i pozwala przejść od ogólnego wrażenia do detali konfiguracji.',
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Galeria wspiera rozmowę z klientem i pokazuje finalny kierunek konfiguracji bez wychodzenia z aplikacji.',
-                                        style: TextStyle(color: Colors.black54, height: 1.55),
-                                      ),
-                                      const SizedBox(height: 14),
-                                      _AssetGallery(
-                                        media: resolvedMedia,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-
-                            if (isWide) {
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(flex: 3, child: left),
-                                  const SizedBox(width: 20),
-                                  Expanded(flex: 2, child: right),
-                                ],
-                              );
-                            }
-
-                            return Column(
-                              children: [
-                                left,
-                                const SizedBox(height: 16),
-                                right,
-                              ],
-                            );
-                          },
+                        _PreviewValueSection(
+                          listPriceLabel: customer.listPriceLabel,
+                          discountLabel: customer.discountLabel,
+                          discountPercentLabel: customer.discountPercentLabel,
+                          effectivePriceLabel: effectivePriceLabel,
+                          secondaryPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
+                          pricingDisplayMode: pricingDisplayMode,
+                        ),
+                        const SizedBox(height: 20),
+                        _PreviewFinancingSection(
+                          insights: financingInsights,
+                          pricingDisplayMode: pricingDisplayMode,
+                          financingVariant: customer.financingVariant ?? 'Do uzupełnienia',
+                          disclaimer: customer.financingDisclaimer ?? _defaultFinancingDisclaimer,
+                        ),
+                        const SizedBox(height: 20),
+                        _PreviewSectionCard(
+                          title: 'Opiekun oferty',
+                          subtitle: 'Sekcja kontaktowa pozostaje oddzielona od danych systemowych i od formalnej finalizacji dokumentu.',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _PreviewAdvisorCard(
+                                advisor: advisor,
+                                fallbackName: document.payload.internal.ownerName,
+                                advisorLine: advisorLine,
+                                onContact: () => _contactAdvisor(advisor),
+                              ),
+                              const SizedBox(height: 12),
+                              _PreviewCalloutBox(
+                                title: 'Uwagi do oferty',
+                                value: customer.notes?.isNotEmpty == true
+                                    ? customer.notes!
+                                    : 'Brak dodatkowych uwag do oferty.',
+                                tint: const Color(0xFFF3EFE7),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 20),
                         _PreviewSectionCard(
@@ -542,8 +450,8 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                                 _PreviewInfoItem('Wersja dokumentu', 'v${document.payload.versionNumber}'),
                                 _PreviewInfoItem('Wygenerowano', generatedAtLabel),
                                 _PreviewInfoItem('Ważna do', validUntilLabel),
-                                _PreviewInfoItem('Opiekun', advisor.fullName.isNotEmpty ? advisor.fullName : document.payload.internal.ownerName),
                                 _PreviewInfoItem('Specyfikacja', specDocumentSource != null ? 'PDF dostępny' : 'Brak osobnego PDF'),
+                                _PreviewInfoItem('Typ klienta', _formatCustomerType(document.payload.internal.customerType)),
                               ]),
                               const SizedBox(height: 12),
                               _PreviewCalloutBox(
@@ -582,20 +490,16 @@ class _PreviewHeroCard extends StatelessWidget {
   const _PreviewHeroCard({
     required this.document,
     required this.heroImageSource,
-    required this.dateFormat,
     required this.contactLine,
-    required this.commercialSummary,
-    required this.effectivePriceLabel,
     required this.heroAttributes,
+    required this.supportingMessage,
   });
 
   final OfferDocumentSnapshot document;
   final String? heroImageSource;
-  final DateFormat dateFormat;
   final String contactLine;
-  final String commercialSummary;
-  final String effectivePriceLabel;
   final List<_PreviewHeroAttribute> heroAttributes;
+  final String supportingMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -720,14 +624,19 @@ class _PreviewHeroCard extends StatelessWidget {
                       ),
                       const Spacer(),
                       if (isCompact) ...[
-                        _PreviewHeroSummary(
-                          offerNumber: document.offerNumber,
-                          createdAtLabel: _formatNullableDate(document.payload.createdAt, dateFormat) ?? '-',
-                          effectivePriceLabel: effectivePriceLabel,
-                          commercialSummary: commercialSummary,
-                        ),
-                        const SizedBox(height: 14),
                         _PreviewHeroAttributesRow(attributes: heroAttributes),
+                        const SizedBox(height: 14),
+                        _PreviewGlassCard(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            supportingMessage,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.6,
+                              color: Colors.white.withValues(alpha: 0.82),
+                            ),
+                          ),
+                        ),
                       ] else
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -739,11 +648,16 @@ class _PreviewHeroCard extends StatelessWidget {
                             const SizedBox(width: 18),
                             Expanded(
                               flex: 5,
-                              child: _PreviewHeroSummary(
-                                offerNumber: document.offerNumber,
-                                createdAtLabel: _formatNullableDate(document.payload.createdAt, dateFormat) ?? '-',
-                                effectivePriceLabel: effectivePriceLabel,
-                                commercialSummary: commercialSummary,
+                              child: _PreviewGlassCard(
+                                padding: const EdgeInsets.all(20),
+                                child: Text(
+                                  supportingMessage,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    height: 1.6,
+                                    color: Colors.white.withValues(alpha: 0.82),
+                                  ),
+                                ),
                               ),
                             ),
                           ],

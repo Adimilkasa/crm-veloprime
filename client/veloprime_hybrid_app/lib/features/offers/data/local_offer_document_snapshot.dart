@@ -81,7 +81,6 @@ OfferDocumentSnapshot buildLocalOfferDocumentSnapshot({
             versionNumber: version.versionNumber,
             summary: version.summary,
             createdAt: version.createdAt,
-            pdfUrl: version.pdfUrl,
           ),
     payload: OfferDocumentPayloadData(
       versionId: version?.id ?? 'offer-live-${offer.id}',
