@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v20",
-      "publishedAt": "2026-04-02T18:00:00.000Z",
+      "version": "v21",
+      "publishedAt": "2026-04-03T00:00:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.6 adds advisor profiles with avatars and the redesigned premium offer experience.",
+      "summary": "Flutter client 0.1.12.7 adds background update checks and in-app synchronization for published catalog and asset changes.",
       "priority": "STANDARD"
     }
   ]

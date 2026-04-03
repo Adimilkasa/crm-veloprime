@@ -64,12 +64,12 @@ class OffersRepository {
   Future<OfferFinalizationResult> validateFinalization({
     required String offerId,
   }) async {
-    const payload = {
+    final payload = {
       'offerId': null,
       'versions': {
-        'DATA': ClientArtifactVersions.data,
-        'ASSETS': ClientArtifactVersions.assets,
-        'APPLICATION': ClientArtifactVersions.application,
+        'DATA': ClientArtifactVersions.syncedDataVersion,
+        'ASSETS': ClientArtifactVersions.syncedAssetsVersion,
+        'APPLICATION': ClientArtifactVersions.syncedApplicationVersion,
       },
     };
 

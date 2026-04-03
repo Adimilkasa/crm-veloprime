@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,7 +18,9 @@ import '../../offers/presentation/offers_home_page.dart';
 import '../../pricing/data/pricing_repository.dart';
 import '../../pricing/presentation/pricing_home_page.dart';
 import '../../update/data/update_repository.dart';
+import '../../update/models/update_models.dart';
 import '../../update/presentation/update_admin_page.dart';
+import '../../update/presentation/update_gate_page.dart';
 import '../../users/data/users_repository.dart';
 import '../../users/presentation/users_home_page.dart';
 import 'module_placeholder_page.dart';
@@ -345,6 +349,7 @@ class CrmShellPage extends StatefulWidget {
 }
 
 class _CrmShellPageState extends State<CrmShellPage> {
+  static const Duration _updateCheckInterval = Duration(minutes: 5);
   static const String _backgroundPreferenceKey = 'crm_shell_background_preset';
   static const String _dashboardRoute = 'dashboard';
   static const String _leadsRoute = 'leads';
@@ -360,15 +365,21 @@ class _CrmShellPageState extends State<CrmShellPage> {
   String _selectedRoute = _dashboardRoute;
   String _backgroundPresetKey = 'Błękitny';
   late final ValueNotifier<OfferWorkspaceLaunchRequest?> _offerWorkspaceLaunchNotifier = ValueNotifier<OfferWorkspaceLaunchRequest?>(null);
+  Timer? _updateCheckTimer;
+  bool _isCheckingForUpdates = false;
+  bool _isUpdateGateOpen = false;
+  String? _lastPromptedUpdateSignature;
 
   @override
   void initState() {
     super.initState();
     _restoreBackgroundPreset();
+    _startUpdatePolling();
   }
 
   @override
   void dispose() {
+    _updateCheckTimer?.cancel();
     _offerWorkspaceLaunchNotifier.dispose();
     super.dispose();
   }
@@ -409,6 +420,105 @@ class _CrmShellPageState extends State<CrmShellPage> {
 
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(_backgroundPreferenceKey, value);
+  }
+
+  void _startUpdatePolling() {
+    _updateCheckTimer?.cancel();
+    _updateCheckTimer = Timer.periodic(_updateCheckInterval, (_) {
+      _checkForPublishedUpdates();
+    });
+  }
+
+  String _buildUpdateSignature(VersionComparisonResult comparison) {
+    final pendingItems = comparison.items.where((item) => item.requiresUpdate).toList()
+      ..sort((left, right) => left.artifactType.compareTo(right.artifactType));
+
+    return pendingItems
+        .map((item) => '${item.artifactType}:${item.currentVersion ?? 'brak'}>${item.publishedVersion}:${item.priority}')
+        .join('|');
+  }
+
+  Future<bool> _synchronizePublishedData() async {
+    await widget.onRefreshBootstrap();
+
+    if (!mounted) {
+      return false;
+    }
+
+    final comparison = await widget.updateRepository.compareVersions(
+      ClientVersionPayload(
+        dataVersion: ClientArtifactVersions.syncedDataVersion,
+        assetsVersion: ClientArtifactVersions.syncedAssetsVersion,
+        applicationVersion: ClientArtifactVersions.syncedApplicationVersion,
+      ),
+    );
+
+    if (!mounted) {
+      return false;
+    }
+
+    final requiresOnlyApplicationUpdate = comparison.items.any((item) => item.requiresUpdate && item.artifactType == 'APPLICATION');
+    final synchronized = !comparison.requiresAnyUpdate || requiresOnlyApplicationUpdate;
+
+    if (synchronized) {
+      _lastPromptedUpdateSignature = requiresOnlyApplicationUpdate ? _buildUpdateSignature(comparison) : null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dane i materialy zostaly zsynchronizowane z centrala.')),
+      );
+    }
+
+    return synchronized;
+  }
+
+  Future<void> _checkForPublishedUpdates() async {
+    if (!mounted || _isCheckingForUpdates || _isUpdateGateOpen) {
+      return;
+    }
+
+    _isCheckingForUpdates = true;
+
+    try {
+      final comparison = await widget.updateRepository.compareVersions(
+        ClientVersionPayload(
+          dataVersion: ClientArtifactVersions.syncedDataVersion,
+          assetsVersion: ClientArtifactVersions.syncedAssetsVersion,
+          applicationVersion: ClientArtifactVersions.syncedApplicationVersion,
+        ),
+      );
+
+      if (!mounted || !comparison.requiresAnyUpdate) {
+        if (!comparison.requiresAnyUpdate) {
+          _lastPromptedUpdateSignature = null;
+        }
+
+        return;
+      }
+
+      final signature = _buildUpdateSignature(comparison);
+
+      if (signature == _lastPromptedUpdateSignature) {
+        return;
+      }
+
+      _lastPromptedUpdateSignature = signature;
+      _isUpdateGateOpen = true;
+
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => UpdateGatePage(
+            comparison: comparison,
+            onSynchronizeSystemData: comparison.items.any((item) => item.requiresUpdate && item.artifactType != 'APPLICATION')
+                ? _synchronizePublishedData
+                : null,
+          ),
+        ),
+      );
+    } catch (_) {
+      // Keep polling lightweight and silent during normal work.
+    } finally {
+      _isUpdateGateOpen = false;
+      _isCheckingForUpdates = false;
+    }
   }
 
   void _openMainTab(String route) {

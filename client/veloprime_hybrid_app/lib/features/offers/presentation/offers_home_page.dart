@@ -928,7 +928,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
 
   Future<void> _syncActiveOfferToCrm() async {
     final offer = _activeOffer;
-    if (offer == null || _isSyncingToCrm || _isSavingOffer || _isCreatingPdf || _isOpeningPreview) {
+    if (offer == null || _isSyncingToCrm || _isSavingOffer || _isCreatingVersion || _isOpeningPreview) {
       return;
     }
 
@@ -1181,7 +1181,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
     });
 
     try {
-      final saved = await _saveOfferDraft(offer!);
+      final saved = await _saveOfferDraft(offer);
 
       if (!mounted) {
         return;
@@ -1339,7 +1339,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 feedback: _editorFeedback,
                                 isSaving: _isSavingOffer,
                                 isOpeningPreview: _isOpeningPreview,
-                                isCreatingPdf: _isCreatingPdf,
+                                isCreatingPdf: _isCreatingVersion,
                                 isSyncingToCrm: _isSyncingToCrm,
                                 currencyFormat: _currencyFormat,
                                 plainAmountFormat: _plainAmountFormat,
@@ -1352,7 +1352,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 onColorChanged: _handleColorChanged,
                                 onSyncToCrm: _syncActiveOfferToCrm,
                                 onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
-                                onCreatePdf: _createPdfForSelected,
+                                onCreatePdf: _createVersionForSelected,
                               ),
                             ),
                             const SizedBox(width: 18),
@@ -1414,7 +1414,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               feedback: _editorFeedback,
                               isSaving: _isSavingOffer,
                               isOpeningPreview: _isOpeningPreview,
-                              isCreatingPdf: _isCreatingPdf,
+                              isCreatingPdf: _isCreatingVersion,
                               isSyncingToCrm: _isSyncingToCrm,
                               currencyFormat: _currencyFormat,
                               plainAmountFormat: _plainAmountFormat,
@@ -1427,7 +1427,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               onColorChanged: _handleColorChanged,
                               onSyncToCrm: _syncActiveOfferToCrm,
                               onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
-                              onCreatePdf: _createPdfForSelected,
+                              onCreatePdf: _createVersionForSelected,
                             ),
                             const SizedBox(height: 18),
                             _OfferResultsPanel(

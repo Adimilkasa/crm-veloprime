@@ -6,7 +6,7 @@ import 'core/network/api_client.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/bootstrap/data/bootstrap_repository.dart';
-import 'features/bootstrap/models/bootstrap_payload.dart';
+import 'features/bootstrap/models/bootstrap_payload.dart' hide UpdateManifestInfo;
 import 'features/account/data/account_repository.dart';
 import 'features/commissions/data/commissions_repository.dart';
 import 'features/leads/data/leads_repository.dart';
@@ -42,6 +42,13 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
   bool _isChecking = false;
   String? _error;
 
+  void _syncPublishedVersions(UpdateManifestInfo manifest) {
+    ClientArtifactVersions.syncPublishedVersions(
+      dataVersion: manifest.findVersion('DATA')?.version,
+      assetsVersion: manifest.findVersion('ASSETS')?.version,
+    );
+  }
+
   Future<void> _handleLogin(String email, String password) async {
     setState(() {
       _isChecking = true;
@@ -50,12 +57,20 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
 
     try {
       await _authRepository.login(email: email, password: password);
-      final bootstrap = await _bootstrapRepository.loadBootstrap();
+      final results = await Future.wait([
+        _bootstrapRepository.loadBootstrap(),
+        _updateRepository.fetchManifest(),
+      ]);
+      final bootstrap = results[0] as BootstrapPayload;
+      final manifest = results[1] as UpdateManifestInfo;
+
+      _syncPublishedVersions(manifest);
+
       final comparison = await _updateRepository.compareVersions(
-        const ClientVersionPayload(
-          dataVersion: ClientArtifactVersions.data,
-          assetsVersion: ClientArtifactVersions.assets,
-          applicationVersion: ClientArtifactVersions.application,
+        ClientVersionPayload(
+          dataVersion: ClientArtifactVersions.syncedDataVersion,
+          assetsVersion: ClientArtifactVersions.syncedAssetsVersion,
+          applicationVersion: ClientArtifactVersions.syncedApplicationVersion,
         ),
       );
 
@@ -78,6 +93,8 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
         );
       }
     } catch (error) {
+      ClientArtifactVersions.resetSessionSync();
+
       if (!mounted) {
         return;
       }
@@ -90,7 +107,14 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
   }
 
   Future<void> _refreshBootstrap() async {
-    final bootstrap = await _bootstrapRepository.loadBootstrap();
+    final results = await Future.wait([
+      _bootstrapRepository.loadBootstrap(),
+      _updateRepository.fetchManifest(),
+    ]);
+    final bootstrap = results[0] as BootstrapPayload;
+    final manifest = results[1] as UpdateManifestInfo;
+
+    _syncPublishedVersions(manifest);
 
     if (!mounted) {
       return;

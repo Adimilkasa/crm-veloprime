@@ -51,10 +51,10 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
       final results = await Future.wait([
         widget.repository.fetchManifest(),
         widget.repository.compareVersions(
-          const ClientVersionPayload(
-            dataVersion: ClientArtifactVersions.data,
-            assetsVersion: ClientArtifactVersions.assets,
-            applicationVersion: ClientArtifactVersions.application,
+          ClientVersionPayload(
+            dataVersion: ClientArtifactVersions.syncedDataVersion,
+            assetsVersion: ClientArtifactVersions.syncedAssetsVersion,
+            applicationVersion: ClientArtifactVersions.syncedApplicationVersion,
           ),
         ),
       ]);
@@ -105,10 +105,10 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
         summary: request.summary,
       );
       final comparison = await widget.repository.compareVersions(
-        const ClientVersionPayload(
-          dataVersion: ClientArtifactVersions.data,
-          assetsVersion: ClientArtifactVersions.assets,
-          applicationVersion: ClientArtifactVersions.application,
+        ClientVersionPayload(
+          dataVersion: ClientArtifactVersions.syncedDataVersion,
+          assetsVersion: ClientArtifactVersions.syncedAssetsVersion,
+          applicationVersion: ClientArtifactVersions.syncedApplicationVersion,
         ),
       );
 
@@ -177,10 +177,10 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
         summary: request.summary,
       );
       final comparison = await widget.repository.compareVersions(
-        const ClientVersionPayload(
-          dataVersion: ClientArtifactVersions.data,
-          assetsVersion: ClientArtifactVersions.assets,
-          applicationVersion: ClientArtifactVersions.application,
+        ClientVersionPayload(
+          dataVersion: ClientArtifactVersions.syncedDataVersion,
+          assetsVersion: ClientArtifactVersions.syncedAssetsVersion,
+          applicationVersion: ClientArtifactVersions.syncedApplicationVersion,
         ),
       );
 
@@ -235,11 +235,11 @@ class _UpdateAdminPageState extends State<UpdateAdminPage> {
   String _localVersionFor(String artifactType) {
     switch (artifactType) {
       case 'DATA':
-        return ClientArtifactVersions.data;
+        return ClientArtifactVersions.syncedDataVersion;
       case 'ASSETS':
-        return ClientArtifactVersions.assets;
+        return ClientArtifactVersions.syncedAssetsVersion;
       case 'APPLICATION':
-        return ClientArtifactVersions.application;
+        return ClientArtifactVersions.syncedApplicationVersion;
       default:
         return '-';
     }

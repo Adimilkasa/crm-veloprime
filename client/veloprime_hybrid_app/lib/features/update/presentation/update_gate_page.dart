@@ -6,9 +6,14 @@ import '../../../core/presentation/veloprime_ui.dart';
 import '../models/update_models.dart';
 
 class UpdateGatePage extends StatefulWidget {
-  const UpdateGatePage({super.key, required this.comparison});
+  const UpdateGatePage({
+    super.key,
+    required this.comparison,
+    this.onSynchronizeSystemData,
+  });
 
   final VersionComparisonResult comparison;
+  final Future<bool> Function()? onSynchronizeSystemData;
 
   @override
   State<UpdateGatePage> createState() => _UpdateGatePageState();
@@ -16,6 +21,7 @@ class UpdateGatePage extends StatefulWidget {
 
 class _UpdateGatePageState extends State<UpdateGatePage> {
   bool _isLaunching = false;
+  bool _isSynchronizing = false;
 
   Uri get _appInstallerUri {
     final baseUri = Uri.parse(ApiConfig.baseUrl);
@@ -25,6 +31,49 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
       port: baseUri.hasPort ? baseUri.port : null,
       path: '/download/VeloPrime-CRM-Test.appinstaller',
     );
+  }
+
+  Future<void> _synchronizeSystemData() async {
+    final callback = widget.onSynchronizeSystemData;
+
+    if (callback == null || _isSynchronizing) {
+      return;
+    }
+
+    setState(() {
+      _isSynchronizing = true;
+    });
+
+    try {
+      final synchronized = await callback();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (synchronized) {
+        Navigator.of(context).pop();
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Synchronizacja nie została jeszcze zakończona.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nie udalo sie zsynchronizowac danych.\n$error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSynchronizing = false;
+        });
+      }
+    }
   }
 
   Uri get _downloadPageUri {
@@ -202,10 +251,12 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
                             style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                           ),
                         ] else ...[
-                          const Text(
-                            'Ta publikacja nie wymaga nowej paczki instalacyjnej, ale wymaga zsynchronizowania danych i zasobow z centrala.',
+                          Text(
+                            widget.onSynchronizeSystemData == null
+                                ? 'Ta publikacja nie wymaga nowej paczki instalacyjnej, ale wymaga zsynchronizowania danych i zasobow z centrala.'
+                                : 'Ta publikacja nie wymaga nowej paczki instalacyjnej. Mozesz zsynchronizowac dane i materialy bez ponownego logowania.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+                            style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                           ),
                         ],
                         const SizedBox(height: 24),
@@ -225,6 +276,18 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
                                       )
                                     : const Icon(Icons.system_update_alt_rounded),
                                 label: Text(_isLaunching ? 'Uruchamiamy instalator...' : 'Aktualizuj teraz'),
+                              ),
+                            if (!requiresApplicationUpdate && widget.onSynchronizeSystemData != null)
+                              FilledButton.icon(
+                                onPressed: _isSynchronizing ? null : _synchronizeSystemData,
+                                icon: _isSynchronizing
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                                      )
+                                    : const Icon(Icons.sync_rounded),
+                                label: Text(_isSynchronizing ? 'Synchronizujemy...' : 'Synchronizuj teraz'),
                               ),
                             OutlinedButton.icon(
                               onPressed: () => Navigator.of(context).pop(),
