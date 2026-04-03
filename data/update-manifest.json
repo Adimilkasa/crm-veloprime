@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v24",
+      "version": "v25",
       "publishedAt": "2026-04-03T12:45:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.10 fixes the generated offer snapshot screen layout crash so preview sections render correctly after creating a version.",
+      "summary": "Flutter client 0.1.12.11 fixes the generated offer snapshot screen container so the full preview body renders instead of only the top action bar.",
       "priority": "STANDARD"
     }
   ]
