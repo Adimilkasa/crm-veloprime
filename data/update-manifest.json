@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v28",
-      "publishedAt": "2026-04-03T21:15:00.000Z",
+      "version": "v29",
+      "publishedAt": "2026-04-04T10:05:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.14 keeps the stabilized generated-offer preview and aligns the first section with the premium finance-first hierarchy used in the public offer.",
+      "summary": "Flutter client 0.1.12.15 refines the generated offer snapshot with a cleaner full-hero intro, lighter section materials, and calmer client-facing copy across pricing, finance, and contact blocks.",
       "priority": "STANDARD"
     }
   ]

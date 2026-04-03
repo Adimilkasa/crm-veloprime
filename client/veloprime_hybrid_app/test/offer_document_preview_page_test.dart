@@ -95,6 +95,13 @@ void main() {
     expect(find.text('Wyślij ofertę'), findsOneWidget);
     expect(find.text('Otwórz specyfikację PDF'), findsOneWidget);
     expect(find.text('BYD Seal 7'), findsOneWidget);
+    expect(find.text('Oferta przygotowana dla Jan Testowy'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Szacowana rata miesięczna'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Szacowana rata miesięczna'), findsOneWidget);
     expect(find.textContaining('od 2 999 PLN'), findsWidgets);
   });
