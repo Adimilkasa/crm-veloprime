@@ -524,6 +524,7 @@ class _PreviewHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final customer = document.payload.customer;
     final modelLabel = customer.modelName ?? document.title;
+    final hasHeroImage = heroImageSource != null && heroImageSource!.trim().isNotEmpty;
     final advisorName = document.payload.advisor.fullName.isNotEmpty
         ? document.payload.advisor.fullName
         : document.payload.internal.ownerName;
@@ -543,7 +544,7 @@ class _PreviewHeroCard extends StatelessWidget {
           child: Container(
             constraints: BoxConstraints(minHeight: isCompact ? 560 : 680),
             decoration: BoxDecoration(
-              color: const Color(0xFFE6EBF2),
+              color: hasHeroImage ? const Color(0xFFE6EBF2) : const Color(0xFF1D1D1F),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.08),
@@ -555,7 +556,7 @@ class _PreviewHeroCard extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (heroImageSource != null)
+                if (hasHeroImage)
                   _PreviewImage(
                     source: heroImageSource!,
                     height: isCompact ? 560 : 680,
@@ -564,30 +565,83 @@ class _PreviewHeroCard extends StatelessWidget {
                     missingLabel: 'Podgląd grafiki modelu jest niedostępny',
                   )
                 else
-                  Container(color: const Color(0xFFB8C4D5)),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFF2B2419),
+                          Color(0xFF1D1D1F),
+                          Color(0xFF121214),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  top: -80,
+                  right: -40,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 240,
+                      height: 240,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFD4A84F).withValues(alpha: hasHeroImage ? 0.08 : 0.16),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: -120,
+                  left: -60,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 280,
+                      height: 280,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFBE933E).withValues(alpha: hasHeroImage ? 0.06 : 0.12),
+                      ),
+                    ),
+                  ),
+                ),
                 Container(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Color.fromRGBO(7, 12, 18, 0.08),
-                        Color.fromRGBO(7, 12, 18, 0.22),
-                        Color.fromRGBO(7, 12, 18, 0.58),
-                        Color.fromRGBO(245, 245, 247, 0.96),
-                      ],
-                      stops: [0, 0.18, 0.72, 1],
+                      colors: hasHeroImage
+                          ? const [
+                              Color.fromRGBO(7, 12, 18, 0.08),
+                              Color.fromRGBO(7, 12, 18, 0.22),
+                              Color.fromRGBO(7, 12, 18, 0.58),
+                              Color.fromRGBO(245, 245, 247, 0.96),
+                            ]
+                          : const [
+                              Color.fromRGBO(7, 12, 18, 0.18),
+                              Color.fromRGBO(7, 12, 18, 0.28),
+                              Color.fromRGBO(7, 12, 18, 0.74),
+                              Color.fromRGBO(29, 29, 31, 0.98),
+                            ],
+                      stops: hasHeroImage ? const [0, 0.18, 0.72, 1] : const [0, 0.22, 0.72, 1],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
                   ),
                 ),
                 Container(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Color.fromRGBO(7, 12, 18, 0.68),
-                        Color.fromRGBO(7, 12, 18, 0.34),
-                        Color.fromRGBO(7, 12, 18, 0.1),
-                      ],
+                      colors: hasHeroImage
+                          ? const [
+                              Color.fromRGBO(7, 12, 18, 0.68),
+                              Color.fromRGBO(7, 12, 18, 0.34),
+                              Color.fromRGBO(7, 12, 18, 0.1),
+                            ]
+                          : const [
+                              Color.fromRGBO(7, 12, 18, 0.78),
+                              Color.fromRGBO(7, 12, 18, 0.52),
+                              Color.fromRGBO(7, 12, 18, 0.24),
+                            ],
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                     ),
