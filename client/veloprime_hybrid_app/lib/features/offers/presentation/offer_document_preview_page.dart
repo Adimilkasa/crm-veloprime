@@ -369,131 +369,139 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
             );
           }
 
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1240),
-              child: Column(
-                children: [
-                  _PreviewStickyTopBar(
-                    hasSpecification: specDocumentSource != null,
-                    canSendEmail: canSendEmail,
-                    isSendingEmail: _isSendingEmail,
-                    onBack: () => Navigator.of(context).pop(),
-                    onOpenSpecification: specDocumentSource == null
-                        ? null
-                        : () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
-                    onSendOffer: canSendEmail ? () => _sendOfferByEmail(document) : null,
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _PreviewHeroCard(
-                            document: document,
-                            heroImageSource: heroImageSource,
-                            contactLine: contactLine,
-                            supportingMessage: heroSupportMessage,
-                            effectivePriceLabel: effectivePriceLabel,
-                            generatedAtLabel: generatedAtLabel,
-                            commercialSummary: commercialSummary,
-                            customerLine: [customer.customerName, customer.customerEmail, customer.customerPhone]
-                                .whereType<String>()
-                                .where((item) => item.trim().isNotEmpty)
-                                .join(' • '),
-                          ),
-                          if (specDocumentSource != null) ...[
-                            const SizedBox(height: 16),
-                            _PreviewPdfStrip(
-                              onPressed: () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
-                            ),
-                          ],
-                          const SizedBox(height: 20),
-                          _PreviewSectionCard(
-                            title: 'Najważniejsze dane',
-                            subtitle: 'Najpierw to, co klient powinien zrozumieć od razu. Kluczowe parametry są większe, reszta lżejsza i spokojniejsza wizualnie.',
-                            child: _PreviewTechnicalSection(
-                              items: technicalItems,
-                              metaItems: [
-                                'Oferta dla ${customer.customerName}',
-                                'Opiekun: ${advisor.fullName.isNotEmpty ? advisor.fullName : document.payload.internal.ownerName}',
-                                'Ważna do $validUntilLabel',
-                                'Ceny w trybie $pricingDisplayMode',
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          _PreviewSectionCard(
-                            title: 'Galeria',
-                            subtitle: 'Sekcyjna prezentacja auta: zewnętrze, wnętrze i detale.',
-                            child: _AssetGallery(
-                              media: resolvedMedia,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          _PreviewValueSection(
-                            listPriceLabel: customer.listPriceLabel,
-                            discountLabel: customer.discountLabel,
-                            discountPercentLabel: customer.discountPercentLabel,
-                            effectivePriceLabel: effectivePriceLabel,
-                            secondaryPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
-                            pricingDisplayMode: pricingDisplayMode,
-                          ),
-                          const SizedBox(height: 20),
-                          _PreviewFinancingSection(
-                            insights: financingInsights,
-                            pricingDisplayMode: pricingDisplayMode,
-                            financingVariant: customer.financingVariant ?? 'Do uzupełnienia',
-                            primaryFinalPriceLabel: pricingDisplayMode == 'netto' ? customer.finalNetLabel : customer.finalGrossLabel,
-                            secondaryFinalPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
-                            disclaimer: customer.financingDisclaimer ?? _defaultFinancingDisclaimer,
-                          ),
-                          const SizedBox(height: 20),
-                          _PreviewSectionCard(
-                            title: 'Porozmawiajmy o tej konfiguracji',
-                            subtitle: 'To jest końcówka tej oferty: kontakt z opiekunem i przejście do realnej rozmowy o finansowaniu, wariancie i kolejnych krokach.',
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _PreviewAdvisorCard(
-                                  advisor: advisor,
-                                  fallbackName: document.payload.internal.ownerName,
-                                  advisorLine: advisorLine,
-                                  onContact: () => _contactAdvisor(advisor),
-                                ),
-                                const SizedBox(height: 12),
-                                _PreviewCalloutBox(
-                                  title: 'Wskazówki do rozmowy',
-                                  value: customer.notes?.isNotEmpty == true
-                                      ? customer.notes!
-                                      : 'Brak dodatkowych uwag do oferty.',
-                                  tint: const Color(0xFFF3EFE7),
-                                ),
-                                const SizedBox(height: 12),
-                                _PreviewInfoGrid(items: [
-                                  _PreviewInfoItem('Numer oferty', customer.offerNumber),
-                                  _PreviewInfoItem('Ważna do', validUntilLabel),
-                                  _PreviewInfoItem('Specyfikacja', specDocumentSource != null ? 'PDF dostępny' : 'Brak PDF'),
-                                  _PreviewInfoItem('Tryb cen', pricingDisplayMode),
-                                ]),
-                                const SizedBox(height: 12),
-                                _PreviewCalloutBox(
-                                  title: 'Zastrzeżenie formalne',
-                                  value: formalNotice,
-                                  tint: const Color(0xFFF7F1E5),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                        ],
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final contentWidth = constraints.maxWidth > 1240 ? 1240.0 : constraints.maxWidth;
+
+              return Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: contentWidth,
+                  height: constraints.maxHeight,
+                  child: Column(
+                    children: [
+                      _PreviewStickyTopBar(
+                        hasSpecification: specDocumentSource != null,
+                        canSendEmail: canSendEmail,
+                        isSendingEmail: _isSendingEmail,
+                        onBack: () => Navigator.of(context).pop(),
+                        onOpenSpecification: specDocumentSource == null
+                            ? null
+                            : () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
+                        onSendOffer: canSendEmail ? () => _sendOfferByEmail(document) : null,
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _PreviewHeroCard(
+                                document: document,
+                                heroImageSource: heroImageSource,
+                                contactLine: contactLine,
+                                supportingMessage: heroSupportMessage,
+                                effectivePriceLabel: effectivePriceLabel,
+                                generatedAtLabel: generatedAtLabel,
+                                commercialSummary: commercialSummary,
+                                customerLine: [customer.customerName, customer.customerEmail, customer.customerPhone]
+                                    .whereType<String>()
+                                    .where((item) => item.trim().isNotEmpty)
+                                    .join(' • '),
+                              ),
+                              if (specDocumentSource != null) ...[
+                                const SizedBox(height: 16),
+                                _PreviewPdfStrip(
+                                  onPressed: () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
+                                ),
+                              ],
+                              const SizedBox(height: 20),
+                              _PreviewSectionCard(
+                                title: 'Najważniejsze dane',
+                                subtitle: 'Najpierw to, co klient powinien zrozumieć od razu. Kluczowe parametry są większe, reszta lżejsza i spokojniejsza wizualnie.',
+                                child: _PreviewTechnicalSection(
+                                  items: technicalItems,
+                                  metaItems: [
+                                    'Oferta dla ${customer.customerName}',
+                                    'Opiekun: ${advisor.fullName.isNotEmpty ? advisor.fullName : document.payload.internal.ownerName}',
+                                    'Ważna do $validUntilLabel',
+                                    'Ceny w trybie $pricingDisplayMode',
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              _PreviewSectionCard(
+                                title: 'Galeria',
+                                subtitle: 'Sekcyjna prezentacja auta: zewnętrze, wnętrze i detale.',
+                                child: _AssetGallery(
+                                  media: resolvedMedia,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              _PreviewValueSection(
+                                listPriceLabel: customer.listPriceLabel,
+                                discountLabel: customer.discountLabel,
+                                discountPercentLabel: customer.discountPercentLabel,
+                                effectivePriceLabel: effectivePriceLabel,
+                                secondaryPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
+                                pricingDisplayMode: pricingDisplayMode,
+                              ),
+                              const SizedBox(height: 20),
+                              _PreviewFinancingSection(
+                                insights: financingInsights,
+                                pricingDisplayMode: pricingDisplayMode,
+                                financingVariant: customer.financingVariant ?? 'Do uzupełnienia',
+                                primaryFinalPriceLabel: pricingDisplayMode == 'netto' ? customer.finalNetLabel : customer.finalGrossLabel,
+                                secondaryFinalPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
+                                disclaimer: customer.financingDisclaimer ?? _defaultFinancingDisclaimer,
+                              ),
+                              const SizedBox(height: 20),
+                              _PreviewSectionCard(
+                                title: 'Porozmawiajmy o tej konfiguracji',
+                                subtitle: 'To jest końcówka tej oferty: kontakt z opiekunem i przejście do realnej rozmowy o finansowaniu, wariancie i kolejnych krokach.',
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _PreviewAdvisorCard(
+                                      advisor: advisor,
+                                      fallbackName: document.payload.internal.ownerName,
+                                      advisorLine: advisorLine,
+                                      onContact: () => _contactAdvisor(advisor),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _PreviewCalloutBox(
+                                      title: 'Wskazówki do rozmowy',
+                                      value: customer.notes?.isNotEmpty == true
+                                          ? customer.notes!
+                                          : 'Brak dodatkowych uwag do oferty.',
+                                      tint: const Color(0xFFF3EFE7),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _PreviewInfoGrid(items: [
+                                      _PreviewInfoItem('Numer oferty', customer.offerNumber),
+                                      _PreviewInfoItem('Ważna do', validUntilLabel),
+                                      _PreviewInfoItem('Specyfikacja', specDocumentSource != null ? 'PDF dostępny' : 'Brak PDF'),
+                                      _PreviewInfoItem('Tryb cen', pricingDisplayMode),
+                                    ]),
+                                    const SizedBox(height: 12),
+                                    _PreviewCalloutBox(
+                                      title: 'Zastrzeżenie formalne',
+                                      value: formalNotice,
+                                      tint: const Color(0xFFF7F1E5),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),
