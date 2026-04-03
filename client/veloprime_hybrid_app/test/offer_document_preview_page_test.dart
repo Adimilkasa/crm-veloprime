@@ -95,5 +95,7 @@ void main() {
     expect(find.text('Wyślij ofertę'), findsOneWidget);
     expect(find.text('Otwórz specyfikację PDF'), findsOneWidget);
     expect(find.text('BYD Seal 7'), findsOneWidget);
+    expect(find.text('Szacowana rata miesięczna'), findsOneWidget);
+    expect(find.textContaining('od 2 999 PLN'), findsWidgets);
   });
 }

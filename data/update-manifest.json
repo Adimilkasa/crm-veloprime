@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v27",
-      "publishedAt": "2026-04-03T20:35:00.000Z",
+      "version": "v28",
+      "publishedAt": "2026-04-03T21:15:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.13 simplifies the generated offer preview shell, top bar and hero block so the snapshot body renders reliably in the Windows client.",
+      "summary": "Flutter client 0.1.12.14 keeps the stabilized generated-offer preview and aligns the first section with the premium finance-first hierarchy used in the public offer.",
       "priority": "STANDARD"
     }
   ]
