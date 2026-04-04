@@ -7,11 +7,41 @@ if (-not (Test-Path $certPath)) {
   throw "Nie znaleziono pliku certyfikatu: $certPath"
 }
 
-Import-Certificate -FilePath $certPath -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
-Import-Certificate -FilePath $certPath -CertStoreLocation 'Cert:\LocalMachine\Root' | Out-Null
+function Import-VeloPrimeCertificate {
+  param(
+    [string]$PrimaryScope,
+    [string]$FallbackScope
+  )
+
+  $primaryStores = @(
+    "Cert:\$PrimaryScope\TrustedPeople",
+    "Cert:\$PrimaryScope\Root"
+  )
+  $fallbackStores = @(
+    "Cert:\$FallbackScope\TrustedPeople",
+    "Cert:\$FallbackScope\Root"
+  )
+
+  try {
+    foreach ($store in $primaryStores) {
+      Import-Certificate -FilePath $certPath -CertStoreLocation $store | Out-Null
+    }
+
+    return $primaryStores
+  } catch {
+    foreach ($store in $fallbackStores) {
+      Import-Certificate -FilePath $certPath -CertStoreLocation $store | Out-Null
+    }
+
+    return $fallbackStores
+  }
+}
+
+$importedStores = Import-VeloPrimeCertificate -PrimaryScope 'LocalMachine' -FallbackScope 'CurrentUser'
 
 Write-Host 'Certyfikat VeloPrime CRM Test zostal zaimportowany do:'
-Write-Host '- Cert:\LocalMachine\TrustedPeople'
-Write-Host '- Cert:\LocalMachine\Root'
+foreach ($store in $importedStores) {
+  Write-Host "- $store"
+}
 Write-Host ''
 Write-Host 'Mozesz teraz ponownie uruchomic plik VeloPrime-CRM-Test.appinstaller.'
