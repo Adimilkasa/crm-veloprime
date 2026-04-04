@@ -106,8 +106,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Wyślij ofertę'), findsOneWidget);
-    expect(find.text('Otwórz specyfikację PDF'), findsOneWidget);
+    expect(find.text('Wyślij e-mailem'), findsOneWidget);
+    expect(find.text('PDF modelu'), findsOneWidget);
     expect(find.text('BYD Seal 7'), findsOneWidget);
     expect(find.text('Oferta przygotowana dla Jan Testowy'), findsOneWidget);
     await tester.scrollUntilVisible(

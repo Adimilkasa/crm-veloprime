@@ -207,39 +207,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
     }
   }
 
-  Future<void> _contactAdvisor(OfferDocumentAdvisorSnapshot advisor) async {
-    Uri? uri;
-    if (advisor.email != null && advisor.email!.trim().isNotEmpty) {
-      uri = Uri(
-        scheme: 'mailto',
-        path: advisor.email!.trim(),
-      );
-    } else if (advisor.phone != null && advisor.phone!.trim().isNotEmpty) {
-      uri = Uri(
-        scheme: 'tel',
-        path: advisor.phone!.replaceAll(' ', ''),
-      );
-    }
-
-    if (uri == null) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Brak danych kontaktowych opiekuna oferty.')),
-      );
-      return;
-    }
-
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nie udało się uruchomić kontaktu z opiekunem.')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -287,7 +254,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
           }
 
           final customer = document.payload.customer;
-          final advisor = document.payload.advisor;
           final fallbackAssets = getLocalOfferAssetBundle(
             modelName: customer.modelName ?? document.title,
             catalogKey: document.payload.internal.catalogKey,
@@ -297,11 +263,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
           final heroImageSource = resolvedMedia.heroSource;
           final specDocumentSource = resolvedMedia.specSource;
           final canSendEmail = document.version != null;
-          final advisorParts = [advisor.email, advisor.phone]
-              .whereType<String>()
-              .where((item) => item.trim().isNotEmpty)
-              .toList();
-          final advisorLine = advisorParts.isEmpty ? 'Dane kontaktowe opiekuna do uzupełnienia' : advisorParts.join(' • ');
           final validUntilLabel = _formatNullableDate(customer.validUntil) ?? 'Do potwierdzenia';
           final effectivePriceLabel = _isCompanyCustomer(document.payload.internal.customerType)
               ? customer.finalNetLabel
@@ -365,6 +326,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                   _PreviewHeroCard(
                     document: document,
                     heroImageSource: heroImageSource,
+                    validUntilLabel: validUntilLabel,
                     hasSpecification: specDocumentSource != null,
                     canSendEmail: canSendEmail,
                     isSendingEmail: _isSendingEmail,
@@ -422,9 +384,8 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                   const SizedBox(height: 24),
                   _PreviewContactSection(
                     backgroundImageSource: heroImageSource,
-                    advisor: advisor,
-                    fallbackName: document.payload.internal.ownerName,
-                    advisorLine: advisorLine,
+                    customerName: customer.customerName,
+                    customerEmail: customer.customerEmail,
                     notes: customer.notes?.isNotEmpty == true
                         ? customer.notes!
                         : 'Brak dodatkowych uwag do oferty.',
@@ -433,7 +394,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                     specificationStatus: specDocumentSource != null ? 'PDF dostępny' : 'PDF niedostępny',
                     pricingDisplayMode: pricingDisplayMode == 'netto' ? 'netto' : 'brutto',
                     formalNotice: formalNotice,
-                    onContact: () => _contactAdvisor(advisor),
+                    canSendEmail: canSendEmail,
                   ),
                   const SizedBox(height: 28),
                 ],
@@ -451,6 +412,7 @@ class _PreviewHeroCard extends StatelessWidget {
   const _PreviewHeroCard({
     required this.document,
     required this.heroImageSource,
+    required this.validUntilLabel,
     required this.hasSpecification,
     required this.canSendEmail,
     required this.isSendingEmail,
@@ -461,6 +423,7 @@ class _PreviewHeroCard extends StatelessWidget {
 
   final OfferDocumentSnapshot document;
   final String? heroImageSource;
+  final String validUntilLabel;
   final bool hasSpecification;
   final bool canSendEmail;
   final bool isSendingEmail;
@@ -481,14 +444,14 @@ class _PreviewHeroCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(40),
           child: SizedBox(
             width: double.infinity,
-            height: isCompact ? 540 : 660,
+            height: isCompact ? 520 : 628,
             child: Stack(
               children: [
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFF8B9BB4), Color(0xFF405164), Color(0xFF1D1D1F)],
+                        colors: [Color(0xFFC0CCDA), Color(0xFF647588), Color(0xFF27313B)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -509,9 +472,9 @@ class _PreviewHeroCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withValues(alpha: 0.28),
-                          Colors.black.withValues(alpha: 0.18),
-                          Colors.black.withValues(alpha: 0.52),
+                          Colors.black.withValues(alpha: 0.14),
+                          Colors.black.withValues(alpha: 0.08),
+                          Colors.black.withValues(alpha: 0.38),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -524,12 +487,27 @@ class _PreviewHeroCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withValues(alpha: 0.54),
-                          Colors.black.withValues(alpha: 0.22),
-                          Colors.black.withValues(alpha: 0.06),
+                          Colors.black.withValues(alpha: 0.34),
+                          Colors.black.withValues(alpha: 0.14),
+                          Colors.black.withValues(alpha: 0.02),
                         ],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.55, -0.72),
+                        radius: 1.05,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.26),
+                          Colors.white.withValues(alpha: 0.06),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
                   ),
@@ -558,6 +536,24 @@ class _PreviewHeroCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+                            ),
+                            child: Text(
+                              'Oferta ważna do $validUntilLabel',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.84),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.72,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           Text(
                             'Oferta przygotowana dla ${customer.customerName}',
                             style: TextStyle(
@@ -574,14 +570,24 @@ class _PreviewHeroCard extends StatelessWidget {
                           Text(
                             modelLabel,
                             style: TextStyle(
-                              fontSize: isCompact ? 38 : 66,
-                              height: 0.95,
+                              fontSize: isCompact ? 36 : 60,
+                              height: 0.98,
                               fontWeight: FontWeight.w600,
-                              letterSpacing: -1.4,
+                              letterSpacing: -1.2,
                               color: Colors.white,
                               shadows: const [
                                 Shadow(color: Color(0x3D000000), blurRadius: 24, offset: Offset(0, 8)),
                               ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'Spokojna prezentacja konfiguracji, ceny i finansowania gotowa do wysłania klientowi.',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.78),
+                              fontSize: 15,
+                              height: 1.6,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -628,20 +634,27 @@ class _PreviewTechnicalSection extends StatelessWidget {
                     (item) => SizedBox(
                       width: tileWidth,
                       child: Container(
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.72),
+                          color: Colors.white.withValues(alpha: 0.78),
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.44)),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.52)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF243247).withValues(alpha: 0.03),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _PreviewCircleIcon(icon: item.icon),
                             const SizedBox(height: 14),
-                            Text(item.label, style: const TextStyle(fontSize: 12, color: VeloPrimePalette.muted)),
+                            Text(item.label, style: const TextStyle(fontSize: 12, color: VeloPrimePalette.muted, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 6),
-                            Text(item.value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, height: 1.2)),
+                            Text(item.value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, height: 1.24, color: Color(0xFF1D1D1F))),
                           ],
                         ),
                       ),
@@ -687,11 +700,11 @@ class _PreviewStickyTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -714,13 +727,13 @@ class _PreviewStickyTopBar extends StatelessWidget {
             _PreviewTopBarButton(
               onPressed: onOpenSpecification,
               icon: Icons.description_outlined,
-              label: 'Otwórz specyfikację PDF',
+              label: 'PDF modelu',
             ),
           if (canSendEmail)
             _PreviewTopBarButton(
               onPressed: isSendingEmail ? null : onSendOffer,
               icon: isSendingEmail ? null : Icons.alternate_email_outlined,
-              label: isSendingEmail ? 'Wysyłamy ofertę...' : 'Wyślij ofertę',
+              label: isSendingEmail ? 'Wysyłamy ofertę...' : 'Wyślij e-mailem',
               isPrimary: true,
               trailing: isSendingEmail
                   ? const SizedBox(
@@ -753,7 +766,7 @@ class _PreviewTopBarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = isPrimary ? Colors.white.withValues(alpha: 0.94) : Colors.white.withValues(alpha: 0.04);
+    final backgroundColor = isPrimary ? Colors.white.withValues(alpha: 0.96) : Colors.white.withValues(alpha: 0.08);
     final foregroundColor = isPrimary ? const Color(0xFF1D1D1F) : Colors.white;
 
     return Material(
@@ -763,10 +776,10 @@ class _PreviewTopBarButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: Colors.white.withValues(alpha: isPrimary ? 0.14 : 0.12)),
+            border: Border.all(color: Colors.white.withValues(alpha: isPrimary ? 0.14 : 0.16)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -781,6 +794,7 @@ class _PreviewTopBarButton extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: foregroundColor,
+                  letterSpacing: -0.1,
                 ),
               ),
               if (trailing != null) ...[
@@ -827,7 +841,7 @@ class _AssetGallery extends StatelessWidget {
           return [
             Text(
               section.title,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.1, color: Color(0xFF1D1D1F)),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, height: 1.08, color: Color(0xFF1D1D1F)),
             ),
             const SizedBox(height: 10),
             LayoutBuilder(
@@ -1058,8 +1072,8 @@ class _PreviewImageActionTile extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           Colors.transparent,
-                          Colors.black.withValues(alpha: 0.1),
-                          Colors.black.withValues(alpha: 0.32),
+                          Colors.black.withValues(alpha: 0.08),
+                          Colors.black.withValues(alpha: 0.24),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -1074,19 +1088,19 @@ class _PreviewImageActionTile extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.2),
+                      color: Colors.black.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                     ),
                     child: Column(
                       crossAxisAlignment: overlayAlignment == Alignment.bottomLeft
                           ? CrossAxisAlignment.start
                           : CrossAxisAlignment.end,
                       children: [
-                        Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: -0.1)),
                         if (subtitle != null) ...[
                           const SizedBox(height: 6),
-                          Text(subtitle!, style: TextStyle(color: Colors.white.withValues(alpha: 0.76), fontSize: 12)),
+                          Text(subtitle!, style: TextStyle(color: Colors.white.withValues(alpha: 0.74), fontSize: 11.5, fontWeight: FontWeight.w500)),
                         ],
                       ],
                     ),
@@ -1695,7 +1709,7 @@ class _PreviewFinancingSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Finanse',
+                            'Finansowanie',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.58),
                               fontSize: 12,
@@ -1705,15 +1719,10 @@ class _PreviewFinancingSection extends StatelessWidget {
                           ),
                           const SizedBox(height: 14),
                           const Text(
-                            'Najważniejsza liczba tej oferty',
+                            'Szacowana rata miesięczna',
                             style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w700, height: 1.04),
                           ),
-                          const SizedBox(height: 26),
-                          Text(
-                            'Szacowana rata miesięczna',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.68), fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 18),
                           Text(
                             insights.monthlyRateLabel ?? 'Do uzupełnienia po pełnej kalkulacji',
                             style: const TextStyle(color: Colors.white, fontSize: 42, height: 0.98, fontWeight: FontWeight.w700),
@@ -1771,7 +1780,7 @@ class _PreviewFinancingSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Podsumowanie',
+                            'Parametry',
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.9, color: Color(0xFF6E6E73)),
                           ),
                           const SizedBox(height: 14),
@@ -1827,29 +1836,27 @@ class _PreviewFinancingSection extends StatelessWidget {
 class _PreviewContactSection extends StatelessWidget {
   const _PreviewContactSection({
     required this.backgroundImageSource,
-    required this.advisor,
-    required this.fallbackName,
-    required this.advisorLine,
+    required this.customerName,
+    required this.customerEmail,
     required this.notes,
     required this.offerNumber,
     required this.validUntilLabel,
     required this.specificationStatus,
     required this.pricingDisplayMode,
     required this.formalNotice,
-    required this.onContact,
+    required this.canSendEmail,
   });
 
   final String? backgroundImageSource;
-  final OfferDocumentAdvisorSnapshot advisor;
-  final String fallbackName;
-  final String advisorLine;
+  final String customerName;
+  final String? customerEmail;
   final String notes;
   final String offerNumber;
   final String validUntilLabel;
   final String specificationStatus;
   final String pricingDisplayMode;
   final String formalNotice;
-  final VoidCallback onContact;
+  final bool canSendEmail;
 
   @override
   Widget build(BuildContext context) {
@@ -1904,20 +1911,19 @@ class _PreviewContactSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Porozmawiajmy o tej konfiguracji',
+                  'Oferta gotowa do wysłania',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.05, color: Colors.white),
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Jeśli chcesz doprecyzować konfigurację, finansowanie lub kolejne kroki zakupu, skontaktuj się z opiekunem tej oferty.',
+                  'To jest końcowy snapshot do prezentacji klientowi. Wysyłka odbywa się z górnej belki przez adres e-mail klienta.',
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.76), height: 1.7, fontSize: 16),
                 ),
                 const SizedBox(height: 20),
-                _PreviewAdvisorCard(
-                  advisor: advisor,
-                  fallbackName: fallbackName,
-                  advisorLine: advisorLine,
-                  onContact: onContact,
+                _PreviewDeliveryCard(
+                  customerName: customerName,
+                  customerEmail: customerEmail,
+                  canSendEmail: canSendEmail,
                 ),
                 const SizedBox(height: 12),
                   _PreviewCalloutBox(
@@ -2104,23 +2110,21 @@ class _PreviewCalloutBox extends StatelessWidget {
   }
 }
 
-class _PreviewAdvisorCard extends StatelessWidget {
-  const _PreviewAdvisorCard({
-    required this.advisor,
-    required this.fallbackName,
-    required this.advisorLine,
-    required this.onContact,
+class _PreviewDeliveryCard extends StatelessWidget {
+  const _PreviewDeliveryCard({
+    required this.customerName,
+    required this.customerEmail,
+    required this.canSendEmail,
   });
 
-  final OfferDocumentAdvisorSnapshot advisor;
-  final String fallbackName;
-  final String advisorLine;
-  final VoidCallback onContact;
+  final String customerName;
+  final String? customerEmail;
+  final bool canSendEmail;
 
   @override
   Widget build(BuildContext context) {
-    final name = advisor.fullName.isNotEmpty ? advisor.fullName : fallbackName;
-    final role = advisor.role.trim().isNotEmpty ? advisor.role : 'SALES';
+    final normalizedEmail = customerEmail?.trim();
+    final hasRecipient = normalizedEmail != null && normalizedEmail.isNotEmpty;
 
     return Container(
       width: double.infinity,
@@ -2133,16 +2137,25 @@ class _PreviewAdvisorCard extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isCompact = constraints.maxWidth < 420;
-          final avatar = _PreviewAdvisorAvatar(
-            avatarUrl: advisor.avatarUrl,
-            name: name,
-            size: isCompact ? 72 : 88,
+          final badge = Container(
+            width: isCompact ? 72 : 88,
+            height: isCompact ? 72 : 88,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.6),
+            ),
+            child: Icon(
+              Icons.mark_email_read_outlined,
+              size: isCompact ? 34 : 40,
+              color: Colors.white.withValues(alpha: 0.92),
+            ),
           );
           final details = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Porozmawiajmy o tej ofercie',
+                'Kanał doręczenia',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -2152,17 +2165,17 @@ class _PreviewAdvisorCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                name,
+                customerName,
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white),
               ),
               const SizedBox(height: 6),
               Text(
-                role,
+                hasRecipient ? 'Adres klienta gotowy do użycia' : 'Adres klienta wymaga uzupełnienia',
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
               Text(
-                'Indywidualne dopasowanie warunków i dalszych kroków zakupu',
+                hasRecipient ? normalizedEmail! : 'Brak adresu e-mail klienta w danych tej oferty.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.94),
                   fontWeight: FontWeight.w600,
@@ -2171,24 +2184,23 @@ class _PreviewAdvisorCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                advisorLine,
+                canSendEmail
+                    ? 'Użyj przycisku „Wyślij e-mailem” w górnej belce, aby przekazać klientowi finalną wersję oferty.'
+                    : 'Najpierw wygeneruj wersję oferty, a dopiero potem wyślij ją klientowi e-mailem.',
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.84), height: 1.55),
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Jeśli chcesz doprecyzować wariant finansowania, konfigurację lub kolejne kroki zakupu, skontaktuj się bezpośrednio z opiekunem tej oferty.',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.78), height: 1.55),
-              ),
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onContact,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF243247),
-                  shape: const StadiumBorder(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
                 ),
-                icon: const Icon(Icons.call_outlined),
-                label: const Text('Skontaktuj się z opiekunem'),
+                child: Text(
+                  hasRecipient ? 'Wysyłka klientowska: e-mail' : 'Wysyłka wstrzymana do czasu uzupełnienia e-maila',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.92), fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           );
@@ -2196,13 +2208,13 @@ class _PreviewAdvisorCard extends StatelessWidget {
           if (isCompact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [avatar, const SizedBox(height: 16), details],
+              children: [badge, const SizedBox(height: 16), details],
             );
           }
 
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [avatar, const SizedBox(width: 16), Expanded(child: details)],
+            children: [badge, const SizedBox(width: 16), Expanded(child: details)],
           );
         },
       ),

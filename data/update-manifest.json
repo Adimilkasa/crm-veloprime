@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v31",
-      "publishedAt": "2026-04-04T12:05:00.000Z",
+      "version": "v32",
+      "publishedAt": "2026-04-04T14:10:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.17 publishes the premium snapshot design pass with a lighter hero, calmer section materials, and softer gallery, pricing, finance, and contact surfaces.",
+      "summary": "Flutter client 0.1.12.18 refines the premium offer snapshot with a lighter hero, calmer sections, cleaner gallery overlays and an email-first final presentation.",
       "priority": "STANDARD"
     }
   ]
