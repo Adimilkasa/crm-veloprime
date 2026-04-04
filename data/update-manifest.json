@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v30",
-      "publishedAt": "2026-04-04T11:05:00.000Z",
+      "version": "v31",
+      "publishedAt": "2026-04-04T12:05:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.16 restores the trusted MSIX signing chain for App Installer updates while keeping the refined offer snapshot introduced in 0.1.12.15.",
+      "summary": "Flutter client 0.1.12.17 publishes the premium snapshot design pass with a lighter hero, calmer section materials, and softer gallery, pricing, finance, and contact surfaces.",
       "priority": "STANDARD"
     }
   ]
