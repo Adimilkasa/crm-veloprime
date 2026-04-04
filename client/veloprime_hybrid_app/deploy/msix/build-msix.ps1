@@ -13,6 +13,10 @@ param(
   [string]$LogoPath,
   [string]$CertificatePath,
   [string]$CertificatePassword,
+  [string]$CertificateThumbprint,
+  [string]$CertificateStorePath = 'Cert:\CurrentUser\My',
+  [string]$PublicCertificatePath,
+  [switch]$PreservePublishArtifacts,
   [switch]$SkipWindowsBuild
 )
 
@@ -39,15 +43,78 @@ if (-not $LogoPath) {
 }
 
 $projectRoot = Resolve-Path (Join-Path $scriptRoot '..\..')
+$repoRoot = Resolve-Path (Join-Path $projectRoot '..\..')
 $resolvedOutputDir = [System.IO.Path]::GetFullPath($OutputDir)
 $resolvedPublishDir = [System.IO.Path]::GetFullPath($PublishDir)
 $resolvedLogoPath = [System.IO.Path]::GetFullPath($LogoPath)
+$resolvedCertificatePath = $null
+$resolvedCertificatePassword = $CertificatePassword
+$temporaryCertificatePath = $null
 
 New-Item -ItemType Directory -Force -Path $resolvedOutputDir | Out-Null
 New-Item -ItemType Directory -Force -Path $resolvedPublishDir | Out-Null
 
+if (-not $PublicCertificatePath) {
+  $PublicCertificatePath = Join-Path $repoRoot 'public\download\veloprime-crm-test-signing.cer'
+}
+
+function Resolve-InstalledSigningCertificate {
+  param(
+    [string]$ExplicitThumbprint,
+    [string]$StorePath,
+    [string]$FallbackCertificatePath
+  )
+
+  $thumbprint = $ExplicitThumbprint
+
+  if (-not $thumbprint -and (Test-Path $FallbackCertificatePath)) {
+    $thumbprint = (Get-PfxCertificate $FallbackCertificatePath).Thumbprint
+  }
+
+  if (-not $thumbprint) {
+    return $null
+  }
+
+  return Get-ChildItem $StorePath |
+    Where-Object { $_.Thumbprint -eq $thumbprint -and $_.HasPrivateKey } |
+    Select-Object -First 1
+}
+
+function New-RandomPassword {
+  param([int]$Length = 24)
+
+  $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  $chars = for ($index = 0; $index -lt $Length; $index++) {
+    $alphabet[(Get-Random -Minimum 0 -Maximum $alphabet.Length)]
+  }
+
+  -join $chars
+}
+
 Push-Location $projectRoot
 try {
+  if (-not $CertificatePath) {
+    $installedCertificate = Resolve-InstalledSigningCertificate `
+      -ExplicitThumbprint $CertificateThumbprint `
+      -StorePath $CertificateStorePath `
+      -FallbackCertificatePath $PublicCertificatePath
+
+    if ($installedCertificate) {
+      $temporaryCertificatePath = Join-Path $resolvedOutputDir 'veloprime-crm-test-signing-session.pfx'
+      $resolvedCertificatePassword = New-RandomPassword
+      $secureCertificatePassword = ConvertTo-SecureString -String $resolvedCertificatePassword -AsPlainText -Force
+
+      Export-PfxCertificate -Cert $installedCertificate.PSPath -FilePath $temporaryCertificatePath -Password $secureCertificatePassword | Out-Null
+
+      $resolvedCertificatePath = $temporaryCertificatePath
+      Write-Host "Using installed signing certificate thumbprint $($installedCertificate.Thumbprint)"
+    }
+  }
+
+  if (-not $resolvedCertificatePath -and $CertificatePath) {
+    $resolvedCertificatePath = [System.IO.Path]::GetFullPath($CertificatePath)
+  }
+
   if (-not $SkipWindowsBuild) {
     flutter build windows --release --dart-define="VELOPRIME_API_BASE_URL=$BaseUrl"
   }
@@ -69,15 +136,20 @@ try {
     '--architecture', 'x64'
   )
 
-  if ($CertificatePath) {
-    $createArgs += @('--certificate-path', ([System.IO.Path]::GetFullPath($CertificatePath)))
+  if ($resolvedCertificatePath) {
+    $createArgs += @('--certificate-path', $resolvedCertificatePath)
   }
 
-  if ($CertificatePassword) {
-    $createArgs += @('--certificate-password', $CertificatePassword)
+  if ($resolvedCertificatePassword) {
+    $createArgs += @('--certificate-password', $resolvedCertificatePassword)
   }
 
   flutter @createArgs
+
+  if (-not $PreservePublishArtifacts) {
+    Get-ChildItem -Path $resolvedPublishDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $resolvedPublishDir | Out-Null
+  }
 
   $publishArgs = @(
     'pub',
@@ -97,12 +169,12 @@ try {
     '--architecture', 'x64'
   )
 
-  if ($CertificatePath) {
-    $publishArgs += @('--certificate-path', ([System.IO.Path]::GetFullPath($CertificatePath)))
+  if ($resolvedCertificatePath) {
+    $publishArgs += @('--certificate-path', $resolvedCertificatePath)
   }
 
-  if ($CertificatePassword) {
-    $publishArgs += @('--certificate-password', $CertificatePassword)
+  if ($resolvedCertificatePassword) {
+    $publishArgs += @('--certificate-password', $resolvedCertificatePassword)
   }
 
   flutter @publishArgs
@@ -141,5 +213,8 @@ try {
   Write-Host "Publish artifacts: $resolvedPublishDir"
   Write-Host 'To jest plik do publikacji na stronie: artifacts\package\VeloPrime-CRM-Test.msix'
 } finally {
+  if ($temporaryCertificatePath -and (Test-Path $temporaryCertificatePath)) {
+    Remove-Item -Force $temporaryCertificatePath -ErrorAction SilentlyContinue
+  }
   Pop-Location
 }

@@ -50,6 +50,29 @@ W skrocie:
 - lekkie pliki release i konfiguracja zostaja w repo
 - duze binarne paczki `.msix` powinny trafic do GitHub Releases, nie do glownej galezi jako zwykle pliki projektu
 
+### Build MSIX bez szukania starego hasla PFX
+
+Skrypt `client/veloprime_hybrid_app/deploy/msix/build-msix.ps1` ma obslugiwac standardowy flow release bez recznego szukania sekretu do historycznego pliku `.pfx`.
+
+Obowiazujacy flow:
+
+- skrypt najpierw probuje znalezc certyfikat pasujacy do `public/download/veloprime-crm-test-signing.cer` w `Cert:\CurrentUser\My`
+- jesli znajdzie matching prywatny klucz, eksportuje tymczasowy `.pfx` tylko na czas builda i sam nadaje mu jednorazowe haslo
+- dopiero gdy nie znajdzie certyfikatu w magazynie, trzeba jawnie podac `-CertificatePath` i `-CertificatePassword`
+
+To oznacza, ze na maszynie release wystarczy miec poprawnie zainstalowany cert z prywatnym kluczem; nie trzeba pamietac starego hasla do repozytoryjnego `.pfx`.
+
+### Unikanie sztucznego podbijania wersji przez msix:publish
+
+Ten sam skrypt domyslnie czysci `client/veloprime_hybrid_app/deploy/msix/artifacts/publish/` przed `msix:publish`.
+
+Powod:
+
+- stare pliki w `publish/versions/` potrafia wymusic interaktywne podbicie wersji ponad wartosc podana w `-MsixVersion`
+- czysty katalog publish utrzymuje `msix:publish` w trybie deterministycznym
+
+Jesli z jakiegos powodu chcesz zachowac historyczne pliki publish, uzyj jawnie przelacznika `-PreservePublishArtifacts`.
+
 ## Sytuacje awaryjne
 
 Jesli pojawia sie presja na szybki hotfix, i tak najpierw zapisujemy zmiane w repo i dopiero z repo wdrazamy produkcje.
