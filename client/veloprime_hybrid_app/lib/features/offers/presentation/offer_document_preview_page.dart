@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -343,6 +344,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                   _PreviewSectionCard(
                     title: 'Najważniejsze dane',
                     subtitle: 'Siedem kluczowych informacji o konfiguracji, pokazanych na czystym, jasnym tle.',
+                    sectionTint: VeloPrimePalette.sea,
                     backgroundImageSource: heroImageSource,
                     child: _PreviewTechnicalSection(
                       items: visibleTechnicalItems,
@@ -353,6 +355,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                   _PreviewSectionCard(
                     title: 'Galeria',
                     subtitle: 'Wybrane ujęcia nadwozia, wnętrza i detali tej konfiguracji.',
+                    sectionTint: const Color(0xFF5F5A4F),
                     child: _AssetGallery(
                       media: resolvedMedia,
                     ),
@@ -487,72 +490,78 @@ class _PreviewHeroCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.64)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF192330).withValues(alpha: 0.10),
-                                  blurRadius: 26,
-                                  offset: const Offset(0, 16),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF4F5F7),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: const Color(0xFFE3E6EB)),
-                                  ),
-                                  child: Text(
-                                    'Oferta ważna do $validUntilLabel',
-                                    style: const TextStyle(
-                                      color: Color(0xFF4E5968),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.72,
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(30),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                              child: Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x80FEFCF9),
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(color: const Color(0x73FFFFFF)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF192330).withValues(alpha: 0.14),
+                                      blurRadius: 32,
+                                      offset: const Offset(0, 18),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                                const SizedBox(height: 18),
-                                Text(
-                                  'Oferta przygotowana dla ${customer.customerName}',
-                                  style: const TextStyle(
-                                    color: Color(0xFF4E5968),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Color.alphaBlend(VeloPrimePalette.sea.withValues(alpha: 0.14), Colors.white.withValues(alpha: 0.68)),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(color: VeloPrimePalette.sea.withValues(alpha: 0.20)),
+                                      ),
+                                      child: Text(
+                                        'Oferta ważna do $validUntilLabel',
+                                        style: const TextStyle(
+                                          color: Color(0xFF35527E),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.72,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 18),
+                                    Text(
+                                      'Oferta przygotowana dla ${customer.customerName}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF43537B),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      modelLabel,
+                                      style: TextStyle(
+                                        fontSize: isCompact ? 34 : 54,
+                                        height: 0.98,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: -1.2,
+                                        color: const Color(0xFF1D1D1F),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const Text(
+                                      'Konfiguracja, cena i finansowanie ułożone na czystym tle, gotowe do pokazania klientowi bez dodatkowego wizualnego szumu.',
+                                      style: TextStyle(
+                                        color: Color(0xFF42506D),
+                                        fontSize: 15,
+                                        height: 1.6,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  modelLabel,
-                                  style: TextStyle(
-                                    fontSize: isCompact ? 34 : 54,
-                                    height: 0.98,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -1.2,
-                                    color: const Color(0xFF1D1D1F),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                const Text(
-                                  'Konfiguracja, cena i finansowanie ułożone na czystym tle, gotowe do pokazania klientowi bez dodatkowego wizualnego szumu.',
-                                  style: TextStyle(
-                                    color: Color(0xFF4E5968),
-                                    fontSize: 15,
-                                    height: 1.6,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ],
@@ -595,27 +604,33 @@ class _PreviewTechnicalSection extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: items
+                  .asMap()
+                  .entries
                   .map(
-                    (item) => SizedBox(
+                    (entry) {
+                      final item = entry.value;
+                      final tint = _previewTechnicalTint(entry.key);
+
+                      return SizedBox(
                       width: tileWidth,
                       child: Container(
                         padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.78),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.52)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF243247).withValues(alpha: 0.03),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                        decoration: _previewSurfaceDecoration(
+                          tint: tint,
+                          radius: 24,
+                          fillStrength: entry.key == 0 ? 0.14 : 0.08,
+                          borderStrength: entry.key == 0 ? 0.22 : 0.16,
+                          shadowStrength: 0.04,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _PreviewCircleIcon(icon: item.icon),
+                            _PreviewCircleIcon(
+                              icon: item.icon,
+                              foregroundColor: tint,
+                              backgroundColor: Color.alphaBlend(tint.withValues(alpha: 0.16), Colors.white.withValues(alpha: 0.86)),
+                              borderColor: tint.withValues(alpha: 0.20),
+                            ),
                             const SizedBox(height: 14),
                             Text(item.label, style: const TextStyle(fontSize: 12, color: VeloPrimePalette.muted, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 6),
@@ -623,7 +638,8 @@ class _PreviewTechnicalSection extends StatelessWidget {
                           ],
                         ),
                       ),
-                    ),
+                    );
+                    },
                   )
                   .toList(),
             );
@@ -1312,12 +1328,14 @@ class _PreviewSectionCard extends StatelessWidget {
     required this.title,
     required this.child,
     this.subtitle,
+    this.sectionTint = VeloPrimePalette.bronzeDeep,
     this.backgroundImageSource,
   });
 
   final String title;
   final Widget child;
   final String? subtitle;
+  final Color sectionTint;
   final String? backgroundImageSource;
 
   @override
@@ -1325,18 +1343,7 @@ class _PreviewSectionCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(36),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF13284A).withValues(alpha: 0.06),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
+      decoration: _previewSurfaceDecoration(tint: sectionTint),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1366,17 +1373,12 @@ class _PreviewPdfStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF13284A).withValues(alpha: 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+      decoration: _previewSurfaceDecoration(
+        tint: VeloPrimePalette.bronzeDeep,
+        radius: 28,
+        fillStrength: 0.09,
+        borderStrength: 0.16,
+        shadowStrength: 0.05,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1385,7 +1387,12 @@ class _PreviewPdfStrip extends StatelessWidget {
           final descriptionBlock = Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _PreviewCircleIcon(icon: Icons.description_outlined),
+              const _PreviewCircleIcon(
+                icon: Icons.description_outlined,
+                foregroundColor: VeloPrimePalette.bronzeDeep,
+                backgroundColor: Color(0xFFFFF8ED),
+                borderColor: Color(0x33BE933E),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -1409,8 +1416,8 @@ class _PreviewPdfStrip extends StatelessWidget {
           final actionButton = FilledButton.icon(
             onPressed: onPressed,
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFBE933E),
-              foregroundColor: Colors.white,
+              backgroundColor: VeloPrimePalette.bronzeDeep,
+              foregroundColor: const Color(0xFF181512),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               shape: const StadiumBorder(),
             ),
@@ -1467,6 +1474,7 @@ class _PreviewValueSection extends StatelessWidget {
     return _PreviewSectionCard(
       title: 'Cena katalogowa, rabat i cena po rabacie',
       subtitle: 'Sekcja cenowa ma pozostać maksymalnie spokojna: czytelna hierarchia, mniej podziałów i jedna dominująca liczba.',
+      sectionTint: VeloPrimePalette.bronzeDeep,
       backgroundImageSource: backgroundImageSource,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1541,17 +1549,9 @@ class _PreviewFinancingSection extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(36),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF13284A).withValues(alpha: 0.06),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
+      decoration: _previewSurfaceDecoration(
+        tint: VeloPrimePalette.sea,
+        fillStrength: 0.10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1571,10 +1571,12 @@ class _PreviewFinancingSection extends StatelessWidget {
               final isCompact = constraints.maxWidth < 860;
               final primaryPanel = Container(
                 padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7F8FA),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: const Color(0xFFE7EAF0)),
+                decoration: _previewSurfaceDecoration(
+                  tint: VeloPrimePalette.sea,
+                  radius: 32,
+                  fillStrength: 0.14,
+                  borderStrength: 0.18,
+                  shadowStrength: 0.03,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1602,10 +1604,12 @@ class _PreviewFinancingSection extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFE7EAF0)),
+                      decoration: _previewSurfaceDecoration(
+                        tint: const Color(0xFF355F99),
+                        radius: 24,
+                        fillStrength: 0.09,
+                        borderStrength: 0.16,
+                        shadowStrength: 0.02,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1637,10 +1641,12 @@ class _PreviewFinancingSection extends StatelessWidget {
               );
               final summaryPanel = Container(
                 padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: const Color(0xFFE7EAF0)),
+                decoration: _previewSurfaceDecoration(
+                  tint: const Color(0xFF355F99),
+                  radius: 32,
+                  fillStrength: 0.08,
+                  borderStrength: 0.16,
+                  shadowStrength: 0.03,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1722,17 +1728,9 @@ class _PreviewContactSection extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(36),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF13284A).withValues(alpha: 0.06),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
+      decoration: _previewSurfaceDecoration(
+        tint: const Color(0xFF5F5A4F),
+        fillStrength: 0.09,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1756,7 +1754,7 @@ class _PreviewContactSection extends StatelessWidget {
           _PreviewCalloutBox(
             title: 'Dodatkowe ustalenia',
             value: notes,
-            tint: const Color(0xFFF7F8FA),
+            tint: Color.alphaBlend(VeloPrimePalette.bronzeDeep.withValues(alpha: 0.08), const Color(0xFFFFFCF8)),
           ),
           const SizedBox(height: 12),
           _PreviewInfoGrid(items: [
@@ -1769,7 +1767,7 @@ class _PreviewContactSection extends StatelessWidget {
           _PreviewCalloutBox(
             title: 'Zastrzeżenie formalne',
             value: formalNotice,
-            tint: const Color(0xFFF7F8FA),
+            tint: Color.alphaBlend(VeloPrimePalette.sea.withValues(alpha: 0.06), const Color(0xFFFFFCF8)),
           ),
         ],
       ),
@@ -1778,9 +1776,17 @@ class _PreviewContactSection extends StatelessWidget {
 }
 
 class _PreviewCircleIcon extends StatelessWidget {
-  const _PreviewCircleIcon({required this.icon});
+  const _PreviewCircleIcon({
+    required this.icon,
+    this.foregroundColor = const Color(0xFF243247),
+    this.backgroundColor,
+    this.borderColor,
+  });
 
   final IconData icon;
+  final Color foregroundColor;
+  final Color? backgroundColor;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1788,11 +1794,11 @@ class _PreviewCircleIcon extends StatelessWidget {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: backgroundColor ?? Colors.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8EBF0)),
+        border: Border.all(color: borderColor ?? const Color(0xFFE8EBF0)),
       ),
-      child: Icon(icon, size: 20, color: const Color(0xFF243247)),
+      child: Icon(icon, size: 20, color: foregroundColor),
     );
   }
 }
@@ -1809,19 +1815,12 @@ class _PreviewPricingStatCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: accent ? 0.96 : 0.90),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: accent ? const Color(0xFFD9E0EA) : Colors.white.withValues(alpha: 0.44)),
-        boxShadow: accent
-            ? [
-                BoxShadow(
-                  color: const Color(0xFF243247).withValues(alpha: 0.06),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ]
-            : null,
+      decoration: _previewSurfaceDecoration(
+        tint: accent ? VeloPrimePalette.bronzeDeep : const Color(0xFF5F5A4F),
+        radius: 24,
+        fillStrength: accent ? 0.14 : 0.06,
+        borderStrength: accent ? 0.20 : 0.14,
+        shadowStrength: accent ? 0.05 : 0.02,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1856,10 +1855,12 @@ class _PreviewFinalPriceCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.48)),
+      decoration: _previewSurfaceDecoration(
+        tint: VeloPrimePalette.bronzeDeep,
+        radius: 28,
+        fillStrength: 0.10,
+        borderStrength: 0.18,
+        shadowStrength: 0.04,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1874,8 +1875,9 @@ class _PreviewFinalPriceCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF6F8FB),
+              color: Color.alphaBlend(VeloPrimePalette.bronzeDeep.withValues(alpha: 0.08), const Color(0xFFFFFCF8)),
               borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: VeloPrimePalette.bronzeDeep.withValues(alpha: 0.12)),
             ),
             child: Row(
               children: [
@@ -1920,7 +1922,7 @@ class _PreviewCalloutBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: tint,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
+        border: Border.all(color: Color.alphaBlend(const Color(0x14000000), tint)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1953,10 +1955,12 @@ class _PreviewDeliveryCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F8FA),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
+      decoration: _previewSurfaceDecoration(
+        tint: VeloPrimePalette.sea,
+        radius: 24,
+        fillStrength: 0.12,
+        borderStrength: 0.16,
+        shadowStrength: 0.03,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1966,8 +1970,8 @@ class _PreviewDeliveryCard extends StatelessWidget {
             height: isCompact ? 72 : 88,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE7EAF0), width: 1.6),
+              color: Color.alphaBlend(VeloPrimePalette.sea.withValues(alpha: 0.10), Colors.white),
+              border: Border.all(color: VeloPrimePalette.sea.withValues(alpha: 0.18), width: 1.6),
             ),
             child: Icon(
               Icons.mark_email_read_outlined,
@@ -2017,9 +2021,9 @@ class _PreviewDeliveryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Color.alphaBlend(VeloPrimePalette.sea.withValues(alpha: 0.10), Colors.white),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFFE7EAF0)),
+                  border: Border.all(color: VeloPrimePalette.sea.withValues(alpha: 0.16)),
                 ),
                 child: Text(
                   hasRecipient ? 'Wysyłka klientowska: e-mail' : 'Wysyłka wstrzymana do czasu uzupełnienia e-maila',
@@ -2062,7 +2066,7 @@ class _PreviewFinanceSummaryRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Color(0xFFD9D9DE)),
+          bottom: BorderSide(color: Color(0x1F355F99)),
         ),
       ),
       child: Row(
@@ -2108,10 +2112,12 @@ class _PreviewInfoGrid extends StatelessWidget {
             (item) => Container(
               width: 240,
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7F8FA),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE7EAF0)),
+              decoration: _previewSurfaceDecoration(
+                tint: const Color(0xFF5F5A4F),
+                radius: 20,
+                fillStrength: 0.09,
+                borderStrength: 0.14,
+                shadowStrength: 0.02,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2200,6 +2206,45 @@ String _resolveAbsolutePreviewUrl(String pathOrUrl) {
   }
 
   return Uri.parse(ApiConfig.baseUrl).resolveUri(parsed).toString();
+}
+
+Color _previewTechnicalTint(int index) {
+  switch (index % 3) {
+    case 0:
+      return VeloPrimePalette.sea;
+    case 1:
+      return VeloPrimePalette.bronzeDeep;
+    default:
+      return const Color(0xFF5F5A4F);
+  }
+}
+
+BoxDecoration _previewSurfaceDecoration({
+  required Color tint,
+  double radius = 36,
+  double fillStrength = 0.07,
+  double borderStrength = 0.16,
+  double shadowStrength = 0.05,
+}) {
+  return BoxDecoration(
+    gradient: LinearGradient(
+      colors: [
+        Color.alphaBlend(tint.withValues(alpha: fillStrength + 0.03), Colors.white),
+        Color.alphaBlend(tint.withValues(alpha: fillStrength), const Color(0xFFFFFCF8)),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    borderRadius: BorderRadius.circular(radius),
+    border: Border.all(color: tint.withValues(alpha: borderStrength)),
+    boxShadow: [
+      BoxShadow(
+        color: const Color(0xFF13284A).withValues(alpha: shadowStrength),
+        blurRadius: 28,
+        offset: const Offset(0, 12),
+      ),
+    ],
+  );
 }
 
 Future<void> _openPreviewLightbox(BuildContext context, List<String> images, String selectedSource) {
