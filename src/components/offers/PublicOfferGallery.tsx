@@ -47,7 +47,7 @@ export function PublicOfferGallery({
 
   if (allImages.length === 0) {
     return (
-      <div className="rounded-[30px] bg-white/64 px-6 py-12 text-[15px] leading-8 text-[#6e6e73] ring-1 ring-white/70 backdrop-blur-sm">
+      <div className="rounded-[30px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(249,245,237,0.72))] px-6 py-12 text-[15px] leading-8 text-[#6e6e73] backdrop-blur-sm">
         Ta oferta nie ma jeszcze kompletnej galerii. Sam link pozostaje aktywny, a opiekun może uzupełnić materiały po rozmowie z klientem.
       </div>
     )
@@ -66,17 +66,30 @@ export function PublicOfferGallery({
 
           return (
             <div key={section.title} className="space-y-4">
-              <h3 className="text-[22px] font-semibold tracking-[-0.03em] text-[#1d1d1f] sm:text-[24px]">{section.title}</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-[22px] font-semibold tracking-[-0.03em] text-[#1d1d1f] sm:text-[24px]">{section.title}</h3>
+                <div className="rounded-full border border-[rgba(190,147,62,0.18)] bg-white/78 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8d6b2f]">
+                  {section.images.length} ujęć
+                </div>
+              </div>
 
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
                 <button
                   type="button"
                   onClick={() => setActiveIndex(allImages.indexOf(featured))}
-                  className="group relative block w-full overflow-hidden rounded-[30px] bg-[#e8eaed] text-left shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
+                  className="group relative block w-full overflow-hidden rounded-[30px] bg-[#e8eaed] text-left shadow-[0_18px_42px_rgba(15,23,42,0.08)]"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses direct asset URLs */}
                   <img src={featured} alt={`${modelLabel} ${section.title}`} className="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-[1.015]" />
-                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,18,28,0.02)_0%,rgba(12,18,28,0.18)_58%,rgba(12,18,28,0.44)_100%)]" />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.03)_0%,rgba(12,18,28,0.08)_54%,rgba(12,18,28,0.28)_100%)]" />
+                  <div className="absolute inset-x-4 bottom-4 flex items-center justify-between gap-3">
+                    <span className="rounded-full bg-white/16 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur-sm ring-1 ring-white/16">
+                      {section.title}
+                    </span>
+                    <span className="rounded-full bg-[rgba(12,18,28,0.34)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/86 backdrop-blur-sm">
+                      Otwórz galerię
+                    </span>
+                  </div>
                 </button>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
@@ -85,7 +98,7 @@ export function PublicOfferGallery({
                       key={`${section.title}-${imageUrl}`}
                       type="button"
                       onClick={() => setActiveIndex(allImages.indexOf(imageUrl))}
-                      className="group overflow-hidden rounded-[24px] bg-[#e8eaed] shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+                      className="group overflow-hidden rounded-[24px] bg-[#e8eaed] shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-white/65"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses direct asset URLs */}
                       <img src={imageUrl} alt={`${modelLabel} ${section.title} ${index + 2}`} className="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.02]" />

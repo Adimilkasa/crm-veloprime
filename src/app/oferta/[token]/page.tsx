@@ -104,7 +104,7 @@ function buildGallerySections(images: {
 }): PublicOfferGallerySection[] {
   const sections = [
     {
-      title: 'Zewnętrze',
+      title: 'Z zewnątrz',
       images: [...images.premium, ...images.exterior, ...images.other],
     },
     {
@@ -137,9 +137,9 @@ function Panel({
   id?: string
 }) {
   const variants = {
-    default: 'bg-white/72 shadow-[0_20px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/50 backdrop-blur-xl',
-    highlight: 'bg-white/78 shadow-[0_20px_60px_rgba(15,23,42,0.1)] ring-1 ring-white/60 backdrop-blur-xl',
-    accent: 'bg-[linear-gradient(135deg,rgba(190,147,62,0.96),rgba(212,168,79,0.92))] text-white shadow-[0_24px_64px_rgba(190,147,62,0.26)]',
+    default: 'border border-white/55 bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(250,247,241,0.74))] shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl',
+    highlight: 'border border-[rgba(190,147,62,0.16)] bg-[linear-gradient(180deg,rgba(255,252,246,0.92),rgba(248,243,233,0.82))] shadow-[0_24px_72px_rgba(15,23,42,0.09)] backdrop-blur-xl',
+    accent: 'border border-[rgba(190,147,62,0.22)] bg-[linear-gradient(135deg,rgba(247,241,229,0.98),rgba(237,226,205,0.94))] text-[#1d1d1f] shadow-[0_24px_72px_rgba(190,147,62,0.18)]',
   }
 
   return (
@@ -152,7 +152,7 @@ function Panel({
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
     <div className="max-w-3xl">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[#6e6e73]">Premium offer</p>
+      <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[#8d6b2f]">Premium snapshot</p>
       <h2 className="mt-4 text-[32px] font-semibold leading-[1.02] tracking-[-0.04em] text-[#1d1d1f] sm:text-[40px] lg:text-[46px]">{title}</h2>
       <p className="mt-4 text-[16px] leading-8 text-[#4e4e56]">{description}</p>
     </div>
@@ -161,8 +161,8 @@ function SectionHeader({ title, description }: { title: string; description: str
 
 function SpecTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[24px] bg-white/68 px-5 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)] ring-1 ring-white/70 backdrop-blur-sm">
-      <div className="text-[13px] font-medium text-[#6e6e73]">{label}</div>
+    <div className="rounded-[26px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(249,245,237,0.72))] px-5 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+      <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#8d6b2f]">{label}</div>
       <div className="mt-2 text-[18px] font-semibold leading-tight text-[#1d1d1f]">{value}</div>
     </div>
   )
@@ -267,34 +267,34 @@ export default async function PublicOfferPage({
   ]
 
   return (
-    <main className="min-h-screen bg-transparent text-[#1d1d1f]">
+    <main className="min-h-screen bg-[linear-gradient(180deg,#eef1f4_0%,#f8f4ec_42%,#f5f5f7_100%)] text-[#1d1d1f]">
       <section className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_48%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.24),transparent_48%)]" />
         {heroImage ? (
           // eslint-disable-next-line @next/next/no-img-element -- direct product assets are required in the public offer hero
           <img src={heroImage} alt={modelLabel} className="absolute inset-0 h-full w-full object-cover" />
         ) : (
           <div className="absolute inset-0 bg-[linear-gradient(135deg,#c7d2e3_0%,#8b9bb4_100%)]" />
         )}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,16,24,0.28)_0%,rgba(10,16,24,0.18)_24%,rgba(10,16,24,0.52)_78%,rgba(245,245,247,1)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(10,16,24,0.72)_0%,rgba(10,16,24,0.44)_34%,rgba(10,16,24,0.12)_68%,rgba(10,16,24,0.04)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(10,16,24,0.08)_22%,rgba(18,25,34,0.34)_76%,rgba(245,245,247,1)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(18,24,32,0.54)_0%,rgba(18,24,32,0.26)_34%,rgba(18,24,32,0.08)_68%,rgba(18,24,32,0.02)_100%)]" />
 
         <div className="relative z-10 mx-auto flex min-h-[92svh] max-w-7xl items-end px-4 pb-16 pt-28 sm:px-6 lg:px-8 lg:pb-24">
           <div className="max-w-3xl">
-            <div className="inline-flex rounded-full bg-white/12 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur-md ring-1 ring-white/18">
+            <div className="inline-flex rounded-full bg-white/16 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur-md ring-1 ring-white/22">
               Oferta przygotowana dla {payload.customer.customerName}
             </div>
             <h1 className="mt-6 text-[52px] font-semibold leading-[0.92] tracking-[-0.06em] text-white sm:text-[72px] lg:text-[104px]">{modelLabel}</h1>
             <p className="mt-6 max-w-2xl text-[18px] leading-8 text-white/82 sm:text-[19px]">{heroNarrative}</p>
-            <p className="mt-4 max-w-xl text-[15px] leading-7 text-white/72">To produkcyjna wersja oferty przygotowana dla klienta, z prezentacją modelu, konfiguracji, specyfikacji i warunków finansowych.</p>
+            <p className="mt-4 max-w-xl text-[15px] leading-7 text-white/70">To finalny snapshot oferty: spokojniejsza prezentacja modelu, konfiguracji, galerii, ceny i finansowania w jednej narracji.</p>
 
             <div className="mt-10">
-              <div className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/68">{heroPrimaryLabel}</div>
+              <div className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/64">{heroPrimaryLabel}</div>
               <div className="mt-3 text-[42px] font-semibold leading-[0.98] tracking-[-0.05em] text-white sm:text-[56px] lg:text-[72px]">{heroPrimaryValue}</div>
             </div>
 
-            <div className="mt-10 rounded-[26px] bg-white/10 px-5 py-4 backdrop-blur-md ring-1 ring-white/18 sm:px-6">
-              <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/64">Dane klienta</div>
+            <div className="mt-10 rounded-[28px] border border-white/18 bg-[linear-gradient(135deg,rgba(255,255,255,0.14),rgba(255,255,255,0.08))] px-5 py-4 backdrop-blur-md sm:px-6">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/60">Dane klienta</div>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[14px] leading-7 text-white/82">
                 {customerData.map((item) => (
                   <span key={item}>{item}</span>
@@ -317,7 +317,7 @@ export default async function PublicOfferPage({
             <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
               <SectionHeader
                 title="Najważniejsze dane"
-                description="Zestaw najważniejszych informacji o konfiguracji, generowany z danych dostępnych dla tej polityki cenowej i publicznego snapshotu oferty."
+                description="Dziewięć kluczowych informacji o konfiguracji pokazanych w lżejszym, bardziej premium układzie opartym na danych tej oferty."
               />
 
               <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
@@ -331,6 +331,9 @@ export default async function PublicOfferPage({
           <Panel>
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-[28px] font-semibold leading-[1.02] tracking-[-0.04em] text-[#1d1d1f] sm:text-[34px]">Galeria</h2>
+              <div className="rounded-full border border-[rgba(190,147,62,0.18)] bg-white/70 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8d6b2f]">
+                Spokojniejsza ekspozycja
+              </div>
             </div>
             <div className="mt-6">
               <PublicOfferGallery modelLabel={modelLabel} sections={gallerySections} />
@@ -366,26 +369,26 @@ export default async function PublicOfferPage({
 
           <Panel variant="highlight">
             <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
-              <div className="rounded-[32px] bg-[#1d1d1f] px-7 py-8 text-white shadow-[0_18px_48px_rgba(29,29,31,0.2)] sm:px-8 sm:py-9">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-white/58">Finanse</div>
+              <div className="rounded-[34px] border border-[rgba(190,147,62,0.18)] bg-[linear-gradient(160deg,#2a2f38_0%,#434a56_56%,#8d6b2f_140%)] px-7 py-8 text-white shadow-[0_18px_54px_rgba(29,29,31,0.18)] sm:px-8 sm:py-9">
+                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-white/56">Finanse</div>
                 <h2 className="mt-4 text-[32px] font-semibold leading-[1.02] tracking-[-0.04em] text-white sm:text-[40px]">Najważniejsza liczba tej oferty</h2>
-                <div className="mt-8 text-[16px] font-medium text-white/68">Rata miesięczna</div>
+                <div className="mt-8 text-[16px] font-medium text-white/64">Rata miesięczna</div>
                 <div className="mt-3 text-[44px] font-semibold leading-[0.98] tracking-[-0.05em] text-white sm:text-[56px]">{heroPrimaryValue}</div>
-                <p className="mt-5 max-w-xl text-[15px] leading-8 text-white/74">
+                <p className="mt-5 max-w-xl text-[15px] leading-8 text-white/76">
                   {estimatedInstallmentLabel
                     ? 'To punkt wyjścia do rozmowy o finansowaniu. Ostateczna rata i warunki zostaną potwierdzone po weryfikacji klienta i finalnej konfiguracji.'
                     : 'Jeżeli klient nie ma jeszcze gotowego wariantu finansowania, opiekun przygotuje dokładną propozycję po krótkiej rozmowie.'}
                 </p>
-                <div className="mt-8 rounded-[24px] bg-white/8 p-5 ring-1 ring-white/10">
-                  <div className="text-[13px] font-medium text-white/58">{primaryFinalPriceLabel}</div>
+                <div className="mt-8 rounded-[26px] border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
+                  <div className="text-[13px] font-medium text-white/56">{primaryFinalPriceLabel}</div>
                   <div className="mt-2 text-[28px] font-semibold tracking-[-0.04em] text-white">{primaryFinalPrice}</div>
-                  <div className="mt-4 text-[13px] font-medium text-white/52">{secondaryFinalPriceLabel}</div>
+                  <div className="mt-4 text-[13px] font-medium text-white/50">{secondaryFinalPriceLabel}</div>
                   <div className="mt-1 text-[18px] font-semibold text-white/82">{secondaryFinalPrice}</div>
                 </div>
               </div>
 
-              <div className="rounded-[32px] bg-white/72 px-6 py-6 ring-1 ring-white/70 backdrop-blur-md sm:px-7 sm:py-7">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[#6e6e73]">Podsumowanie</div>
+              <div className="rounded-[32px] border border-white/78 bg-white/72 px-6 py-6 backdrop-blur-md sm:px-7 sm:py-7">
+                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[#8d6b2f]">Podsumowanie</div>
                 <div className="mt-6">
                   {financeRows.map((row) => (
                     <FinanceRow key={row.label} label={row.label} value={row.value} emphasize={row.emphasize} />
@@ -394,7 +397,7 @@ export default async function PublicOfferPage({
               </div>
             </div>
 
-            <div className="mt-6 border-t border-white/40 pt-5 text-[12px] leading-7 text-[#5e6168]">
+            <div className="mt-6 border-t border-[rgba(141,107,47,0.16)] pt-5 text-[12px] leading-7 text-[#5e6168]">
               {formalNotice} Szczegółowe wyliczenie finansowania jest przygotowywane po weryfikacji zdolności finansowej klienta oraz po potwierdzeniu długości finansowania, wysokości wpłaty własnej i wykupu.
             </div>
           </Panel>
@@ -402,27 +405,27 @@ export default async function PublicOfferPage({
           <Panel variant="accent">
             <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
               <div>
-                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-white/70">Kontakt</div>
-                <h2 className="mt-4 text-[34px] font-semibold leading-[1.02] tracking-[-0.04em] text-white sm:text-[44px]">Finalny krok to rozmowa z opiekunem</h2>
-                <p className="mt-4 max-w-2xl text-[16px] leading-8 text-white/82">Ta oferta została zbudowana po to, by klient szybko przeszedł od pierwszego wrażenia do kontaktu. {advisorName} dopracuje konfigurację, finansowanie i kolejne kroki zakupu.</p>
+                <div className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[#8d6b2f]">Kontakt</div>
+                <h2 className="mt-4 text-[34px] font-semibold leading-[1.02] tracking-[-0.04em] text-[#1d1d1f] sm:text-[44px]">Finalny krok to rozmowa z opiekunem</h2>
+                <p className="mt-4 max-w-2xl text-[16px] leading-8 text-[#4e4e56]">Ta oferta została zbudowana po to, by klient szybko przeszedł od pierwszego wrażenia do kontaktu. {advisorName} dopracuje konfigurację, finansowanie i kolejne kroki zakupu.</p>
               </div>
 
-              <div className="rounded-[30px] bg-white/12 p-6 ring-1 ring-white/14 backdrop-blur-md sm:p-7">
-                <div className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/62">Opiekun oferty</div>
-                <div className="mt-4 text-[30px] font-semibold tracking-[-0.04em] text-white">{advisorName}</div>
-                <div className="mt-4 space-y-2 text-[16px] leading-7 text-white/82">
+              <div className="rounded-[30px] border border-white/70 bg-white/58 p-6 backdrop-blur-md sm:p-7">
+                <div className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[#8d6b2f]">Opiekun oferty</div>
+                <div className="mt-4 text-[30px] font-semibold tracking-[-0.04em] text-[#1d1d1f]">{advisorName}</div>
+                <div className="mt-4 space-y-2 text-[16px] leading-7 text-[#4e4e56]">
                   {payload.advisor.phone ? <div>{payload.advisor.phone}</div> : null}
                   {payload.advisor.email ? <div>{payload.advisor.email}</div> : null}
                 </div>
 
                 <div className="mt-8 flex flex-wrap gap-3">
                   {primaryCtaHref ? (
-                    <a href={primaryCtaHref} className="inline-flex items-center rounded-full bg-white px-6 py-3 text-[15px] font-semibold text-[#BE933E] transition hover:bg-white/90">
+                    <a href={primaryCtaHref} className="inline-flex items-center rounded-full bg-[#be933e] px-6 py-3 text-[15px] font-semibold text-white transition hover:brightness-[1.03]">
                       Skontaktuj się
                     </a>
                   ) : null}
                   {phoneCtaHref ? (
-                    <a href={phoneCtaHref} className="inline-flex items-center rounded-full bg-white/10 px-6 py-3 text-[15px] font-semibold text-white ring-1 ring-white/18 transition hover:bg-white/16">
+                    <a href={phoneCtaHref} className="inline-flex items-center rounded-full border border-[rgba(29,29,31,0.12)] bg-white/70 px-6 py-3 text-[15px] font-semibold text-[#1d1d1f] transition hover:bg-white">
                       Zadzwoń
                     </a>
                   ) : null}
