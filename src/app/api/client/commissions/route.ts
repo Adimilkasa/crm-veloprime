@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
-import { getCommissionWorkspace, saveCommissionRules } from '@/lib/commission-management'
+import { getCommissionWorkspace, saveCommissionRules, syncCommissionWorkspace } from '@/lib/commission-management'
 
 export async function GET(request: Request) {
   const session = await getSession()
@@ -59,6 +59,41 @@ export async function PATCH(request: Request) {
 
   if (!saveResult.ok) {
     return NextResponse.json({ ok: false, error: saveResult.error }, { status: 400 })
+  }
+
+  const workspaceResult = await getCommissionWorkspace(session, targetUserId)
+
+  if (!workspaceResult.ok) {
+    return NextResponse.json({ ok: false, error: workspaceResult.error }, { status: 400 })
+  }
+
+  return NextResponse.json({
+    ok: true,
+    workspace: workspaceResult,
+  })
+}
+
+export async function POST(request: Request) {
+  const session = await getSession()
+
+  if (!session) {
+    return NextResponse.json({ ok: false, error: 'Brak aktywnej sesji.' }, { status: 401 })
+  }
+
+  let targetUserId: string | null = null
+
+  try {
+    const body = await request.json()
+    const payload = body as Record<string, unknown>
+    targetUserId = typeof payload.targetUserId === 'string' ? payload.targetUserId : null
+  } catch {
+    targetUserId = null
+  }
+
+  const syncResult = await syncCommissionWorkspace(session)
+
+  if (!syncResult.ok) {
+    return NextResponse.json({ ok: false, error: syncResult.error }, { status: 403 })
   }
 
   const workspaceResult = await getCommissionWorkspace(session, targetUserId)

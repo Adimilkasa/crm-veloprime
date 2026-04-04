@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -43,6 +45,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
   void initState() {
     super.initState();
     _payload = widget.initialPayload;
+    unawaited(_reloadLeadSilently());
   }
 
   Future<void> _moveStage(String stageId) async {
@@ -125,6 +128,14 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
     setState(() {
       _payload = nextPayload;
     });
+  }
+
+  Future<void> _reloadLeadSilently() async {
+    try {
+      await _reloadLead();
+    } catch (_) {
+      // Keep cached payload visible when backend is temporarily unavailable.
+    }
   }
 
   Future<void> _openOffer(String offerId) async {

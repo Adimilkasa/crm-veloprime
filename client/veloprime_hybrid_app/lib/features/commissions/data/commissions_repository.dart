@@ -32,4 +32,11 @@ class CommissionsRepository {
     });
     return CommissionsWorkspaceData.fromJson(json['workspace'] as Map<String, dynamic>? ?? const {});
   }
+
+  Future<CommissionsWorkspaceData> syncWorkspace({String? targetUserId}) async {
+    final json = await _apiClient.postJson('/api/client/commissions', {
+      if (targetUserId != null && targetUserId.isNotEmpty) 'targetUserId': targetUserId,
+    });
+    return CommissionsWorkspaceData.fromJson(json['workspace'] as Map<String, dynamic>? ?? const {});
+  }
 }

@@ -11,7 +11,7 @@ import { sendTransactionalEmail } from '@/lib/email-service'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
 import { createManagedLead, listManagedLeads, listManagedLeadStages, logManagedLeadActivity, type ManagedLead } from '@/lib/lead-management'
 import { calculateOfferSummary, type OfferCalculationSummary, type OfferCustomerType } from '@/lib/offer-calculations'
-import { syncLegacyCatalogItemsToDb, type SalesCatalogRuntimeItem } from '@/lib/sales-catalog-management'
+import { type SalesCatalogRuntimeItem } from '@/lib/sales-catalog-management'
 import { findPublishedSalesCatalogItemByKey, findPublishedSalesCatalogVersionByKey, listPublishedSalesCatalogItems, listPublishedSalesModelColorPalettes } from '@/lib/update-management'
 import { listManagedUsers, type ManagedUser } from '@/lib/user-management'
 
@@ -184,6 +184,25 @@ type DbOfferRecord = Prisma.OfferGetPayload<{
   }
 }>
 
+type DbOfferListRecord = Prisma.OfferGetPayload<{
+  include: {
+    customer: true
+    owner: true
+    salesCatalogItem: true
+    financing: true
+    versions: {
+      select: {
+        id: true
+        versionNumber: true
+        createdAt: true
+        shareToken: true
+        sharedAt: true
+        shareExpiresAt: true
+      }
+    }
+  }
+}>
+
 export const offerStatusOptions: Array<{ value: OfferStatus; label: string }> = [
   { value: 'DRAFT', label: 'Szkic' },
   { value: 'SENT', label: 'Wysłana' },
@@ -330,6 +349,22 @@ function nextOfferNumber(offers: ManagedOffer[]) {
 
 function buildOfferShareToken() {
   return crypto.randomUUID().replace(/-/g, '')
+}
+
+function buildOfferVersionSummary(input: {
+  title: string
+  selectedColorName: string | null
+  financingVariant: string | null
+  totalGross: Prisma.Decimal | null
+},
+hasPayload: boolean) {
+  const totalGross = input.totalGross ? Number(input.totalGross) : null
+
+  if (hasPayload) {
+    return `${input.title} / ${input.selectedColorName ?? 'kolor bazowy'} / ${input.financingVariant ?? 'wariant bez finansowania'} / ${formatMoney(totalGross)}`
+  }
+
+  return `${input.title} / ${formatMoney(totalGross)}`
 }
 
 function resolveOfferShareExpiresAt(validUntil: string | null, fallbackCreatedAt: string) {
@@ -738,7 +773,16 @@ export async function listManagedOffers(session: AuthSession) {
       owner: true,
       salesCatalogItem: true,
       financing: true,
-      versions: true,
+      versions: {
+        select: {
+          id: true,
+          versionNumber: true,
+          createdAt: true,
+          shareToken: true,
+          sharedAt: true,
+          shareExpiresAt: true,
+        },
+      },
     },
     orderBy: {
       updatedAt: 'desc',
@@ -747,7 +791,7 @@ export async function listManagedOffers(session: AuthSession) {
 
   return offers
     .map((offer) => {
-      const mapped = mapDbOfferToManagedOffer(offer)
+      const mapped = mapDbOfferListToManagedOffer(offer)
       const matchedLead = matchLeadForOffer(leads, mapped)
       return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
     })
@@ -1002,9 +1046,18 @@ export async function createManagedOffer(
     return { ok: false as const, error: 'Generator ofert wymaga aktywnego połączenia z bazą danych.' }
   }
 
-  await ensureUsersInDb(users)
-  const catalogItems = await listPublishedSalesCatalogItems()
-  const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
+  if (!ownerUser && ownerId !== session.sub) {
+    return { ok: false as const, error: 'Nie udało się przygotować właściciela oferty do zapisu w bazie.' }
+  }
+
+  await ensureOfferOwnerInDb({
+    ownerId,
+    ownerUser,
+    session,
+  })
+  const salesCatalogItemId = pricingResult && pricingResult.ok
+    ? await ensureOfferCatalogItemInDb(pricingResult.catalogItem)
+    : null
   const customer = lead
     ? await ensureCustomerFromLead(lead, ownerId)
     : await ensureCustomerRecord({
@@ -1028,7 +1081,7 @@ export async function createManagedOffer(
       title,
       customerId: customer.id,
       ownerId,
-      salesCatalogItemId: pricingResult && pricingResult.ok ? catalogIds.get(pricingResult.catalogItem.key) ?? null : null,
+      salesCatalogItemId,
       customerType,
       selectedColorKind: pricingResult && pricingResult.ok && pricingResult.calculation.colorSurchargeGross > 0 ? OfferColorKind.EXTRA_PAID : OfferColorKind.BASE,
       selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
@@ -1130,22 +1183,6 @@ export async function updateManagedOffer(
     return pricingResult
   }
 
-  if (pricingResult && pricingResult.ok) {
-    const financingResult = calculateOfferFinancing({
-      customerType,
-      finalPriceGross: pricingResult.calculation.finalPriceGross,
-      finalPriceNet: pricingResult.calculation.finalPriceNet,
-      termMonths: financingTermMonths,
-      downPaymentInputMode: financingInputMode,
-      downPaymentInputValue: financingInputValue,
-      buyoutPercent: financingBuyoutPercent,
-    })
-
-    if (financingResult && !financingResult.ok) {
-      return financingResult
-    }
-  }
-
   const financingResult = pricingResult && pricingResult.ok
     ? calculateOfferFinancing({
         customerType,
@@ -1157,6 +1194,10 @@ export async function updateManagedOffer(
         buyoutPercent: financingBuyoutPercent,
       })
     : null
+
+  if (financingResult && !financingResult.ok) {
+    return financingResult
+  }
 
   const financingPersistence = buildFinancingPersistence({
     financingTermMonths,
@@ -1170,9 +1211,9 @@ export async function updateManagedOffer(
     return { ok: false as const, error: 'Generator ofert wymaga aktywnego połączenia z bazą danych.' }
   }
 
-  await ensureUsersInDb(await listManagedUsers())
-  const catalogItems = await listPublishedSalesCatalogItems()
-  const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
+  const salesCatalogItemId = pricingResult && pricingResult.ok
+    ? await ensureOfferCatalogItemInDb(pricingResult.catalogItem)
+    : null
 
   if (!offer.leadId) {
     const offerRecord = await db.offer.findUnique({
@@ -1198,7 +1239,7 @@ export async function updateManagedOffer(
     data: {
       title: input.title.trim() || offer.title,
       status: input.status,
-      salesCatalogItemId: pricingResult && pricingResult.ok ? catalogIds.get(pricingResult.catalogItem.key) ?? null : null,
+      salesCatalogItemId,
       customerType,
       selectedColorKind: pricingResult && pricingResult.ok && pricingResult.calculation.colorSurchargeGross > 0 ? OfferColorKind.EXTRA_PAID : OfferColorKind.BASE,
       selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
@@ -1531,6 +1572,16 @@ export async function assignManagedOfferLead(
     return { ok: false as const, error: 'Generator ofert wymaga aktywnego połączenia z bazą danych.' }
   }
 
+  if (!nextOwnerUser && nextOwnerId !== session.sub) {
+    return { ok: false as const, error: 'Nie udało się przygotować właściciela oferty do przypięcia leada.' }
+  }
+
+  await ensureOfferOwnerInDb({
+    ownerId: nextOwnerId,
+    ownerUser: nextOwnerUser,
+    session,
+  })
+
   const customer = await ensureCustomerFromLead(lead, nextOwnerId)
 
   if (!customer) {
@@ -1620,42 +1671,114 @@ export async function createLeadForManagedOffer(
   return { ok: true as const, lead: leadResult.lead, offer: attachResult.offer }
 }
 
-async function ensureUsersInDb(users: ManagedUser[]) {
+async function ensureOfferOwnerInDb(input: {
+  ownerId: string
+  ownerUser: ManagedUser | null
+  session: AuthSession
+}) {
   if (!db) {
     return
   }
 
-  const sortedUsers = [...users].sort((left, right) => {
-    const rank = { ADMIN: 0, DIRECTOR: 1, MANAGER: 2, SALES: 3 } as const
-    return rank[left.role] - rank[right.role]
+  const owner = input.ownerUser
+    ? input.ownerUser
+    : {
+        id: input.ownerId,
+        fullName: input.session.fullName,
+        email: input.session.email,
+        phone: null,
+        avatarUrl: null,
+        role: input.session.role,
+        isActive: true,
+        region: null,
+        teamName: null,
+        reportsToUserId: null,
+        createdAt: new Date().toISOString(),
+        source: 'custom' as const,
+      }
+
+  await db.user.upsert({
+    where: { id: owner.id },
+    update: {
+      email: owner.email,
+      fullName: owner.fullName,
+      role: owner.role,
+      isActive: owner.isActive,
+      phone: owner.phone,
+      region: owner.region,
+      teamName: owner.teamName,
+      reportsToUserId: owner.reportsToUserId,
+    },
+    create: {
+      id: owner.id,
+      email: owner.email,
+      fullName: owner.fullName,
+      role: owner.role,
+      isActive: owner.isActive,
+      phone: owner.phone,
+      region: owner.region,
+      teamName: owner.teamName,
+      reportsToUserId: owner.reportsToUserId,
+    },
+  })
+}
+
+async function ensureOfferCatalogItemInDb(item: SalesCatalogRuntimeItem) {
+  if (!db) {
+    return null
+  }
+
+  const brandSetting = await db.brandSetting.upsert({
+    where: { brand: item.brand },
+    update: {
+      isActive: true,
+    },
+    create: {
+      brand: item.brand,
+    },
   })
 
-  for (const user of sortedUsers) {
-    await db.user.upsert({
-      where: { id: user.id },
-      update: {
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        isActive: user.isActive,
-        phone: user.phone,
-        region: user.region,
-        teamName: user.teamName,
-        reportsToUserId: user.reportsToUserId,
-      },
-      create: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        isActive: user.isActive,
-        phone: user.phone,
-        region: user.region,
-        teamName: user.teamName,
-        reportsToUserId: user.reportsToUserId,
-      },
-    })
-  }
+  const existing = await db.salesCatalogItem.findFirst({
+    where: {
+      brand: item.brand,
+      model: item.model,
+      version: item.version,
+      year: item.year,
+    },
+  })
+
+  const record = existing
+    ? await db.salesCatalogItem.update({
+        where: { id: existing.id },
+        data: {
+          powertrain: item.powertrain,
+          powerHp: item.powerHp,
+          listPriceGross: item.listPriceGross,
+          listPriceNet: item.listPriceNet,
+          basePriceGross: item.basePriceGross,
+          basePriceNet: item.basePriceNet,
+          isActive: true,
+          brandSettingId: brandSetting.id,
+        },
+      })
+    : await db.salesCatalogItem.create({
+        data: {
+          brand: item.brand,
+          model: item.model,
+          version: item.version,
+          year: item.year,
+          powertrain: item.powertrain,
+          powerHp: item.powerHp,
+          listPriceGross: item.listPriceGross,
+          listPriceNet: item.listPriceNet,
+          basePriceGross: item.basePriceGross,
+          basePriceNet: item.basePriceNet,
+          isActive: true,
+          brandSettingId: brandSetting.id,
+        },
+      })
+
+  return record.id
 }
 
 async function ensureCustomerFromLead(lead: ManagedLead, ownerId: string) {
@@ -1749,9 +1872,10 @@ function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
       .map((version) => ({
         id: version.id,
         versionNumber: version.versionNumber,
-        summary: typeof version.payloadJson === 'object' && version.payloadJson && 'customer' in version.payloadJson
-          ? `${offer.title} / ${offer.selectedColorName ?? 'kolor bazowy'} / ${offer.financingVariant ?? 'wariant bez finansowania'} / ${formatMoney(offer.totalGross ? Number(offer.totalGross) : null)}`
-          : `${offer.title} / ${formatMoney(offer.totalGross ? Number(offer.totalGross) : null)}`,
+        summary: buildOfferVersionSummary(
+          offer,
+          Boolean(typeof version.payloadJson === 'object' && version.payloadJson && 'customer' in version.payloadJson),
+        ),
         createdAt: version.createdAt.toISOString(),
         shareToken: version.shareToken,
         sharedAt: version.sharedAt?.toISOString() ?? null,
@@ -1759,6 +1883,58 @@ function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
         payloadJson: (version.payloadJson as OfferDocumentPayload | null) ?? null,
         customerSnapshotJson: (version.customerSnapshotJson as OfferCustomerSnapshot | null) ?? null,
         internalSnapshotJson: (version.internalSnapshotJson as OfferInternalSnapshot | null) ?? null,
+      })),
+    createdAt: offer.createdAt.toISOString(),
+    updatedAt: offer.updatedAt.toISOString(),
+  }
+}
+
+function mapDbOfferListToManagedOffer(offer: DbOfferListRecord): ManagedOffer {
+  const pricingCatalogKey = offer.salesCatalogItem
+    ? [offer.salesCatalogItem.brand, offer.salesCatalogItem.model, offer.salesCatalogItem.version, offer.salesCatalogItem.year || ''].join('::').toLowerCase()
+    : null
+
+  return {
+    id: offer.id,
+    number: offer.number,
+    status: offer.status,
+    title: offer.title,
+    leadId: null,
+    customerName: offer.customer.fullName,
+    customerEmail: offer.customer.email,
+    customerPhone: offer.customer.phone,
+    modelName: offer.salesCatalogItem ? `${offer.salesCatalogItem.brand} ${offer.salesCatalogItem.model} ${offer.salesCatalogItem.version}` : null,
+    pricingCatalogKey,
+    selectedColorName: offer.selectedColorName,
+    customerType: offer.customerType,
+    discountValue: offer.discountAmount ? Number(offer.discountAmount) : null,
+    ownerId: offer.ownerId,
+    ownerName: offer.owner.fullName,
+    ownerEmail: offer.owner.email,
+    ownerPhone: offer.owner.phone,
+    ownerAvatarUrl: offer.owner.avatarUrl,
+    validUntil: offer.validUntil?.toISOString() ?? null,
+    totalGross: offer.totalGross ? Number(offer.totalGross) : null,
+    totalNet: offer.totalNet ? Number(offer.totalNet) : null,
+    financingVariant: offer.financingVariant,
+    financingTermMonths: offer.financing?.termMonths ?? null,
+    financingInputMode: offer.financing?.downPaymentInputMode ?? 'AMOUNT',
+    financingInputValue: offer.financing?.downPaymentInputValue ? Number(offer.financing.downPaymentInputValue) : null,
+    financingBuyoutPercent: offer.financing?.buyoutPercent ? Number(offer.financing.buyoutPercent) : null,
+    notes: offer.notes,
+    versions: offer.versions
+      .sort((left, right) => right.versionNumber - left.versionNumber)
+      .map((version) => ({
+        id: version.id,
+        versionNumber: version.versionNumber,
+        summary: buildOfferVersionSummary(offer, false),
+        createdAt: version.createdAt.toISOString(),
+        shareToken: version.shareToken,
+        sharedAt: version.sharedAt?.toISOString() ?? null,
+        shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,
+        payloadJson: null,
+        customerSnapshotJson: null,
+        internalSnapshotJson: null,
       })),
     createdAt: offer.createdAt.toISOString(),
     updatedAt: offer.updatedAt.toISOString(),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -49,7 +51,7 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
   }
 
   @override
@@ -61,9 +63,17 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
 
   Future<void> _load() async {
     setState(() {
-      _isLoading = true;
+      _isLoading = _overview == null;
       _error = null;
     });
+
+    final cachedOverview = await widget.repository.readCachedLeads();
+    if (cachedOverview != null && mounted) {
+      setState(() {
+        _overview = cachedOverview;
+        _isLoading = false;
+      });
+    }
 
     try {
       final overview = await widget.repository.fetchLeads();
@@ -90,7 +100,8 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
 
   Future<void> _openLead(String leadId) async {
     try {
-      final payload = await widget.repository.fetchLeadDetail(leadId);
+      final cachedPayload = await widget.repository.readCachedLeadDetail(leadId);
+      final payload = cachedPayload ?? await widget.repository.fetchLeadDetail(leadId);
 
       if (!mounted) {
         return;

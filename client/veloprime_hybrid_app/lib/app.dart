@@ -13,6 +13,7 @@ import 'features/leads/data/leads_repository.dart';
 import 'features/offers/data/offers_repository.dart';
 import 'features/pricing/data/pricing_repository.dart';
 import 'features/shell/presentation/crm_shell_page.dart';
+import 'features/startup/presentation/startup_preparation_page.dart';
 import 'features/update/data/update_repository.dart';
 import 'features/update/models/update_models.dart';
 import 'features/update/presentation/update_gate_page.dart';
@@ -41,6 +42,7 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
   SessionInfo? _session;
   bool _isChecking = false;
   String? _error;
+  StartupPreparationState? _startupPreparationState;
 
   void _syncPublishedVersions(UpdateManifestInfo manifest) {
     ClientArtifactVersions.syncPublishedVersions(
@@ -53,19 +55,50 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
     setState(() {
       _isChecking = true;
       _error = null;
+      _startupPreparationState = null;
     });
 
     try {
       await _authRepository.login(email: email, password: password);
-      final results = await Future.wait([
-        _bootstrapRepository.loadBootstrap(),
-        _updateRepository.fetchManifest(),
-      ]);
-      final bootstrap = results[0] as BootstrapPayload;
-      final manifest = results[1] as UpdateManifestInfo;
+      if (!mounted) {
+        return;
+      }
 
+      setState(() {
+        _isChecking = false;
+        _error = null;
+        _startupPreparationState = StartupPreparationState.initial();
+      });
+
+      await _prepareWorkspace();
+    } catch (error) {
+      ClientArtifactVersions.resetSessionSync();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isChecking = false;
+        _error = error.toString();
+        _startupPreparationState = null;
+      });
+    }
+  }
+
+  Future<void> _prepareWorkspace() async {
+    _setPreparationStep(0, StartupPreparationStepStatus.active);
+
+    try {
+      final bootstrap = await _bootstrapRepository.loadBootstrap();
+      _setPreparationStep(0, StartupPreparationStepStatus.completed);
+
+      _setPreparationStep(1, StartupPreparationStepStatus.active);
+      final manifest = await _updateRepository.fetchManifest();
       _syncPublishedVersions(manifest);
+      _setPreparationStep(1, StartupPreparationStepStatus.completed);
 
+      _setPreparationStep(2, StartupPreparationStepStatus.active);
       final comparison = await _updateRepository.compareVersions(
         ClientVersionPayload(
           dataVersion: ClientArtifactVersions.syncedDataVersion,
@@ -73,6 +106,11 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
           applicationVersion: ClientArtifactVersions.syncedApplicationVersion,
         ),
       );
+      _setPreparationStep(2, StartupPreparationStepStatus.completed);
+
+      _setPreparationStep(3, StartupPreparationStepStatus.active);
+      await _warmCriticalStartupAssets();
+      _setPreparationStep(3, StartupPreparationStepStatus.completed);
 
       if (!mounted) {
         return;
@@ -81,8 +119,7 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
       setState(() {
         _session = bootstrap.session;
         _bootstrap = bootstrap;
-        _isChecking = false;
-        _error = null;
+        _startupPreparationState = null;
       });
 
       if (comparison.requiresAnyUpdate && mounted) {
@@ -94,16 +131,74 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
       }
     } catch (error) {
       ClientArtifactVersions.resetSessionSync();
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _isChecking = false;
-        _error = error.toString();
-      });
+      _markPreparationFailure(error.toString());
     }
+  }
+
+  Future<void> _retryWorkspacePreparation() async {
+    if (_startupPreparationState == null) {
+      return;
+    }
+
+    setState(() {
+      _startupPreparationState = StartupPreparationState.initial();
+    });
+
+    await _prepareWorkspace();
+  }
+
+  Future<void> _warmCriticalStartupAssets() async {
+    await Future.wait([
+      precacheImage(const AssetImage('assets/backgrounds/Błękitny.png'), context),
+      precacheImage(const AssetImage('assets/branding/logo.png'), context),
+      precacheImage(const AssetImage('assets/branding/app_icon.png'), context),
+    ]);
+  }
+
+  void _setPreparationStep(int index, StartupPreparationStepStatus status) {
+    final current = _startupPreparationState;
+    if (current == null || index < 0 || index >= current.steps.length || !mounted) {
+      return;
+    }
+
+    final steps = [...current.steps];
+    steps[index] = steps[index].copyWith(status: status);
+
+    if (status == StartupPreparationStepStatus.completed && index + 1 < steps.length) {
+      final nextStep = steps[index + 1];
+      if (nextStep.status == StartupPreparationStepStatus.pending) {
+        steps[index + 1] = nextStep.copyWith(status: StartupPreparationStepStatus.active);
+      }
+    }
+
+    setState(() {
+      _startupPreparationState = current.copyWith(
+        steps: steps,
+        isWorking: steps.any((step) => step.status == StartupPreparationStepStatus.active),
+        clearError: true,
+      );
+    });
+  }
+
+  void _markPreparationFailure(String errorMessage) {
+    final current = _startupPreparationState;
+    if (current == null || !mounted) {
+      return;
+    }
+
+    final steps = [...current.steps];
+    final activeIndex = steps.indexWhere((step) => step.status == StartupPreparationStepStatus.active);
+    if (activeIndex >= 0) {
+      steps[activeIndex] = steps[activeIndex].copyWith(status: StartupPreparationStepStatus.failed);
+    }
+
+    setState(() {
+      _startupPreparationState = current.copyWith(
+        steps: steps,
+        isWorking: false,
+        errorMessage: errorMessage,
+      );
+    });
   }
 
   Future<void> _refreshBootstrap() async {
@@ -202,7 +297,12 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
           contentTextStyle: TextStyle(color: Colors.white),
         ),
       ),
-      home: _session == null || _bootstrap == null
+        home: _startupPreparationState != null
+          ? StartupPreparationPage(
+            state: _startupPreparationState!,
+            onRetry: _startupPreparationState!.isWorking ? null : _retryWorkspacePreparation,
+          )
+          : _session == null || _bootstrap == null
           ? LoginPage(
               isLoading: _isChecking,
               errorMessage: _error,

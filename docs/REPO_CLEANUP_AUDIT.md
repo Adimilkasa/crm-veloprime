@@ -111,6 +111,16 @@ Powod:
 - przestawiono `public/download/VeloPrime-CRM-Test.appinstaller` na URL assetu GitHub Release
 - usunieto repo-hostowane `public/download/versions/*.msix`
 
+## Narzedzie do lokalnego cleanupu
+
+- `scripts/cleanup-local-artifacts.ps1`
+
+Powod:
+
+- czyści potwierdzone artefakty lokalne ignorowane przez git, bez dotykania kodu produktu
+- domyslnie usuwa `.next`, `vercel-deploy.log`, `client/veloprime_hybrid_app/build`, `client/veloprime_hybrid_app/.dart_tool` oraz `client/veloprime_hybrid_app/deploy/msix/artifacts`
+- katalog `screeny/` usuwa tylko po jawnym uruchomieniu z `-IncludeScreenshots`
+
 ## Usuniete po cutoverze
 
 - `public/download/versions/*.msix`

@@ -30,6 +30,7 @@ class _CommissionsHomePageState extends State<CommissionsHomePage> {
   List<CommissionRuleModel> _draftRules = const [];
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isSyncing = false;
   String? _error;
   String? _feedback;
   bool _isSuccessFeedback = true;
@@ -137,6 +138,47 @@ class _CommissionsHomePageState extends State<CommissionsHomePage> {
       if (mounted) {
         setState(() {
           _isSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _syncWorkspace() async {
+    final workspace = _workspace;
+
+    setState(() {
+      _isSyncing = true;
+      _feedback = null;
+      _error = null;
+    });
+
+    try {
+      final synced = await widget.repository.syncWorkspace(
+        targetUserId: workspace?.targetUserId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _applyWorkspace(synced);
+        _feedback = 'Lista modeli do prowizji zostala zsynchronizowana jawnie z CRM.';
+        _isSuccessFeedback = true;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _feedback = error.toString();
+        _isSuccessFeedback = false;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
         });
       }
     }
@@ -282,7 +324,7 @@ class _CommissionsHomePageState extends State<CommissionsHomePage> {
                                       ),
                                       const SizedBox(height: 12),
                                       const Text(
-                                        'Administrator moze podejrzec kazda liste. Dyrektor i manager edytuja wlasna konfiguracje.',
+                                        'Administrator moze podejrzec kazda liste. Dyrektor i manager edytuja wlasna konfiguracje, a synchronizacja listy modeli jest uruchamiana jawnie.',
                                         style: TextStyle(color: VeloPrimePalette.muted, height: 1.55),
                                       ),
                                       const SizedBox(height: 16),
@@ -332,8 +374,23 @@ class _CommissionsHomePageState extends State<CommissionsHomePage> {
                                       const SizedBox(height: 16),
                                       SizedBox(
                                         width: double.infinity,
+                                        child: OutlinedButton.icon(
+                                          onPressed: _isSaving || _isSyncing ? null : _syncWorkspace,
+                                          icon: _isSyncing
+                                              ? const SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                                )
+                                              : const Icon(Icons.sync_outlined),
+                                          label: Text(_isSyncing ? 'Synchronizujemy...' : 'Synchronizuj liste modeli'),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
                                         child: FilledButton.icon(
-                                          onPressed: _isSaving || !workspace.editable || workspace.targetUserId == null ? null : _saveRules,
+                                          onPressed: _isSaving || _isSyncing || !workspace.editable || workspace.targetUserId == null ? null : _saveRules,
                                           icon: _isSaving
                                               ? const SizedBox(
                                                   width: 16,

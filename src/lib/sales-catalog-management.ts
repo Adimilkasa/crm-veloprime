@@ -164,6 +164,18 @@ function createEmptyAssetCategoryCounts() {
   } satisfies Record<(typeof SALES_ASSET_CATEGORIES)[number], number>
 }
 
+const salesAssetBootstrapFileSelect = {
+  category: true,
+  powertrainType: true,
+} satisfies Prisma.SalesAssetFileSelect
+
+function salesAssetBootstrapFileArgs() {
+  return {
+    select: salesAssetBootstrapFileSelect,
+    orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { fileName: 'asc' }],
+  } satisfies Prisma.SalesModelAssetBundle$filesArgs
+}
+
 function toRuntimePowertrain(value: string | null | undefined) {
   if (!value) {
     return null
@@ -483,9 +495,7 @@ async function readAssetBundlesFromDatabase() {
           brand: true,
         },
       },
-      files: {
-        orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { fileName: 'asc' }],
-      },
+      files: salesAssetBootstrapFileArgs(),
     },
   })
 

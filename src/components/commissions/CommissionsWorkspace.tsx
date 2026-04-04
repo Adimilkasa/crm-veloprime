@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { BriefcaseBusiness, Save, Users } from 'lucide-react'
+import { BriefcaseBusiness, RefreshCw, Save, Users } from 'lucide-react'
 
 import type { UserRoleKey } from '@/lib/rbac'
 
@@ -44,6 +44,7 @@ export function CommissionsWorkspace({
   updatedAt,
   updatedBy,
   saveCommissionRulesAction,
+  syncCommissionRulesAction,
 }: {
   role: UserRoleKey
   roleLabel: string
@@ -55,6 +56,7 @@ export function CommissionsWorkspace({
   updatedAt: string | null
   updatedBy: string | null
   saveCommissionRulesAction: (formData: FormData) => Promise<{ ok: boolean; error?: string }>
+  syncCommissionRulesAction: () => Promise<{ ok: boolean; error?: string }>
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -111,6 +113,20 @@ export function CommissionsWorkspace({
     }
 
     setFeedback({ type: 'success', message: 'Lista prowizji została zapisana. Istniejące wpisy zostały zachowane, a nowe modele wymagają tylko uzupełnienia braków.' })
+    router.refresh()
+  }
+
+  async function handleSync() {
+    setFeedback(null)
+
+    const result = await syncCommissionRulesAction()
+
+    if (!result.ok) {
+      setFeedback({ type: 'error', message: result.error || 'Nie udało się zsynchronizować listy prowizji.' })
+      return
+    }
+
+    setFeedback({ type: 'success', message: 'Lista prowizji została zsynchronizowana jawnie. Widok nie uruchamia już synchronizacji przy samym otwarciu.' })
     router.refresh()
   }
 
@@ -194,6 +210,15 @@ export function CommissionsWorkspace({
                 {feedback.message}
               </div>
             ) : null}
+
+            <button
+              type="button"
+              onClick={handleSync}
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-[#e0d4b2] bg-white px-4 text-sm font-semibold text-[#8d6d1f] transition hover:bg-[#fdf9ef]"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Synchronizuj listę modeli</span>
+            </button>
 
             <button
               type="button"

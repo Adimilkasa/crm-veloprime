@@ -1,5 +1,15 @@
+${script:SmokeAuthCookie} = $null
+
 function New-SmokeSession {
   return New-Object Microsoft.PowerShell.Commands.WebRequestSession
+}
+
+function Get-SmokeAuthHeaders {
+  if ($script:SmokeAuthCookie) {
+    return @{ Cookie = $script:SmokeAuthCookie }
+  }
+
+  return @{}
 }
 
 function Invoke-FormLogin {
@@ -31,6 +41,11 @@ function Login-Admin {
     throw 'Admin login failed for smoke test'
   }
 
+  $setCookieHeader = @($response.Headers['Set-Cookie'])[0]
+  if ($setCookieHeader) {
+    $script:SmokeAuthCookie = ($setCookieHeader -split ';')[0]
+  }
+
   return $session
 }
 
@@ -40,7 +55,7 @@ function Get-Bootstrap {
     [Microsoft.PowerShell.Commands.WebRequestSession]$Session
   )
 
-  $response = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + '/api/client/bootstrap') -WebSession $Session -UseBasicParsing
+  $response = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + '/api/client/bootstrap') -WebSession $Session -Headers (Get-SmokeAuthHeaders) -UseBasicParsing
   $payload = $response.Content | ConvertFrom-Json
 
   if (-not $payload.ok) {
@@ -56,7 +71,7 @@ function Get-LeadsPayload {
     [Microsoft.PowerShell.Commands.WebRequestSession]$Session
   )
 
-  $response = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + '/api/client/leads') -WebSession $Session -UseBasicParsing
+  $response = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + '/api/client/leads') -WebSession $Session -Headers (Get-SmokeAuthHeaders) -UseBasicParsing
   $payload = $response.Content | ConvertFrom-Json
 
   if (-not $payload.ok) {
@@ -125,6 +140,7 @@ function Ensure-SmokeOfferVersion {
         -Uri ($BaseUrl.TrimEnd('/') + '/api/client/leads') `
         -Method Post `
         -WebSession $Session `
+        -Headers (Get-SmokeAuthHeaders) `
         -ContentType 'application/json' `
         -Body $leadCreateBody `
         -UseBasicParsing
@@ -151,13 +167,37 @@ function Ensure-SmokeOfferVersion {
       notes = $SmokeMessage + ' for ' + $leadName
     } | ConvertTo-Json
 
-    $offerCreateResponse = Invoke-WebRequest `
-      -Uri ($BaseUrl.TrimEnd('/') + '/api/client/offers') `
-      -Method Post `
-      -WebSession $Session `
-      -ContentType 'application/json' `
-      -Body $offerCreateBody `
-      -UseBasicParsing
+    try {
+      $offerCreateResponse = Invoke-WebRequest `
+        -Uri ($BaseUrl.TrimEnd('/') + '/api/client/offers') `
+        -Method Post `
+        -WebSession $Session `
+        -Headers (Get-SmokeAuthHeaders) `
+        -ContentType 'application/json' `
+        -Body $offerCreateBody `
+        -UseBasicParsing
+    } catch {
+      $response = $_.Exception.Response
+
+      if ($response) {
+        $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
+        $responseBody = $reader.ReadToEnd()
+
+        try {
+          $errorPayload = $responseBody | ConvertFrom-Json
+          if ($errorPayload.error) {
+            throw 'Offer creation failed: ' + $errorPayload.error
+          }
+        } catch {
+          if ($responseBody) {
+            throw 'Offer creation failed: ' + $responseBody
+          }
+        }
+      }
+
+      throw
+    }
+
     $offerCreatePayload = $offerCreateResponse.Content | ConvertFrom-Json
 
     if (-not $offerCreatePayload.ok) {
@@ -169,7 +209,7 @@ function Ensure-SmokeOfferVersion {
   }
 
   Write-Host (([int]$StepLabelPrefix + 3).ToString() + '. Refresh offer detail')
-  $offerResponse = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + '/api/client/offers/' + $offerId) -WebSession $Session -UseBasicParsing
+  $offerResponse = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + '/api/client/offers/' + $offerId) -WebSession $Session -Headers (Get-SmokeAuthHeaders) -UseBasicParsing
   $offerPayload = $offerResponse.Content | ConvertFrom-Json
   if (-not $offerPayload.ok) {
     throw 'Offer detail failed: ' + $offerPayload.error
@@ -193,6 +233,7 @@ function Ensure-SmokeOfferVersion {
     -Uri ($BaseUrl.TrimEnd('/') + '/api/client/offers/' + $offerId) `
     -Method Patch `
     -WebSession $Session `
+    -Headers (Get-SmokeAuthHeaders) `
     -ContentType 'application/json' `
     -Body $patchBody `
     -UseBasicParsing
@@ -206,6 +247,7 @@ function Ensure-SmokeOfferVersion {
     -Uri ($BaseUrl.TrimEnd('/') + '/api/client/offers/' + $offerId + '/version') `
     -Method Post `
     -WebSession $Session `
+    -Headers (Get-SmokeAuthHeaders) `
     -UseBasicParsing
   $versionPayload = $versionResponse.Content | ConvertFrom-Json
 

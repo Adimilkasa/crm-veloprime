@@ -7,8 +7,8 @@ Powinien zawierac tylko aktualny stan, bez rozbudowanego opisu historii.
 
 ## Ostatnia aktualizacja
 
-- Data: 2026-04-01
-- Etap aktywny: Etap 3 trwa - moduły administratora dla katalogu, polityki cenowej, kolorow, materialow i publikacji w Flutterze sa wdrozone; kolejny krok to generator oferty na nowym modelu
+- Data: 2026-04-04
+- Etap aktywny: Etap 3 trwa - po wdrozeniu generatora oferty i modulow administratora dopracowujemy klienta hybrydowego oraz usuwamy ukryte synchronizacje i zbedne zapisy
 
 ## Ustalone na ten moment
 
@@ -66,14 +66,20 @@ Powinien zawierac tylko aktualny stan, bez rozbudowanego opisu historii.
 - Publiczny link oferty zostal zweryfikowany na realnej ofercie smoke i zwraca poprawna strone dokumentu.
 - Dodano developerski outbox maili dla lokalnego srodowiska; probna wysylka zapisuje wiadomosc do `.mail-outbox/` bez potrzeby konfiguracji SMTP.
 - Smoke sync katalogu legacy -> bootstrap przeszedl poprawnie: `SYNC_OK brands=1 models=8 versions=14 pricing=14`.
+- Web CRM przestal wykonywac ukryta synchronizacje prowizji przy samym otwarciu widoku; synchronizacja modeli do prowizji jest teraz jawna i wywolywana z akcji lub endpointu `POST /api/client/commissions`.
+- Tworzenie i aktualizacja oferty nie synchronizuja juz calych list uzytkownikow i katalogu do bazy; zapis przygotowuje tylko wlasciciela oferty i jeden potrzebny rekord katalogowy.
+- Publikacja `DATA` i `ASSETS` oraz bootstrap katalogu nie dubluja juz odczytow live katalogu, jezeli mozna bezpiecznie wykorzystac opublikowane snapshoty.
+- Klient Flutter dostal jawna synchronizacje prowizji zgodna z backendem oraz odseparowane read-pathy leadow od flushu lokalnej kolejki zmian.
+- Repozytorium leadow w Flutterze ogranicza teraz dodatkowe odczyty i zapisy `SharedPreferences` przez lokalny cache overview oraz zapisy tylko tam, gdzie rzeczywiscie sa potrzebne.
 
 ## Co pozostaje otwarte
 
 - Kolejny duzy etap to testy porownawcze starej i nowej kalkulacji oraz plan publikacji pierwszej wersji po przebudowie.
+- Po refaktorze owner sync dla ofert trzeba jeszcze domknac przypadek `assignManagedOfferLead(...)`, zeby przypisanie oferty do leada nie zakladalo milczaco, ze nowy owner istnieje juz w bazie.
 
 ## Nastepny zalecany krok
 
-- Zaproponowac i wdrozyc kolejny etap po sciezce oferty: testy porownawcze starej i nowej kalkulacji oraz plan publikacji pierwszej wersji po przebudowie.
+- Domknac bezpiecznie przypisanie ownera w `assignManagedOfferLead(...)`, a potem wrocic do kolejnego etapu po sciezce oferty: testow porownawczych starej i nowej kalkulacji oraz planu publikacji pierwszej wersji po przebudowie.
 
 ## Instrukcja wznowienia pracy
 

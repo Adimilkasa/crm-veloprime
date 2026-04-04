@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../../core/config/client_artifact_versions.dart';
 import '../../../core/presentation/veloprime_ui.dart';
@@ -348,7 +351,7 @@ class CrmShellPage extends StatefulWidget {
   State<CrmShellPage> createState() => _CrmShellPageState();
 }
 
-class _CrmShellPageState extends State<CrmShellPage> {
+class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
   static const Duration _updateCheckInterval = Duration(minutes: 5);
   static const String _backgroundPreferenceKey = 'crm_shell_background_preset';
   static const String _dashboardRoute = 'dashboard';
@@ -368,6 +371,8 @@ class _CrmShellPageState extends State<CrmShellPage> {
   Timer? _updateCheckTimer;
   bool _isCheckingForUpdates = false;
   bool _isUpdateGateOpen = false;
+  bool _isExitFlowActive = false;
+  bool _isClosingWindow = false;
   String? _lastPromptedUpdateSignature;
 
   @override
@@ -375,13 +380,50 @@ class _CrmShellPageState extends State<CrmShellPage> {
     super.initState();
     _restoreBackgroundPreset();
     _startUpdatePolling();
+    unawaited(_configureWindowCloseHandling());
   }
 
   @override
   void dispose() {
     _updateCheckTimer?.cancel();
     _offerWorkspaceLaunchNotifier.dispose();
+    if (!kIsWeb && Platform.isWindows) {
+      windowManager.removeListener(this);
+    }
     super.dispose();
+  }
+
+  Future<void> _configureWindowCloseHandling() async {
+    if (kIsWeb || !Platform.isWindows) {
+      return;
+    }
+
+    windowManager.addListener(this);
+    await windowManager.setPreventClose(true);
+  }
+
+  @override
+  Future<void> onWindowClose() async {
+    if (kIsWeb || !Platform.isWindows || _isClosingWindow || _isExitFlowActive) {
+      return;
+    }
+
+    _isExitFlowActive = true;
+    final shouldClose = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _ExitSyncDialog(repository: widget.leadsRepository),
+        ) ??
+        false;
+    _isExitFlowActive = false;
+
+    if (!shouldClose || !mounted) {
+      return;
+    }
+
+    _isClosingWindow = true;
+    await windowManager.setPreventClose(false);
+    await windowManager.close();
   }
 
   _BackgroundPreset get _activeBackgroundPreset {
@@ -544,6 +586,33 @@ class _CrmShellPageState extends State<CrmShellPage> {
   Future<void> _openOffersWorkspaceForLead(OfferWorkspaceLaunchRequest request) async {
     _offerWorkspaceLaunchNotifier.value = request;
     _openMainTab(_offersRoute);
+  }
+
+  Future<void> _synchronizeLocalChanges() async {
+    final synchronized = await widget.leadsRepository.synchronizeNow();
+
+    if (!mounted) {
+      return;
+    }
+
+    final snapshot = widget.leadsRepository.syncSnapshot.value;
+    if (synchronized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lokalne zmiany zostaly zsynchronizowane.')),
+      );
+      return;
+    }
+
+    final errorMessage = snapshot.lastError;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          errorMessage == null || errorMessage.isEmpty
+              ? 'Nie udalo sie jeszcze zsynchronizowac wszystkich lokalnych zmian.'
+              : 'Synchronizacja lokalnych zmian nie powiodla sie.\n$errorMessage',
+        ),
+      ),
+    );
   }
 
   Color _navColorForLabel(String label) {
@@ -968,6 +1037,17 @@ class _CrmShellPageState extends State<CrmShellPage> {
                                 label: 'Użytkownik',
                                 value: widget.session.fullName,
                               ),
+                              ValueListenableBuilder<LeadSyncSnapshot>(
+                                valueListenable: widget.leadsRepository.syncSnapshot,
+                                builder: (context, snapshot, _) {
+                                  return _ShellSyncActions(
+                                    snapshot: snapshot,
+                                    onSyncNow: snapshot.isSyncing
+                                        ? null
+                                        : _synchronizeLocalChanges,
+                                  );
+                                },
+                              ),
                               PopupMenuButton<String>(
                                 tooltip: 'Tło',
                                 offset: const Offset(0, 12),
@@ -1233,6 +1313,7 @@ class _ShellIconButton extends StatelessWidget {
     this.square = false,
     this.trailingIcon,
     this.leadingIconOnly = true,
+    this.onTap,
   });
 
   final IconData icon;
@@ -1240,6 +1321,7 @@ class _ShellIconButton extends StatelessWidget {
   final bool square;
   final IconData? trailingIcon;
   final bool leadingIconOnly;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1280,26 +1362,364 @@ class _ShellIconButton extends StatelessWidget {
             ),
           );
 
-    return Container(
-      padding:
-          square ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0x22FFFFFF), Color(0x11000000)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x22FFFFFF)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12081426),
-            blurRadius: 12,
-            offset: Offset(0, 4),
+        onTap: onTap,
+        child: Container(
+          padding:
+              square ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0x22FFFFFF), Color(0x11000000)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0x22FFFFFF)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12081426),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
-        ],
+          child: child,
+        ),
       ),
-      child: child,
+    );
+  }
+}
+
+class _ShellSyncActions extends StatelessWidget {
+  const _ShellSyncActions({
+    required this.snapshot,
+    required this.onSyncNow,
+  });
+
+  final LeadSyncSnapshot snapshot;
+  final VoidCallback? onSyncNow;
+
+  Color get _accentColor {
+    switch (snapshot.phase) {
+      case LeadSyncPhase.syncing:
+        return const Color(0xFF9ED0FF);
+      case LeadSyncPhase.error:
+        return const Color(0xFFFFB2A3);
+      case LeadSyncPhase.pending:
+        return const Color(0xFFFFD271);
+      case LeadSyncPhase.synchronized:
+        return const Color(0xFF9CE7C1);
+    }
+  }
+
+  IconData get _icon {
+    switch (snapshot.phase) {
+      case LeadSyncPhase.syncing:
+        return Icons.sync;
+      case LeadSyncPhase.error:
+        return Icons.sync_problem_rounded;
+      case LeadSyncPhase.pending:
+        return Icons.pending_actions_rounded;
+      case LeadSyncPhase.synchronized:
+        return Icons.cloud_done_rounded;
+    }
+  }
+
+  String get _title {
+    switch (snapshot.phase) {
+      case LeadSyncPhase.syncing:
+        return 'Trwa synchronizacja';
+      case LeadSyncPhase.error:
+        return 'Błąd synchronizacji';
+      case LeadSyncPhase.pending:
+        return 'Oczekują zmiany';
+      case LeadSyncPhase.synchronized:
+        return 'Zsynchronizowano';
+    }
+  }
+
+  String get _subtitle {
+    if (snapshot.isSyncing) {
+      return snapshot.pendingChanges > 0
+          ? '${snapshot.pendingChanges} zmian w kolejce'
+          : 'Wysyłamy zmiany do centrali';
+    }
+    if ((snapshot.lastError ?? '').isNotEmpty) {
+      return snapshot.pendingChanges > 0
+          ? '${snapshot.pendingChanges} zmian czeka na ponowną próbę'
+          : 'Ostatnia próba nie powiodła się';
+    }
+    if (snapshot.pendingChanges > 0) {
+      return '${snapshot.pendingChanges} zmian gotowych do wysłania';
+    }
+
+    final lastSuccess = snapshot.lastSuccessfulSyncAt;
+    if (lastSuccess == null) {
+      return 'Brak oczekujących zmian';
+    }
+
+    final hour = lastSuccess.hour.toString().padLeft(2, '0');
+    final minute = lastSuccess.minute.toString().padLeft(2, '0');
+    return 'Ostatni flush $hour:$minute';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0x22000000), Color(0x1AFFFFFF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0x1FFFFFFF)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: _accentColor.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: snapshot.isSyncing
+                    ? Padding(
+                        padding: const EdgeInsets.all(7),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(_accentColor),
+                        ),
+                      )
+                    : Icon(_icon, size: 16, color: _accentColor),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    _subtitle,
+                    style: const TextStyle(
+                      color: Color(0xBBD8E5FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ShellIconButton(
+          icon: snapshot.isSyncing ? Icons.sync : Icons.sync_rounded,
+          label: snapshot.isSyncing ? 'Synchronizujemy...' : 'Synchronizuj teraz',
+          leadingIconOnly: false,
+          onTap: onSyncNow,
+        ),
+      ],
+    );
+  }
+}
+
+class _ExitSyncDialog extends StatefulWidget {
+  const _ExitSyncDialog({required this.repository});
+
+  final LeadsRepository repository;
+
+  @override
+  State<_ExitSyncDialog> createState() => _ExitSyncDialogState();
+}
+
+class _ExitSyncDialogState extends State<_ExitSyncDialog> {
+  bool _isSynchronizing = true;
+  int _remainingChanges = 0;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_runFinalSynchronization());
+  }
+
+  Future<void> _runFinalSynchronization() async {
+    final synchronized = await widget.repository.synchronizeNow();
+
+    if (!mounted) {
+      return;
+    }
+
+    final snapshot = widget.repository.syncSnapshot.value;
+    if (synchronized) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+
+    setState(() {
+      _isSynchronizing = false;
+      _remainingChanges = snapshot.pendingChanges;
+      _errorMessage = snapshot.lastError;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: VeloPrimeWorkspacePanel(
+          tint: VeloPrimePalette.bronzeDeep,
+          radius: 30,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const VeloPrimeSectionEyebrow(
+                label: 'Zamykanie aplikacji',
+                color: VeloPrimePalette.bronzeDeep,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Próbujemy wypchnąć lokalne zmiany przed zamknięciem.',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: VeloPrimePalette.ink,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _isSynchronizing
+                    ? 'Standardowe zamknięcie jest chwilowo wstrzymane do czasu zakończenia próby synchronizacji.'
+                    : 'Nie wszystkie zmiany udało się wysłać. Możesz wrócić do aplikacji albo wymusić wyjście po dodatkowym ostrzeżeniu.',
+                style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+              ),
+              const SizedBox(height: 22),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white,
+                      Color.alphaBlend(
+                        VeloPrimePalette.bronzeDeep.withValues(alpha: 0.06),
+                        Colors.white,
+                      ),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: VeloPrimePalette.lineStrong),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: _isSynchronizing
+                            ? const Color(0x140F2D67)
+                            : const Color(0x14A63B2B),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: _isSynchronizing
+                          ? const Padding(
+                              padding: EdgeInsets.all(11),
+                              child: CircularProgressIndicator(strokeWidth: 2.4),
+                            )
+                          : const Icon(
+                              Icons.sync_problem_rounded,
+                              color: Color(0xFFA63B2B),
+                            ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isSynchronizing
+                                ? 'Finalna synchronizacja trwa'
+                                : 'Synchronizacja zatrzymała się na błędzie',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: VeloPrimePalette.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _isSynchronizing
+                                ? 'Wysyłamy oczekujące zmiany do centrali.'
+                                : _errorMessage == null || _errorMessage!.isEmpty
+                                    ? 'Pozostało $_remainingChanges zmian w kolejce.'
+                                    : _errorMessage!,
+                            style: const TextStyle(
+                              color: VeloPrimePalette.muted,
+                              height: 1.55,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              if (_isSynchronizing)
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Po udanej synchronizacji aplikacja zamknie się automatycznie.',
+                    style: TextStyle(
+                      color: VeloPrimePalette.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      label: const Text('Wróć do aplikacji'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      icon: const Icon(Icons.warning_amber_rounded),
+                      label: const Text('Wyjdź mimo to'),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

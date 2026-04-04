@@ -39,7 +39,7 @@ if (-not $PublishDir) {
 }
 
 if (-not $LogoPath) {
-  $LogoPath = Join-Path $scriptRoot '..\..\assets\branding\logo.png'
+  $LogoPath = Join-Path $scriptRoot '..\..\assets\branding\app_icon.png'
 }
 
 $projectRoot = Resolve-Path (Join-Path $scriptRoot '..\..')

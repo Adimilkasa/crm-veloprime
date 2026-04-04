@@ -452,6 +452,26 @@ function mapColorRecord(record: {
   }
 }
 
+const salesAssetFileListSelect = {
+  id: true,
+  bundleId: true,
+  category: true,
+  powertrainType: true,
+  fileName: true,
+  filePath: true,
+  mimeType: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.SalesAssetFileSelect
+
+function salesAssetFileListArgs() {
+  return {
+    select: salesAssetFileListSelect,
+    orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { fileName: 'asc' }],
+  } satisfies Prisma.SalesModelAssetBundle$filesArgs
+}
+
 function mapAssetBundleRecord(record: {
   id: string
   modelId: string
@@ -466,7 +486,6 @@ function mapAssetBundleRecord(record: {
     powertrainType: PowertrainType | null
     fileName: string
     filePath: string
-    fileDataBase64: string | null
     mimeType: string | null
     sortOrder: number
     createdAt: Date
@@ -773,9 +792,7 @@ export async function getSalesCatalogWorkspace(): Promise<CatalogAdminResult<Sal
       db!.salesModelColor.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] }),
       db!.salesModelAssetBundle.findMany({
         include: {
-          files: {
-            orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { fileName: 'asc' }],
-          },
+          files: salesAssetFileListArgs(),
         },
         orderBy: { updatedAt: 'desc' },
       }),
@@ -1471,9 +1488,7 @@ export async function getSalesModelAssets(modelId: string): Promise<CatalogAdmin
     const bundle = await db!.salesModelAssetBundle.findUnique({
       where: { modelId },
       include: {
-        files: {
-          orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { fileName: 'asc' }],
-        },
+        files: salesAssetFileListArgs(),
       },
     })
 
@@ -1566,9 +1581,7 @@ export async function createSalesAssetFile(modelId: string, input: Record<string
     const refreshed = await db!.salesModelAssetBundle.findUnique({
       where: { id: bundle.id },
       include: {
-        files: {
-          orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { fileName: 'asc' }],
-        },
+        files: salesAssetFileListArgs(),
       },
     })
 

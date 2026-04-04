@@ -1,7 +1,7 @@
 name: veloprime_hybrid_app
 description: Lokalny klient hybrydowy CRM VeloPrime dla Windows i Android.
 publish_to: none
-version: 0.1.15+30
+version: 0.1.15+31
 
 environment:
   sdk: ^3.4.0
@@ -15,6 +15,7 @@ dependencies:
   intl: ^0.20.2
   shared_preferences: ^2.5.3
   url_launcher: ^6.3.2
+  window_manager: ^0.5.0
 
 dev_dependencies:
   flutter_test:
@@ -26,7 +27,7 @@ msix_config:
   display_name: VeloPrime CRM
   publisher_display_name: VeloPrime
   identity_name: pl.veloprime.crm
-  msix_version: 0.1.15.22
+  msix_version: 0.1.15.24
   logo_path: assets/branding/app_icon.png
   certificate_path: deploy/msix/certs/veloprime-crm-test-build.pfx
   trim_logo: false

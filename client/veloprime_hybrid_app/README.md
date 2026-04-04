@@ -29,6 +29,8 @@ Lub dla Androida:
 flutter run -d android
 ```
 
+Na Windowsie okno startowe powinno otwierac sie od razu z tytulem `VeloPrime CRM`, bez technicznej nazwy pakietu runnera.
+
 ## Konfiguracja API
 
 Domyslny adres API jest ustawiony w `lib/core/config/api_config.dart`.
@@ -37,6 +39,13 @@ Przed uruchomieniem ustaw poprawny adres centrali, np.:
 
 - `http://127.0.0.1:3000`
 - `https://crm.veloprime.pl`
+
+## Branding i release Windows
+
+- Ikona okna i pliku `.exe` jest trzymana w `windows/runner/resources/app_icon.ico`.
+- Ikona paczki MSIX i App Installer korzysta z `assets/branding/app_icon.png`.
+- Skrypt `deploy/msix/build-msix.ps1` domyslnie pakuje teraz `assets/branding/app_icon.png`, zeby branding MSIX byl zgodny z konfiguracja `msix_config`.
+- Przy zmianie brandingu Windows trzeba aktualizowac oba pliki razem: `app_icon.png` dla MSIX i `app_icon.ico` dla runnera desktopowego.
 
 ## Uwagi
 

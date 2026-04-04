@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v36",
-      "publishedAt": "2026-04-04T18:35:00.000Z",
+      "version": "v37",
+      "publishedAt": "2026-04-04T22:15:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.15.22 finalizes the premium offer snapshot with stronger section borders, financing-style delivery panel, refined hero hierarchy, and advisor commission code in the closing summary.",
+      "summary": "Flutter client 0.1.15.24 brings the startup preparation screen, explicit commission synchronization, lighter CRM reads for offers and catalog assets, and the latest lead workflow changes in the Windows app.",
       "priority": "STANDARD"
     }
   ]

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { saveCommissionRulesAction } from '@/app/(app)/commissions/actions'
+import { saveCommissionRulesAction, syncCommissionRulesAction } from '@/app/(app)/commissions/actions'
 import { CommissionsWorkspace } from '@/components/commissions/CommissionsWorkspace'
 import { getSession } from '@/lib/auth'
 import { getCommissionWorkspace } from '@/lib/commission-management'
@@ -38,6 +38,7 @@ export default async function CommissionsPage({
       updatedAt={result.updatedAt}
       updatedBy={result.updatedBy}
       saveCommissionRulesAction={saveCommissionRulesAction}
+      syncCommissionRulesAction={syncCommissionRulesAction}
     />
   )
 }

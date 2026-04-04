@@ -8,7 +8,7 @@ function sleep(milliseconds) {
 }
 
 function runPrismaMigrateDeploy() {
-  return spawnSync(npxCommand, ['prisma', 'migrate', 'deploy'], {
+  return spawnSync(command, commandArgs, {
     stdio: 'pipe',
     env: process.env,
     encoding: 'utf8',
@@ -30,7 +30,10 @@ if (!process.env.DATABASE_URL?.trim()) {
   process.exit(0)
 }
 
-const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+const command = process.platform === 'win32' ? 'cmd.exe' : 'npx'
+const commandArgs = process.platform === 'win32'
+  ? ['/d', '/s', '/c', 'npx prisma migrate deploy']
+  : ['prisma', 'migrate', 'deploy']
 
 const maxAttempts = Number(process.env.PRISMA_MIGRATE_DEPLOY_RETRIES ?? '4')
 let result = null

@@ -422,7 +422,7 @@ export async function getCommissionWorkspace(session: AuthSession, targetUserId?
   }
 
   const [store, users] = await Promise.all([
-    syncCommissionRules(session.fullName),
+    getCommissionStore(),
     listManagedUsers(),
   ])
 
@@ -579,7 +579,16 @@ export async function saveCommissionRules(
   return { ok: true as const }
 }
 
+export async function syncCommissionWorkspace(session: AuthSession) {
+  if (!canAccessCommissionModule(session.role)) {
+    return { ok: false as const, error: 'Nie masz dostępu do synchronizacji prowizji.' }
+  }
+
+  const store = await syncCommissionRules(session.fullName)
+  return { ok: true as const, store }
+}
+
 export async function listActiveCommissionRules() {
-  const store = await getCommissionStore({ bootstrapIfEmpty: true, systemActor: 'System' })
+  const store = await getCommissionStore()
   return store.rules.filter((rule) => !rule.isArchived)
 }

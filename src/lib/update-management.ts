@@ -270,17 +270,37 @@ function buildCatalogStats(input: {
 }
 
 export async function getPublishedSalesCatalogBootstrap() {
-  const [manifest, liveCatalog, dataSnapshot, assetsSnapshot] = await Promise.all([
+  const [manifest, dataSnapshot, assetsSnapshot] = await Promise.all([
     readStore(),
-    getSalesCatalogBootstrap(),
     readPublishedCatalogDataStore(),
     readPublishedCatalogAssetsStore(),
   ])
 
   const publishedDataEntry = manifest.versions.find((entry) => entry.artifactType === 'DATA')
   const publishedAssetsEntry = manifest.versions.find((entry) => entry.artifactType === 'ASSETS')
-  const canUsePublishedData = publishedDataEntry?.snapshot?.source === 'DATABASE'
-  const canUsePublishedAssets = publishedAssetsEntry?.snapshot?.source === 'DATABASE'
+  const canUsePublishedData = publishedDataEntry?.snapshot?.source === 'DATABASE' && dataSnapshot !== null
+  const canUsePublishedAssets = publishedAssetsEntry?.snapshot?.source === 'DATABASE' && assetsSnapshot !== null
+
+  if (canUsePublishedData && canUsePublishedAssets) {
+    return {
+      brands: dataSnapshot.brands,
+      models: dataSnapshot.models,
+      versions: dataSnapshot.versions,
+      pricingRecords: dataSnapshot.pricingRecords,
+      colorPalettes: dataSnapshot.colorPalettes,
+      assetBundles: assetsSnapshot.assetBundles,
+      stats: buildCatalogStats({
+        brands: dataSnapshot.brands,
+        models: dataSnapshot.models,
+        versions: dataSnapshot.versions,
+        pricingRecords: dataSnapshot.pricingRecords,
+        colorPalettes: dataSnapshot.colorPalettes,
+        assetBundles: assetsSnapshot.assetBundles,
+      }),
+    } satisfies SalesCatalogBootstrapPayload
+  }
+
+  const liveCatalog = await getSalesCatalogBootstrap()
 
   const brands = canUsePublishedData ? (dataSnapshot?.brands ?? liveCatalog.brands) : liveCatalog.brands
   const models = canUsePublishedData ? (dataSnapshot?.models ?? liveCatalog.models) : liveCatalog.models
@@ -343,7 +363,10 @@ function nextVersion(currentVersion: string) {
   return `v${numericPart + 1}`
 }
 
-async function buildArtifactSnapshot(artifactType: UpdateArtifactType): Promise<{ ok: true; snapshot: PublishedArtifactSnapshot } | { ok: false; error: string }> {
+async function buildArtifactSnapshot(
+  artifactType: UpdateArtifactType,
+  catalog?: SalesCatalogBootstrapPayload
+): Promise<{ ok: true; snapshot: PublishedArtifactSnapshot } | { ok: false; error: string }> {
   if (artifactType === 'APPLICATION') {
     return {
       ok: true,
@@ -356,19 +379,19 @@ async function buildArtifactSnapshot(artifactType: UpdateArtifactType): Promise<
     }
   }
 
-  const catalog = await getSalesCatalogBootstrap()
+  const resolvedCatalog = catalog ?? await getSalesCatalogBootstrap()
 
   if (artifactType === 'DATA') {
-    if (catalog.stats.pricingRecords === 0) {
+    if (resolvedCatalog.stats.pricingRecords === 0) {
       return { ok: false, error: 'Nie można opublikować DATA bez aktywnego katalogu i cen.' }
     }
 
-    const bundleSources = new Set(catalog.assetBundles.map((bundle) => bundle.source))
+    const bundleSources = new Set(resolvedCatalog.assetBundles.map((bundle) => bundle.source))
     const dataSource = bundleSources.size === 0
       ? 'DATABASE'
       : bundleSources.size > 1
         ? 'MIXED'
-        : (catalog.assetBundles[0]?.source ?? 'DATABASE')
+        : (resolvedCatalog.assetBundles[0]?.source ?? 'DATABASE')
 
     return {
       ok: true,
@@ -376,12 +399,12 @@ async function buildArtifactSnapshot(artifactType: UpdateArtifactType): Promise<
         source: dataSource,
         generatedAt: new Date().toISOString(),
         stats: {
-          brands: catalog.stats.brands,
-          models: catalog.stats.models,
-          versions: catalog.stats.versions,
-          pricingRecords: catalog.stats.pricingRecords,
-          colorPalettes: catalog.stats.colorPalettes,
-          colors: catalog.stats.colors,
+          brands: resolvedCatalog.stats.brands,
+          models: resolvedCatalog.stats.models,
+          versions: resolvedCatalog.stats.versions,
+          pricingRecords: resolvedCatalog.stats.pricingRecords,
+          colorPalettes: resolvedCatalog.stats.colorPalettes,
+          colors: resolvedCatalog.stats.colors,
         },
         notes: [
           dataSource == 'MIXED' || dataSource == 'LEGACY'
@@ -392,41 +415,41 @@ async function buildArtifactSnapshot(artifactType: UpdateArtifactType): Promise<
     }
   }
 
-  if (catalog.stats.assetBundles === 0) {
+  if (resolvedCatalog.stats.assetBundles === 0) {
     return { ok: false, error: 'Nie można opublikować ASSETS bez dostępnych pakietów materiałów.' }
   }
 
-  const categoryTotals = catalog.assetBundles.reduce<Record<string, number>>((accumulator, bundle) => {
+  const categoryTotals = resolvedCatalog.assetBundles.reduce<Record<string, number>>((accumulator, bundle) => {
     for (const [category, count] of Object.entries(bundle.categories)) {
       accumulator[category] = (accumulator[category] ?? 0) + count
     }
 
     return accumulator
   }, {})
-  const bundleSources = new Set(catalog.assetBundles.map((bundle) => bundle.source))
+  const bundleSources = new Set(resolvedCatalog.assetBundles.map((bundle) => bundle.source))
 
   return {
     ok: true,
     snapshot: {
-      source: bundleSources.size > 1 ? 'MIXED' : (catalog.assetBundles[0]?.source ?? 'STATIC'),
+      source: bundleSources.size > 1 ? 'MIXED' : (resolvedCatalog.assetBundles[0]?.source ?? 'STATIC'),
       generatedAt: new Date().toISOString(),
       stats: {
-        assetBundles: catalog.stats.assetBundles,
-        assetFiles: catalog.stats.assetFiles,
+        assetBundles: resolvedCatalog.stats.assetBundles,
+        assetFiles: resolvedCatalog.stats.assetFiles,
         primaryImages: categoryTotals.PRIMARY ?? 0,
         exteriorImages: categoryTotals.EXTERIOR ?? 0,
         interiorImages: categoryTotals.INTERIOR ?? 0,
         detailImages: categoryTotals.DETAILS ?? 0,
         premiumImages: categoryTotals.PREMIUM ?? 0,
         specPdfFiles: categoryTotals.SPEC_PDF ?? 0,
-        genericSpecBundles: catalog.assetBundles.filter((bundle) => bundle.hasGenericSpecPdf).length,
-        electricSpecBundles: catalog.assetBundles.filter((bundle) => bundle.specPowertrains.includes('ELECTRIC')).length,
-        hybridSpecBundles: catalog.assetBundles.filter((bundle) => bundle.specPowertrains.includes('HYBRID')).length,
+        genericSpecBundles: resolvedCatalog.assetBundles.filter((bundle) => bundle.hasGenericSpecPdf).length,
+        electricSpecBundles: resolvedCatalog.assetBundles.filter((bundle) => bundle.specPowertrains.includes('ELECTRIC')).length,
+        hybridSpecBundles: resolvedCatalog.assetBundles.filter((bundle) => bundle.specPowertrains.includes('HYBRID')).length,
       },
       notes: [
         bundleSources.size > 1
           ? 'Pakiety assetów pochodzą z więcej niż jednego źródła.'
-          : `Pakiety assetów pochodzą z: ${catalog.assetBundles[0]?.source ?? 'STATIC'}.`,
+          : `Pakiety assetów pochodzą z: ${resolvedCatalog.assetBundles[0]?.source ?? 'STATIC'}.`,
       ],
     },
   }
@@ -461,15 +484,16 @@ export async function publishUpdate(
     return { ok: false as const, error: 'Tylko administrator lub dyrektor moga publikowac aktualizacje.' }
   }
 
-  const artifactSnapshot = await buildArtifactSnapshot(input.artifactType)
+  const catalog = input.artifactType === 'DATA' || input.artifactType === 'ASSETS'
+    ? await getSalesCatalogBootstrap()
+    : null
+  const artifactSnapshot = await buildArtifactSnapshot(input.artifactType, catalog ?? undefined)
 
   if (!artifactSnapshot.ok) {
     return { ok: false as const, error: artifactSnapshot.error, status: 400 }
   }
 
-  if (input.artifactType === 'DATA' || input.artifactType === 'ASSETS') {
-    const catalog = await getSalesCatalogBootstrap()
-
+  if (catalog) {
     if (input.artifactType === 'DATA') {
       await writePublishedCatalogDataStore(catalog)
     }

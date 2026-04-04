@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/auth'
-import { saveCommissionRules } from '@/lib/commission-management'
+import { saveCommissionRules, syncCommissionWorkspace } from '@/lib/commission-management'
 
 async function requireSession() {
   const session = await getSession()
@@ -30,6 +30,18 @@ export async function saveCommissionRulesAction(formData: FormData) {
   }
 
   const result = await saveCommissionRules(session, { targetUserId, rules })
+
+  if (!result.ok) {
+    return result
+  }
+
+  revalidatePath('/commissions')
+  return { ok: true as const }
+}
+
+export async function syncCommissionRulesAction() {
+  const session = await requireSession()
+  const result = await syncCommissionWorkspace(session)
 
   if (!result.ok) {
     return result

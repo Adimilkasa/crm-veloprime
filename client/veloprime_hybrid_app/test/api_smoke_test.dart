@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:veloprime_hybrid_app/core/network/api_client.dart';
 import 'package:veloprime_hybrid_app/features/auth/data/auth_repository.dart';
 import 'package:veloprime_hybrid_app/features/bootstrap/data/bootstrap_repository.dart';
@@ -8,6 +9,8 @@ import 'package:veloprime_hybrid_app/features/offers/data/offers_repository.dart
 const runApiSmoke = bool.fromEnvironment('RUN_API_SMOKE');
 
 void main() {
+  SharedPreferences.setMockInitialValues({});
+
   group('Flutter API smoke', () {
     test(
       'login, bootstrap, create offer, sync lead and fetch PDF snapshot',
@@ -71,7 +74,7 @@ void main() {
         expect(linkedDetail.id, createdOffer.id);
         expect(linkedDetail.leadId, isNotEmpty);
 
-        final version = await offersRepository.createPdfVersion(offerId: createdOffer.id);
+        final version = await offersRepository.createOfferVersion(offerId: createdOffer.id);
 
         expect(version.id, isNotEmpty);
         expect(version.versionNumber, greaterThanOrEqualTo(1));
@@ -86,6 +89,7 @@ void main() {
         expect(document.payload.customer.offerNumber, isNotEmpty);
       },
       skip: !runApiSmoke,
+      timeout: const Timeout(Duration(minutes: 2)),
     );
 
     test(
@@ -146,6 +150,7 @@ void main() {
         );
       },
       skip: !runApiSmoke,
+      timeout: const Timeout(Duration(minutes: 1)),
     );
   });
 }

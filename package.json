@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:smoke-db": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\start-next-with-env.ps1 -EnvFile .\\.env.smoke-db -Port 3006",
     "clean:next": "node scripts/clean-next-build.mjs",
     "build": "node scripts/run-prisma-migrate-if-db.mjs && prisma generate && next build",
     "build:clean": "npm run clean:next && npm run build",

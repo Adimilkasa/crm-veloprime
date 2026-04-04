@@ -52,6 +52,20 @@ npm run dev -- --hostname 127.0.0.1 --port 3005
 npm run smoke:accounts
 ```
 
+Jesli chcesz uruchomic lokalny serwer na env pobranym z Vercela, bez recznego przepisywania zmiennych do PowerShell, użyj:
+
+```bash
+npm run dev:smoke-db
+```
+
+Skrypt laduje `.env.smoke-db`, automatycznie obcina zewnętrzne cudzyslowy z wartosci typu `DATABASE_URL="..."` i uruchamia `next dev` na `127.0.0.1:3006`.
+
+Jesli potrzebujesz innego pliku lub portu, użyj bezpośrednio:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-next-with-env.ps1 -EnvFile .\.env.smoke-db -Port 3010
+```
+
 Skrypt testuje:
 
 - logowanie administratora

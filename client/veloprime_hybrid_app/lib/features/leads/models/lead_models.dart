@@ -22,6 +22,16 @@ class LeadStageInfo {
       kind: json['kind'] as String? ?? 'OPEN',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'color': color,
+      'order': order,
+      'kind': kind,
+    };
+  }
 }
 
 class LeadOfferSummary {
@@ -50,6 +60,17 @@ class LeadOfferSummary {
       updatedAt: json['updatedAt'] as String? ?? '',
       versionCount: json['versionCount'] as int? ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'number': number,
+      'title': title,
+      'status': status,
+      'updatedAt': updatedAt,
+      'versionCount': versionCount,
+    };
   }
 }
 
@@ -98,6 +119,17 @@ class LeadDetailEntryModel {
       createdAt: createdAt ?? this.createdAt,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'kind': kind,
+      'label': label,
+      'value': value,
+      'authorName': authorName,
+      'createdAt': createdAt,
+    };
+  }
 }
 
 class SalespersonOption {
@@ -117,6 +149,14 @@ class SalespersonOption {
       fullName: json['fullName'] as String? ?? '',
       email: json['email'] as String? ?? '',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'fullName': fullName,
+      'email': email,
+    };
   }
 }
 
@@ -178,7 +218,7 @@ class ManagedLeadSummary {
       nextActionAt: json['nextActionAt'] as String?,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
-      detailCount: details.length,
+      detailCount: json['detailCount'] as int? ?? details.length,
       linkedOffers: linkedOffers,
     );
   }
@@ -186,6 +226,9 @@ class ManagedLeadSummary {
   ManagedLeadSummary copyWith({
     String? stageId,
     String? updatedAt,
+    int? detailCount,
+    String? salespersonName,
+    List<LeadOfferSummary>? linkedOffers,
   }) {
     return ManagedLeadSummary(
       id: id,
@@ -198,13 +241,34 @@ class ManagedLeadSummary {
       stageId: stageId ?? this.stageId,
       message: message,
       managerName: managerName,
-      salespersonName: salespersonName,
+      salespersonName: salespersonName ?? this.salespersonName,
       nextActionAt: nextActionAt,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      detailCount: detailCount,
-      linkedOffers: linkedOffers,
+      detailCount: detailCount ?? this.detailCount,
+      linkedOffers: linkedOffers ?? this.linkedOffers,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'source': source,
+      'fullName': fullName,
+      'email': email,
+      'phone': phone,
+      'interestedModel': interestedModel,
+      'region': region,
+      'stageId': stageId,
+      'message': message,
+      'managerName': managerName,
+      'salespersonName': salespersonName,
+      'nextActionAt': nextActionAt,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'detailCount': detailCount,
+      'linkedOffers': linkedOffers.map((offer) => offer.toJson()).toList(),
+    };
   }
 }
 
@@ -308,6 +372,27 @@ class ManagedLeadDetail {
       linkedOffers: linkedOffers ?? this.linkedOffers,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'source': source,
+      'fullName': fullName,
+      'email': email,
+      'phone': phone,
+      'interestedModel': interestedModel,
+      'region': region,
+      'stageId': stageId,
+      'message': message,
+      'managerName': managerName,
+      'salespersonName': salespersonName,
+      'nextActionAt': nextActionAt,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'details': details.map((entry) => entry.toJson()).toList(),
+      'linkedOffers': linkedOffers.map((offer) => offer.toJson()).toList(),
+    };
+  }
 }
 
 class LeadsOverview {
@@ -320,6 +405,37 @@ class LeadsOverview {
   final List<ManagedLeadSummary> leads;
   final List<LeadStageInfo> stages;
   final List<SalespersonOption> salespeople;
+
+  factory LeadsOverview.fromJson(Map<String, dynamic> json) {
+    final rawLeads = json['leads'] as List<dynamic>? ?? const [];
+    final rawStages = json['stages'] as List<dynamic>? ?? const [];
+    final rawSalespeople = json['salespeople'] as List<dynamic>? ?? const [];
+
+    return LeadsOverview(
+      leads: rawLeads
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (entry) => ManagedLeadSummary.fromJson(
+              entry,
+              linkedOffers: (entry['linkedOffers'] as List<dynamic>? ?? const [])
+                  .whereType<Map<String, dynamic>>()
+                  .map(LeadOfferSummary.fromJson)
+                  .toList(),
+            ),
+          )
+          .toList(),
+      stages: rawStages.whereType<Map<String, dynamic>>().map(LeadStageInfo.fromJson).toList(),
+      salespeople: rawSalespeople.whereType<Map<String, dynamic>>().map(SalespersonOption.fromJson).toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'leads': leads.map((lead) => lead.toJson()).toList(),
+      'stages': stages.map((stage) => stage.toJson()).toList(),
+      'salespeople': salespeople.map((salesperson) => salesperson.toJson()).toList(),
+    };
+  }
 }
 
 class LeadDetailPayload {
@@ -332,4 +448,33 @@ class LeadDetailPayload {
   final ManagedLeadDetail lead;
   final List<LeadStageInfo> stages;
   final List<SalespersonOption> salespeople;
+
+  factory LeadDetailPayload.fromJson(Map<String, dynamic> json) {
+    return LeadDetailPayload(
+      lead: ManagedLeadDetail.fromJson(
+        json['lead'] as Map<String, dynamic>? ?? const {},
+        linkedOffers: (json['linkedOffers'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(LeadOfferSummary.fromJson)
+            .toList(),
+      ),
+      stages: (json['stages'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(LeadStageInfo.fromJson)
+          .toList(),
+      salespeople: (json['salespeople'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(SalespersonOption.fromJson)
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'lead': lead.toJson(),
+      'linkedOffers': lead.linkedOffers.map((offer) => offer.toJson()).toList(),
+      'stages': stages.map((stage) => stage.toJson()).toList(),
+      'salespeople': salespeople.map((salesperson) => salesperson.toJson()).toList(),
+    };
+  }
 }

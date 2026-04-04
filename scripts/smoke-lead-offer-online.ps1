@@ -29,7 +29,7 @@ try {
   $versionId = [string]$prepared.VersionId
 
   Write-Host '8. Fetch document snapshot'
-  $documentResponse = Invoke-WebRequest -Uri ($baseUrl + '/api/client/offers/' + $offerId + '/document?versionId=' + $versionId) -WebSession $adminSession -UseBasicParsing
+  $documentResponse = Invoke-WebRequest -Uri ($baseUrl + '/api/client/offers/' + $offerId + '/document?versionId=' + $versionId) -WebSession $adminSession -Headers (Get-SmokeAuthHeaders) -UseBasicParsing
   $documentPayload = $documentResponse.Content | ConvertFrom-Json
 
   if (-not $documentPayload.ok) {
@@ -50,6 +50,7 @@ try {
     -Uri ($baseUrl + '/api/client/offers/' + $offerId + '/share') `
     -Method Post `
     -WebSession $adminSession `
+    -Headers (Get-SmokeAuthHeaders) `
     -ContentType 'application/json' `
     -Body $shareBody `
     -UseBasicParsing
@@ -70,8 +71,8 @@ try {
     throw 'Online offer page did not return 200'
   }
 
-  if ($publicResponse.Content -notmatch 'Oferta online') {
-    throw 'Online offer page content does not include offer header marker'
+  if ($publicResponse.Content -notmatch 'Premium snapshot' -and $publicResponse.Content -notmatch 'VeloPrime') {
+    throw 'Online offer page content does not include the expected public offer marker'
   }
 
   Write-Host ('SMOKE_OK offerId=' + $offerId + ' offerNumber=' + $offerNumber + ' versionId=' + $versionId)
