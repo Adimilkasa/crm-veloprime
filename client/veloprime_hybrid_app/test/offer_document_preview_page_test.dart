@@ -7,6 +7,20 @@ import 'package:veloprime_hybrid_app/features/offers/data/offers_repository.dart
 import 'package:veloprime_hybrid_app/features/offers/models/offer_document.dart';
 import 'package:veloprime_hybrid_app/features/offers/presentation/offer_document_preview_page.dart';
 
+class _FakeOffersRepository extends OffersRepository {
+  _FakeOffersRepository(this.snapshot) : super(ApiClient());
+
+  final OfferDocumentSnapshot snapshot;
+
+  @override
+  Future<OfferDocumentSnapshot> fetchDocumentSnapshot({
+    required String offerId,
+    String? versionId,
+  }) async {
+    return snapshot;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -83,8 +97,8 @@ void main() {
       MaterialApp(
         home: OfferDocumentPreviewPage(
           offerId: snapshot.offerId,
-          repository: OffersRepository(ApiClient()),
-          initialDocument: snapshot,
+          versionId: snapshot.version!.id,
+          repository: _FakeOffersRepository(snapshot),
         ),
       ),
     );

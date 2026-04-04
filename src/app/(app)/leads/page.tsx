@@ -37,13 +37,10 @@ export default async function LeadsPage({
     status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
     updatedAt: string
     versionCount: number
-    offerHref: string
   }>>>((accumulator, offer) => {
     if (!offer.leadId) {
       return accumulator
     }
-
-    const offerHref = `/offers?leadId=${offer.leadId}&offerId=${offer.id}`
 
     if (!accumulator[offer.leadId]) {
       accumulator[offer.leadId] = []
@@ -56,7 +53,6 @@ export default async function LeadsPage({
       status: offer.status,
       updatedAt: offer.updatedAt,
       versionCount: offer.versions.length,
-      offerHref,
     })
 
     return accumulator

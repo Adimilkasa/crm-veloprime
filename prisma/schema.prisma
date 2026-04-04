@@ -403,7 +403,6 @@ model SalesCatalogItem {
   colorPalette       SalesModelColorPalette? @relation(fields: [colorPaletteId], references: [id])
   commissionRules    SalesCommissionRule[]
   offers             Offer[]
-  offerSnapshots     OfferSnapshot[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -489,44 +488,10 @@ model Offer {
   totalNet           Decimal?       @db.Decimal(12, 2)
   financingVariant   String?
   notes              String?
-  currentSnapshot    OfferSnapshot?
   financing          OfferFinancing?
   versions           OfferVersion[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
-
-  @@index([salesCatalogItemId])
-}
-
-model OfferSnapshot {
-  id                        String        @id @default(cuid())
-  offerId                   String        @unique
-  offer                     Offer         @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  salesCatalogItemId        String?
-  salesCatalogItem          SalesCatalogItem? @relation(fields: [salesCatalogItemId], references: [id])
-  customerType              CustomerType
-  selectedColorKind         OfferColorKind
-  selectedColorName         String?
-  listPriceGross            Decimal?      @db.Decimal(12, 2)
-  listPriceNet              Decimal?      @db.Decimal(12, 2)
-  basePriceGross            Decimal?      @db.Decimal(12, 2)
-  basePriceNet              Decimal?      @db.Decimal(12, 2)
-  colorSurchargeGross       Decimal?      @db.Decimal(12, 2)
-  colorSurchargeNet         Decimal?      @db.Decimal(12, 2)
-  marginPoolGross           Decimal?      @db.Decimal(12, 2)
-  marginPoolNet             Decimal?      @db.Decimal(12, 2)
-  directorShareAmount       Decimal?      @db.Decimal(12, 2)
-  managerShareAmount        Decimal?      @db.Decimal(12, 2)
-  salespersonCommission     Decimal?      @db.Decimal(12, 2)
-  availableDiscountAmount   Decimal?      @db.Decimal(12, 2)
-  discountAmount            Decimal?      @db.Decimal(12, 2)
-  discountPercent           Decimal?      @db.Decimal(7, 4)
-  finalPriceGross           Decimal?      @db.Decimal(12, 2)
-  finalPriceNet             Decimal?      @db.Decimal(12, 2)
-  customerViewJson          Json?
-  internalViewJson          Json?
-  generatedAt               DateTime      @default(now())
-  updatedAt                 DateTime      @updatedAt
 
   @@index([salesCatalogItemId])
 }

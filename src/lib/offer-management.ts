@@ -6,7 +6,7 @@ import type { AuthSession } from '@/lib/auth'
 import { getOfferAssetBundle } from '@/lib/offer-assets'
 import type { ModelColorPalette } from '@/lib/color-management'
 import { listActiveCommissionRules } from '@/lib/commission-management'
-import { db, hasDatabaseUrl, isDatabaseUnavailableError } from '@/lib/db'
+import { db } from '@/lib/db'
 import { sendTransactionalEmail } from '@/lib/email-service'
 import { calculateOfferFinancing, type FinancingInputMode, type OfferFinancingSummary } from '@/lib/offer-financing'
 import { createManagedLead, listManagedLeads, listManagedLeadStages, logManagedLeadActivity, type ManagedLead } from '@/lib/lead-management'
@@ -173,10 +173,6 @@ export type ManagedOfferShare = {
 }
 
 export type OfferColorPaletteOption = ModelColorPalette
-
-const globalForOffers = globalThis as unknown as {
-  crmOffers?: ManagedOffer[]
-}
 
 type DbOfferRecord = Prisma.OfferGetPayload<{
   include: {
@@ -452,20 +448,12 @@ async function markManagedOfferAsSent(session: AuthSession, offerId: string) {
     return
   }
 
-  if (isPrismaOfferStorageEnabled() && db) {
+  if (db) {
     if (offer.status !== 'SENT') {
       await db.offer.update({
         where: { id: offerId },
         data: { status: 'SENT' },
       })
-    }
-  } else {
-    const offers = await getStore()
-    const storedOffer = offers.find((entry) => entry.id === offerId)
-
-    if (storedOffer) {
-      storedOffer.status = 'SENT'
-      storedOffer.updatedAt = new Date().toISOString()
     }
   }
 
@@ -486,78 +474,6 @@ async function markManagedOfferAsSent(session: AuthSession, offerId: string) {
     label: 'Oferta wysłana e-mailem',
     value: `Oferta ${offer.number} została wysłana e-mailem do klienta.`,
   })
-}
-
-async function buildSeedOffers() {
-  const users = await listManagedUsers()
-  const adminSession = users.find((user) => user.role === 'ADMIN') ?? users[0]
-  const leads = adminSession
-    ? await listManagedLeads({
-        sub: adminSession.id,
-        email: adminSession.email,
-        fullName: adminSession.fullName,
-        role: adminSession.role,
-      })
-    : []
-
-  return leads.slice(0, 2).map((lead, index) => {
-    const createdAt = new Date(Date.now() - (index + 1) * 86400000).toISOString()
-    const ownerUser = users.find((user) => user.id === (lead.salespersonId ?? adminSession?.id)) ?? adminSession
-
-    return {
-      id: `offer-seed-${index + 1}`,
-      number: `OFR-2026032${index + 1}-00${index + 1}`,
-      status: index === 0 ? 'DRAFT' : 'SENT',
-      title: `Oferta ${lead.interestedModel ?? 'samochodu'} dla ${lead.fullName}`,
-      leadId: lead.id,
-      customerName: lead.fullName,
-      customerEmail: lead.email,
-      customerPhone: lead.phone,
-      modelName: lead.interestedModel,
-      pricingCatalogKey: null,
-      selectedColorName: null,
-      customerType: 'PRIVATE',
-      discountValue: null,
-      ownerId: lead.salespersonId ?? adminSession?.id ?? 'demo-admin',
-      ownerName: lead.salespersonName ?? adminSession?.fullName ?? 'Administrator VeloPrime',
-      ownerEmail: ownerUser?.email ?? null,
-      ownerPhone: ownerUser?.phone ?? null,
-      ownerAvatarUrl: ownerUser?.avatarUrl ?? null,
-      validUntil: new Date(Date.now() + (index + 5) * 86400000).toISOString(),
-      totalGross: index === 0 ? 184900 : 203500,
-      totalNet: index === 0 ? 150325.2 : 165447.15,
-      financingVariant: index === 0 ? 'Leasing 36 miesięcy / wpłata 15%' : 'Wynajem długoterminowy 48 miesięcy',
-      financingTermMonths: index === 0 ? 36 : 48,
-      financingInputMode: 'AMOUNT',
-      financingInputValue: index === 0 ? 27735 : 20350,
-      financingBuyoutPercent: index === 0 ? 30 : 20,
-      notes: index === 0 ? 'Uwzględniono pakiet serwisowy i odbiór w Warszawie.' : 'Klient prosi o porównanie z finansowaniem gotówkowym.',
-      versions: [
-        {
-          id: `offer-seed-${index + 1}-version-1`,
-          versionNumber: 1,
-          summary: `Wersja startowa / ${lead.interestedModel ?? 'model'} / ${formatMoney(index === 0 ? 184900 : 203500)}`,
-          createdAt,
-          shareToken: null,
-          sharedAt: null,
-          shareExpiresAt: null,
-          payloadJson: null,
-          customerSnapshotJson: null,
-          internalSnapshotJson: null,
-        },
-      ],
-      createdAt,
-      updatedAt: createdAt,
-    } satisfies ManagedOffer
-  })
-}
-
-async function getStore() {
-  if (!globalForOffers.crmOffers) {
-    globalForOffers.crmOffers = await buildSeedOffers()
-  }
-
-  return globalForOffers.crmOffers
 }
 
 function buildOfferVersionSnapshot(
@@ -747,74 +663,62 @@ async function getManagedOffer(session: AuthSession, offerId: string) {
   const users = await listManagedUsers()
   const visibleOwnerIds = getVisibleOfferOwnerIds(session, users)
 
-  if (isPrismaOfferStorageEnabled() && db) {
-    try {
-      const record = await db.offer.findUnique({
-        where: { id: offerId },
-        include: {
-          customer: true,
-          owner: true,
-          salesCatalogItem: true,
-          financing: true,
-          versions: true,
-        },
-      })
-
-      if (!record) {
-        return null
-      }
-
-      const mapped = mapDbOfferToManagedOffer(record)
-
-      if (!canViewOffer(mapped, visibleOwnerIds)) {
-        return null
-      }
-
-      const leadLookupFilters = [
-        record.customerId ? { customerId: record.customerId } : null,
-        record.customer.email ? { email: record.customer.email } : null,
-        record.customer.phone ? { phone: record.customer.phone } : null,
-      ].filter(Boolean) as Prisma.LeadWhereInput[]
-
-      if (leadLookupFilters.length > 0) {
-        const linkedLead = await db.lead.findFirst({
-          where: {
-            OR: leadLookupFilters,
-            ...(session.role === 'ADMIN'
-              ? {}
-              : {
-                  salespersonId: {
-                    in: Array.from(visibleOwnerIds),
-                  },
-                }),
-          },
-          orderBy: { updatedAt: 'desc' },
-          select: { id: true },
-        })
-
-        if (linkedLead) {
-          return { ...mapped, leadId: linkedLead.id }
-        }
-      }
-
-      const leads = await listManagedLeads(session)
-      const matchedLead = matchLeadForOffer(leads, mapped)
-
-      return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
-    } catch (error) {
-      if (!isDatabaseUnavailableError(error)) {
-        throw error
-      }
-    }
-  }
-
-  const offer = (await getStore()).find((entry) => entry.id === offerId) ?? null
-
-  if (!offer || !canViewOffer(offer, visibleOwnerIds)) {
+  if (!db) {
     return null
   }
 
-  return offer
+  const record = await db.offer.findUnique({
+    where: { id: offerId },
+    include: {
+      customer: true,
+      owner: true,
+      salesCatalogItem: true,
+      financing: true,
+      versions: true,
+    },
+  })
+
+  if (!record) {
+    return null
+  }
+
+  const mapped = mapDbOfferToManagedOffer(record)
+
+  if (!canViewOffer(mapped, visibleOwnerIds)) {
+    return null
+  }
+
+  const leadLookupFilters = [
+    record.customerId ? { customerId: record.customerId } : null,
+    record.customer.email ? { email: record.customer.email } : null,
+    record.customer.phone ? { phone: record.customer.phone } : null,
+  ].filter(Boolean) as Prisma.LeadWhereInput[]
+
+  if (leadLookupFilters.length > 0) {
+    const linkedLead = await db.lead.findFirst({
+      where: {
+        OR: leadLookupFilters,
+        ...(session.role === 'ADMIN'
+          ? {}
+          : {
+              salespersonId: {
+                in: Array.from(visibleOwnerIds),
+              },
+            }),
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true },
+    })
+
+    if (linkedLead) {
+      return { ...mapped, leadId: linkedLead.id }
+    }
+  }
+
+  const leads = await listManagedLeads(session)
+  const matchedLead = matchLeadForOffer(leads, mapped)
+
+  return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
 }
 
 export async function listManagedOffers(session: AuthSession) {
@@ -824,40 +728,30 @@ export async function listManagedOffers(session: AuthSession) {
   ])
   const visibleOwnerIds = getVisibleOfferOwnerIds(session, users)
 
-  if (isPrismaOfferStorageEnabled() && db) {
-    try {
-      const offers = await db.offer.findMany({
-        include: {
-          customer: true,
-          owner: true,
-          salesCatalogItem: true,
-          financing: true,
-          versions: true,
-        },
-        orderBy: {
-          updatedAt: 'desc',
-        },
-      })
-
-      return offers
-        .map((offer) => {
-          const mapped = mapDbOfferToManagedOffer(offer)
-          const matchedLead = matchLeadForOffer(leads, mapped)
-          return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
-        })
-        .filter((offer) => canViewOffer(offer, visibleOwnerIds))
-    } catch (error) {
-      if (!isDatabaseUnavailableError(error)) {
-        throw error
-      }
-    }
+  if (!db) {
+    return []
   }
 
-  const offers = await getStore()
+  const offers = await db.offer.findMany({
+    include: {
+      customer: true,
+      owner: true,
+      salesCatalogItem: true,
+      financing: true,
+      versions: true,
+    },
+    orderBy: {
+      updatedAt: 'desc',
+    },
+  })
 
-  return [...offers]
+  return offers
+    .map((offer) => {
+      const mapped = mapDbOfferToManagedOffer(offer)
+      const matchedLead = matchLeadForOffer(leads, mapped)
+      return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
+    })
     .filter((offer) => canViewOffer(offer, visibleOwnerIds))
-    .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
 }
 
 export async function listManagedOffersWithCalculation(session: AuthSession) {
@@ -1104,112 +998,68 @@ export async function createManagedOffer(
     financingSummary: financingResult && financingResult.ok ? financingResult.summary : null,
   })
 
-  if (isPrismaOfferStorageEnabled() && db) {
-    await ensureUsersInDb(users)
-    const catalogItems = await listPublishedSalesCatalogItems()
-    const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
-    const customer = lead
-      ? await ensureCustomerFromLead(lead, ownerId)
-      : await ensureCustomerRecord({
-          fullName: customerName,
-          email: customerEmail,
-          phone: customerPhone,
-          city: customerRegion,
-          notes: input.notes?.trim() || null,
-          ownerId,
-        })
+  if (!db) {
+    return { ok: false as const, error: 'Generator ofert wymaga aktywnego połączenia z bazą danych.' }
+  }
 
-    if (!customer) {
-      return { ok: false as const, error: 'Nie udało się przygotować klienta do zapisu w bazie.' }
-    }
-
-    const offers = await listManagedOffers(session)
-    const created = await db.offer.create({
-      data: {
-        number: nextOfferNumber(offers),
-        status: 'DRAFT',
-        title,
-        customerId: customer.id,
+  await ensureUsersInDb(users)
+  const catalogItems = await listPublishedSalesCatalogItems()
+  const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
+  const customer = lead
+    ? await ensureCustomerFromLead(lead, ownerId)
+    : await ensureCustomerRecord({
+        fullName: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        city: customerRegion,
+        notes: input.notes?.trim() || null,
         ownerId,
-        salesCatalogItemId: pricingResult && pricingResult.ok ? catalogIds.get(pricingResult.catalogItem.key) ?? null : null,
-        customerType,
-        selectedColorKind: pricingResult && pricingResult.ok && pricingResult.calculation.colorSurchargeGross > 0 ? OfferColorKind.EXTRA_PAID : OfferColorKind.BASE,
-        selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
-        colorSurchargeGross: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeGross : null,
-        colorSurchargeNet: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeNet : null,
-        discountAmount: discountValue,
-        validUntil: input.validUntil?.trim() ? new Date(input.validUntil) : null,
-        totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
-        totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
-        financingVariant: input.financingVariant?.trim() || null,
-        notes: input.notes?.trim() || lead?.message || null,
-        ...(financingPersistence ? { financing: { create: financingPersistence } } : {}),
-      },
-      include: {
-        customer: true,
-        owner: true,
-        salesCatalogItem: true,
-        financing: true,
-        versions: true,
-      },
-    })
-
-    if (lead) {
-      await logManagedLeadActivity(session, {
-        leadId: lead.id,
-        label: 'Oferta utworzona',
-        value: `Utworzono ofertę ${created.number} (${created.title}).`,
       })
-    }
 
-    return { ok: true as const, offer: mapDbOfferToManagedOffer(created) }
+  if (!customer) {
+    return { ok: false as const, error: 'Nie udało się przygotować klienta do zapisu w bazie.' }
   }
 
-  const offers = await getStore()
-  const nextOffer: ManagedOffer = {
-    id: `offer-${crypto.randomUUID()}`,
-    number: nextOfferNumber(offers),
-    status: 'DRAFT',
-    title,
-    leadId: lead?.id ?? null,
-    customerName,
-    customerEmail,
-    customerPhone,
-    modelName: pricingResult && pricingResult.ok ? `${pricingResult.catalogItem.brand} ${pricingResult.catalogItem.model} ${pricingResult.catalogItem.version}` : lead?.interestedModel ?? null,
-    pricingCatalogKey: pricingResult && pricingResult.ok ? pricingResult.catalogItem.key : null,
-    selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
-    customerType,
-    discountValue,
-    ownerId,
-    ownerName: resolvedOwnerName,
-    ownerEmail: resolvedOwnerEmail,
-    ownerPhone: resolvedOwnerPhone,
-    ownerAvatarUrl: resolvedOwnerAvatarUrl,
-    validUntil: input.validUntil?.trim() ? new Date(input.validUntil).toISOString() : null,
-    totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
-    totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
-    financingVariant: input.financingVariant?.trim() || null,
-    financingTermMonths,
-    financingInputMode,
-    financingInputValue,
-    financingBuyoutPercent,
-    notes: input.notes?.trim() || lead?.message || null,
-    versions: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-
-  offers.unshift(nextOffer)
+  const offers = await listManagedOffers(session)
+  const created = await db.offer.create({
+    data: {
+      number: nextOfferNumber(offers),
+      status: 'DRAFT',
+      title,
+      customerId: customer.id,
+      ownerId,
+      salesCatalogItemId: pricingResult && pricingResult.ok ? catalogIds.get(pricingResult.catalogItem.key) ?? null : null,
+      customerType,
+      selectedColorKind: pricingResult && pricingResult.ok && pricingResult.calculation.colorSurchargeGross > 0 ? OfferColorKind.EXTRA_PAID : OfferColorKind.BASE,
+      selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
+      colorSurchargeGross: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeGross : null,
+      colorSurchargeNet: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeNet : null,
+      discountAmount: discountValue,
+      validUntil: input.validUntil?.trim() ? new Date(input.validUntil) : null,
+      totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
+      totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
+      financingVariant: input.financingVariant?.trim() || null,
+      notes: input.notes?.trim() || lead?.message || null,
+      ...(financingPersistence ? { financing: { create: financingPersistence } } : {}),
+    },
+    include: {
+      customer: true,
+      owner: true,
+      salesCatalogItem: true,
+      financing: true,
+      versions: true,
+    },
+  })
 
   if (lead) {
     await logManagedLeadActivity(session, {
       leadId: lead.id,
       label: 'Oferta utworzona',
-      value: `Utworzono ofertę ${nextOffer.number} (${nextOffer.title}).`,
+      value: `Utworzono ofertę ${created.number} (${created.title}).`,
     })
   }
 
-  return { ok: true as const, offer: nextOffer }
+  return { ok: true as const, offer: mapDbOfferToManagedOffer(created) }
 }
 
 export async function updateManagedOffer(
@@ -1316,98 +1166,77 @@ export async function updateManagedOffer(
     financingSummary: financingResult && financingResult.ok ? financingResult.summary : null,
   })
 
-  if (isPrismaOfferStorageEnabled() && db) {
-    await ensureUsersInDb(await listManagedUsers())
-    const catalogItems = await listPublishedSalesCatalogItems()
-    const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
-
-    if (!offer.leadId) {
-      const offerRecord = await db.offer.findUnique({
-        where: { id: input.offerId },
-        select: { customerId: true },
-      })
-
-      if (offerRecord?.customerId) {
-        await db.customer.update({
-          where: { id: offerRecord.customerId },
-          data: {
-            fullName: customerName,
-            email: customerEmail,
-            phone: customerPhone,
-            city: customerRegion,
-          },
-        })
-      }
-    }
-
-    const updated = await db.offer.update({
-      where: { id: input.offerId },
-      data: {
-        title: input.title.trim() || offer.title,
-        status: input.status,
-        salesCatalogItemId: pricingResult && pricingResult.ok ? catalogIds.get(pricingResult.catalogItem.key) ?? null : null,
-        customerType,
-        selectedColorKind: pricingResult && pricingResult.ok && pricingResult.calculation.colorSurchargeGross > 0 ? OfferColorKind.EXTRA_PAID : OfferColorKind.BASE,
-        selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
-        colorSurchargeGross: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeGross : null,
-        colorSurchargeNet: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeNet : null,
-        discountAmount: discountValue,
-        financingVariant: input.financingVariant?.trim() || null,
-        validUntil: input.validUntil?.trim() ? new Date(input.validUntil) : null,
-        totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
-        totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
-        notes: input.notes?.trim() || null,
-        ...(financingPersistence
-          ? {
-              financing: {
-                upsert: {
-                  create: financingPersistence,
-                  update: financingPersistence,
-                },
-              },
-            }
-          : offer.financingTermMonths !== null
-            ? {
-                financing: {
-                  delete: true,
-                },
-              }
-            : {}),
-      },
-      include: {
-        customer: true,
-        owner: true,
-        salesCatalogItem: true,
-        financing: true,
-        versions: true,
-      },
-    })
-
-    return { ok: true as const, offer: mapDbOfferToManagedOffer(updated) }
+  if (!db) {
+    return { ok: false as const, error: 'Generator ofert wymaga aktywnego połączenia z bazą danych.' }
   }
 
-  offer.title = input.title.trim() || offer.title
-  offer.status = input.status
-  offer.customerName = customerName
-  offer.customerEmail = customerEmail
-  offer.customerPhone = customerPhone
-  offer.pricingCatalogKey = pricingResult && pricingResult.ok ? pricingResult.catalogItem.key : null
-  offer.selectedColorName = pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null
-  offer.customerType = customerType
-  offer.discountValue = discountValue
-  offer.financingVariant = input.financingVariant?.trim() || null
-  offer.financingTermMonths = financingTermMonths
-  offer.financingInputMode = financingInputMode
-  offer.financingInputValue = financingInputValue
-  offer.financingBuyoutPercent = financingBuyoutPercent
-  offer.totalGross = pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null
-  offer.totalNet = pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null
-  offer.modelName = pricingResult && pricingResult.ok ? `${pricingResult.catalogItem.brand} ${pricingResult.catalogItem.model} ${pricingResult.catalogItem.version}` : offer.modelName
-  offer.validUntil = input.validUntil?.trim() ? new Date(input.validUntil).toISOString() : null
-  offer.notes = input.notes?.trim() || null
-  offer.updatedAt = new Date().toISOString()
+  await ensureUsersInDb(await listManagedUsers())
+  const catalogItems = await listPublishedSalesCatalogItems()
+  const catalogIds = await syncLegacyCatalogItemsToDb(catalogItems)
 
-  return { ok: true as const, offer }
+  if (!offer.leadId) {
+    const offerRecord = await db.offer.findUnique({
+      where: { id: input.offerId },
+      select: { customerId: true },
+    })
+
+    if (offerRecord?.customerId) {
+      await db.customer.update({
+        where: { id: offerRecord.customerId },
+        data: {
+          fullName: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+          city: customerRegion,
+        },
+      })
+    }
+  }
+
+  const updated = await db.offer.update({
+    where: { id: input.offerId },
+    data: {
+      title: input.title.trim() || offer.title,
+      status: input.status,
+      salesCatalogItemId: pricingResult && pricingResult.ok ? catalogIds.get(pricingResult.catalogItem.key) ?? null : null,
+      customerType,
+      selectedColorKind: pricingResult && pricingResult.ok && pricingResult.calculation.colorSurchargeGross > 0 ? OfferColorKind.EXTRA_PAID : OfferColorKind.BASE,
+      selectedColorName: pricingResult && pricingResult.ok ? pricingResult.selectedColorName : null,
+      colorSurchargeGross: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeGross : null,
+      colorSurchargeNet: pricingResult && pricingResult.ok ? pricingResult.calculation.colorSurchargeNet : null,
+      discountAmount: discountValue,
+      financingVariant: input.financingVariant?.trim() || null,
+      validUntil: input.validUntil?.trim() ? new Date(input.validUntil) : null,
+      totalGross: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceGross : null,
+      totalNet: pricingResult && pricingResult.ok ? pricingResult.calculation.finalPriceNet : null,
+      notes: input.notes?.trim() || null,
+      ...(financingPersistence
+        ? {
+            financing: {
+              upsert: {
+                create: financingPersistence,
+                update: financingPersistence,
+              },
+            },
+          }
+        : offer.financingTermMonths !== null
+          ? {
+              financing: {
+                delete: true,
+              },
+            }
+          : {}),
+    },
+    include: {
+      customer: true,
+      owner: true,
+      salesCatalogItem: true,
+      financing: true,
+      versions: true,
+    },
+  })
+
+  return { ok: true as const, offer: mapDbOfferToManagedOffer(updated) }
 }
 
 export async function createManagedOfferVersion(session: AuthSession, offerId: string) {
@@ -1436,42 +1265,24 @@ export async function createManagedOfferVersion(session: AuthSession, offerId: s
     internalSnapshotJson: payload.internal,
   }
 
-  if (isPrismaOfferStorageEnabled() && db) {
-    await db.offerVersion.create({
-      data: {
-        id: nextVersion.id,
-        offerId: offer.id,
-        versionNumber: nextVersion.versionNumber,
-        pdfUrl: null,
-        shareToken: nextVersion.shareToken,
-        sharedAt: nextVersion.sharedAt ? new Date(nextVersion.sharedAt) : null,
-        shareExpiresAt: nextVersion.shareExpiresAt ? new Date(nextVersion.shareExpiresAt) : null,
-        payloadJson: nextVersion.payloadJson as Prisma.InputJsonValue,
-        customerSnapshotJson: nextVersion.customerSnapshotJson as Prisma.InputJsonValue,
-        internalSnapshotJson: nextVersion.internalSnapshotJson as Prisma.InputJsonValue,
-      },
-    })
-
-    if (offer.leadId) {
-      await logManagedLeadActivity(session, {
-        leadId: offer.leadId,
-        label: 'Nowa wersja oferty',
-        value: `Dodano wersję ${nextVersion.versionNumber} do oferty ${offer.number}.`,
-      })
-    }
-
-    return { ok: true as const, version: nextVersion }
+  if (!db) {
+    return { ok: false as const, error: 'Generator ofert wymaga aktywnego połączenia z bazą danych.' }
   }
 
-  const offers = await getStore()
-  const storedOffer = offers.find((entry) => entry.id === offerId)
-
-  if (!storedOffer) {
-    return { ok: false as const, error: 'Nie znaleziono oferty w pamięci roboczej.' }
-  }
-
-  storedOffer.versions.unshift(nextVersion)
-  storedOffer.updatedAt = new Date().toISOString()
+  await db.offerVersion.create({
+    data: {
+      id: nextVersion.id,
+      offerId: offer.id,
+      versionNumber: nextVersion.versionNumber,
+      pdfUrl: null,
+      shareToken: nextVersion.shareToken,
+      sharedAt: nextVersion.sharedAt ? new Date(nextVersion.sharedAt) : null,
+      shareExpiresAt: nextVersion.shareExpiresAt ? new Date(nextVersion.shareExpiresAt) : null,
+      payloadJson: nextVersion.payloadJson as Prisma.InputJsonValue,
+      customerSnapshotJson: nextVersion.customerSnapshotJson as Prisma.InputJsonValue,
+      internalSnapshotJson: nextVersion.internalSnapshotJson as Prisma.InputJsonValue,
+    },
+  })
 
   if (offer.leadId) {
     await logManagedLeadActivity(session, {
@@ -1519,20 +1330,18 @@ export async function createManagedOfferShare(
   const expiresAt = resolveOfferShareExpiresAt(offer.validUntil, version.createdAt)
   const sharedAt = new Date().toISOString()
 
-  if (isPrismaOfferStorageEnabled() && db) {
-    await db.offerVersion.update({
-      where: { id: version.id },
-      data: {
-        shareToken: token,
-        sharedAt: new Date(sharedAt),
-        shareExpiresAt: expiresAt ? new Date(expiresAt) : null,
-      },
-    })
-  } else {
-    version.shareToken = token
-    version.sharedAt = sharedAt
-    version.shareExpiresAt = expiresAt
+  if (!db) {
+    return { ok: false as const, error: 'Generator ofert wymaga aktywnego połączenia z bazą danych.' }
   }
+
+  await db.offerVersion.update({
+    where: { id: version.id },
+    data: {
+      shareToken: token,
+      sharedAt: new Date(sharedAt),
+      shareExpiresAt: expiresAt ? new Date(expiresAt) : null,
+    },
+  })
 
   return {
     ok: true as const,
@@ -1552,110 +1361,68 @@ export async function getPublicOfferDocumentSnapshot(token: string) {
     return { ok: false as const, status: 'not-found' as const }
   }
 
-  if (isPrismaOfferStorageEnabled() && db) {
-    const version = await db.offerVersion.findUnique({
-      where: { shareToken: normalizedToken },
-      include: {
-        offer: {
-          include: {
-            customer: true,
-            owner: true,
-          },
+  if (!db) {
+    return { ok: false as const, status: 'not-found' as const }
+  }
+
+  const version = await db.offerVersion.findUnique({
+    where: { shareToken: normalizedToken },
+    include: {
+      offer: {
+        include: {
+          customer: true,
+          owner: true,
         },
       },
-    })
+    },
+  })
 
-    if (!version) {
-      return { ok: false as const, status: 'not-found' as const }
-    }
+  if (!version) {
+    return { ok: false as const, status: 'not-found' as const }
+  }
 
-    if (version.shareExpiresAt && version.shareExpiresAt.getTime() < Date.now()) {
-      return {
-        ok: false as const,
-        status: 'expired' as const,
-        title: version.offer.title,
-        advisorName: version.offer.owner.fullName,
-        advisorEmail: version.offer.owner.email,
-        advisorPhone: version.offer.owner.phone,
-      }
-    }
-
-    const payload = version.payloadJson as OfferDocumentPayload | null
-
-    if (!payload) {
-      return { ok: false as const, status: 'not-found' as const }
-    }
-
+  if (version.shareExpiresAt && version.shareExpiresAt.getTime() < Date.now()) {
     return {
-      ok: true as const,
-      offerId: version.offerId,
-      offerNumber: version.offer.number,
+      ok: false as const,
+      status: 'expired' as const,
       title: version.offer.title,
+      advisorName: version.offer.owner.fullName,
+      advisorEmail: version.offer.owner.email,
+      advisorPhone: version.offer.owner.phone,
+    }
+  }
+
+  const payload = version.payloadJson as OfferDocumentPayload | null
+
+  if (!payload) {
+    return { ok: false as const, status: 'not-found' as const }
+  }
+
+  return {
+    ok: true as const,
+    offerId: version.offerId,
+    offerNumber: version.offer.number,
+    title: version.offer.title,
+    shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,
+    version: {
+      id: version.id,
+      versionNumber: version.versionNumber,
+      summary: `${version.offer.title} / ${payload.customer.finalGrossLabel}`,
+      createdAt: version.createdAt.toISOString(),
+      shareToken: version.shareToken,
+      sharedAt: version.sharedAt?.toISOString() ?? null,
       shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,
-      version: {
-        id: version.id,
-        versionNumber: version.versionNumber,
-        summary: `${version.offer.title} / ${payload.customer.finalGrossLabel}`,
-        createdAt: version.createdAt.toISOString(),
-        shareToken: version.shareToken,
-        sharedAt: version.sharedAt?.toISOString() ?? null,
-        shareExpiresAt: version.shareExpiresAt?.toISOString() ?? null,
-        payloadJson: payload,
-        customerSnapshotJson: (version.customerSnapshotJson as OfferCustomerSnapshot | null) ?? payload.customer,
-        internalSnapshotJson: (version.internalSnapshotJson as OfferInternalSnapshot | null) ?? payload.internal,
-      } satisfies OfferVersion,
-      payload,
-      assets: await getOfferAssetBundle({
-        modelName: payload.customer.modelName,
-        catalogKey: payload.internal.catalogKey,
-        powertrainType: payload.internal.powertrainType,
-      }),
-    }
+      payloadJson: payload,
+      customerSnapshotJson: (version.customerSnapshotJson as OfferCustomerSnapshot | null) ?? payload.customer,
+      internalSnapshotJson: (version.internalSnapshotJson as OfferInternalSnapshot | null) ?? payload.internal,
+    } satisfies OfferVersion,
+    payload,
+    assets: await getOfferAssetBundle({
+      modelName: payload.customer.modelName,
+      catalogKey: payload.internal.catalogKey,
+      powertrainType: payload.internal.powertrainType,
+    }),
   }
-
-  const offers = await getStore()
-
-  for (const offer of offers) {
-    const version = offer.versions.find((entry) => entry.shareToken === normalizedToken)
-
-    if (!version) {
-      continue
-    }
-
-    if (version.shareExpiresAt && new Date(version.shareExpiresAt).getTime() < Date.now()) {
-      return {
-        ok: false as const,
-        status: 'expired' as const,
-        title: offer.title,
-        advisorName: offer.ownerName,
-        advisorEmail: offer.ownerEmail,
-        advisorPhone: offer.ownerPhone,
-      }
-    }
-
-    const payload = version.payloadJson
-
-    if (!payload) {
-      return { ok: false as const, status: 'not-found' as const }
-    }
-
-    return {
-      ok: true as const,
-      offerId: offer.id,
-      offerNumber: offer.number,
-      title: offer.title,
-      shareExpiresAt: version.shareExpiresAt,
-      version,
-      payload,
-      assets: await getOfferAssetBundle({
-        modelName: payload.customer.modelName,
-        catalogKey: payload.internal.catalogKey,
-        powertrainType: payload.internal.powertrainType,
-      }),
-    }
-  }
-
-  return { ok: false as const, status: 'not-found' as const }
 }
 
 export async function sendManagedOfferEmail(
@@ -1760,64 +1527,46 @@ export async function assignManagedOfferLead(
   const users = await listManagedUsers()
   const nextOwnerUser = users.find((user) => user.id === nextOwnerId) ?? null
 
-  if (isPrismaOfferStorageEnabled() && db) {
-    const customer = await ensureCustomerFromLead(lead, nextOwnerId)
-
-    if (!customer) {
-      return { ok: false as const, error: 'Nie udało się przypisać klienta z leada do oferty.' }
-    }
-
-    const updated = await db.offer.update({
-      where: { id: input.offerId },
-      data: {
-        customerId: customer.id,
-        ownerId: nextOwnerId,
-        notes: offer.notes ?? lead.message ?? null,
-      },
-      include: {
-        customer: true,
-        owner: true,
-        salesCatalogItem: true,
-        financing: true,
-        versions: true,
-      },
-    })
-
-    await db.lead.update({
-      where: { id: lead.id },
-      data: {
-        customerId: customer.id,
-      },
-    })
-
-    await logManagedLeadActivity(session, {
-      leadId: lead.id,
-      label: 'Oferta przypięta',
-      value: `Oferta ${updated.number} została przypięta do leada.`,
-    })
-
-    return { ok: true as const, offer: { ...mapDbOfferToManagedOffer(updated), leadId: lead.id } }
+  if (!db) {
+    return { ok: false as const, error: 'Generator ofert wymaga aktywnego połączenia z bazą danych.' }
   }
 
-  offer.leadId = lead.id
-  offer.customerName = lead.fullName
-  offer.customerEmail = lead.email
-  offer.customerPhone = lead.phone
-  offer.ownerId = nextOwnerId
-  offer.ownerName = nextOwnerName
-  offer.ownerEmail = nextOwnerUser?.email ?? offer.ownerEmail
-  offer.ownerPhone = nextOwnerUser?.phone ?? offer.ownerPhone
-  offer.ownerAvatarUrl = nextOwnerUser?.avatarUrl ?? offer.ownerAvatarUrl
-  offer.notes = offer.notes ?? lead.message ?? null
-  offer.updatedAt = new Date().toISOString()
+  const customer = await ensureCustomerFromLead(lead, nextOwnerId)
+
+  if (!customer) {
+    return { ok: false as const, error: 'Nie udało się przypisać klienta z leada do oferty.' }
+  }
+
+  const updated = await db.offer.update({
+    where: { id: input.offerId },
+    data: {
+      customerId: customer.id,
+      ownerId: nextOwnerId,
+      notes: offer.notes ?? lead.message ?? null,
+    },
+    include: {
+      customer: true,
+      owner: true,
+      salesCatalogItem: true,
+      financing: true,
+      versions: true,
+    },
+  })
+
+  await db.lead.update({
+    where: { id: lead.id },
+    data: {
+      customerId: customer.id,
+    },
+  })
 
   await logManagedLeadActivity(session, {
     leadId: lead.id,
     label: 'Oferta przypięta',
-    value: `Oferta ${offer.number} została przypięta do leada.`,
+    value: `Oferta ${updated.number} została przypięta do leada.`,
   })
 
-  return { ok: true as const, offer }
+  return { ok: true as const, offer: { ...mapDbOfferToManagedOffer(updated), leadId: lead.id } }
 }
 
 export async function createLeadForManagedOffer(
@@ -1869,10 +1618,6 @@ export async function createLeadForManagedOffer(
   }
 
   return { ok: true as const, lead: leadResult.lead, offer: attachResult.offer }
-}
-
-function isPrismaOfferStorageEnabled() {
-  return hasDatabaseUrl() && Boolean(db)
 }
 
 async function ensureUsersInDb(users: ManagedUser[]) {

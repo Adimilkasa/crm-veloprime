@@ -7,7 +7,7 @@ import { Bell, Check, ChevronDown, LogOut, Palette } from 'lucide-react'
 
 import { getNavigationForRole, getRoleDefinition, type UserRoleKey } from '@/lib/rbac'
 
-const PRIMARY_NAV_HREFS = ['/dashboard', '/leads', '/customers', '/offers']
+const PRIMARY_NAV_HREFS = ['/dashboard', '/leads', '/customers']
 const BACKGROUND_STORAGE_KEY = 'crm-veloprime-shell-background'
 const BACKGROUND_PRESETS = [
   {

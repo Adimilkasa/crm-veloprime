@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarClock, FilePlus2, FileText, GripVertical, Phone, Search, UserRound, X } from 'lucide-react'
@@ -46,7 +45,6 @@ type LeadOfferSummary = {
   status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
   updatedAt: string
   versionCount: number
-  offerHref: string
 }
 
 function getStageKindLabel(kind: LeadStage['kind']) {
@@ -323,22 +321,22 @@ function LeadDetailsScreen({
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-3">
                           <div className="text-xs uppercase tracking-[0.14em] text-[#8a826f]">Wersje: {offer.versionCount}</div>
-                          <Link href={offer.offerHref} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#e5dfd1] bg-white px-3 text-sm font-medium text-[#4d4d4d] transition hover:border-[rgba(201,161,59,0.26)] hover:text-[#1f1f1f]">
+                          <div className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-[#ece6d9] bg-[#faf7f0] px-3 text-sm font-medium text-[#7a7262]">
                             <FileText className="h-4 w-4" />
-                            <span>Oferta</span>
-                          </Link>
+                            <span>Obsługa w aplikacji Windows</span>
+                          </div>
                         </div>
                       </article>
                     ))}
                   </div>
                 </>
               ) : (
-                <div className="mt-2 text-sm leading-6 text-[#666666]">Ten lead nie ma jeszcze przypisanej oferty. Jeśli chcesz, możesz od razu przejść do generatora i utworzyć pierwszą ofertę online dla tego klienta.</div>
+                <div className="mt-2 text-sm leading-6 text-[#666666]">Ten lead nie ma jeszcze przypisanej oferty. Nową ofertę utworzysz w aplikacji Windows.</div>
               )}
-              <Link href={`/offers?leadId=${selectedLead.id}`} className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#c9a13b] px-4 text-sm font-semibold text-white transition hover:bg-[#b8932f]">
+              <div className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#ece6d9] bg-[#faf7f0] px-4 text-sm font-semibold text-[#7a7262]">
                 <FilePlus2 className="h-4 w-4" />
-                <span>{leadOffers.length > 0 ? 'Nowa oferta dla tego klienta' : 'Stwórz nową ofertę'}</span>
-              </Link>
+                <span>{leadOffers.length > 0 ? 'Nowa oferta tylko w aplikacji Windows' : 'Ofertę utworzysz w aplikacji Windows'}</span>
+              </div>
             </div>
           </div>
 

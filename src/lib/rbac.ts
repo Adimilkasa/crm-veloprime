@@ -2,7 +2,6 @@ import {
   BadgeCheck,
   BadgePercent,
   BriefcaseBusiness,
-  FileText,
   LayoutDashboard,
   type LucideIcon,
   ShieldCheck,
@@ -42,7 +41,7 @@ export const roleDefinitions: RoleDefinition[] = [
   {
     key: 'SALES',
     label: 'Handlowiec',
-    description: 'Obsługuje klientów, leady i przygotowuje oferty online.',
+    description: 'Obsługuje klientów i leady, a oferty przygotowuje w aplikacji Windows.',
   },
 ]
 
@@ -57,12 +56,6 @@ export const navigationItems: NavigationItem[] = [
     href: '/leads',
     label: 'Leady',
     icon: BadgeCheck,
-    roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'SALES'],
-  },
-  {
-    href: '/offers',
-    label: 'Oferty',
-    icon: FileText,
     roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'SALES'],
   },
   {

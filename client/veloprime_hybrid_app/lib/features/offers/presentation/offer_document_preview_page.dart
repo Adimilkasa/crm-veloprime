@@ -14,15 +14,13 @@ class OfferDocumentPreviewPage extends StatefulWidget {
   const OfferDocumentPreviewPage({
     super.key,
     required this.offerId,
+    required this.versionId,
     required this.repository,
-    this.initialDocument,
-    this.versionId,
   });
 
   final String offerId;
-  final String? versionId;
+  final String versionId;
   final OffersRepository repository;
-  final OfferDocumentSnapshot? initialDocument;
 
   @override
   State<OfferDocumentPreviewPage> createState() => _OfferDocumentPreviewPageState();
@@ -33,19 +31,10 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
   bool _isSendingEmail = false;
 
   Future<OfferDocumentSnapshot> _loadDocument() async {
-    try {
-      return await widget.repository.fetchDocumentSnapshot(
-        offerId: widget.offerId,
-        versionId: widget.versionId,
-      );
-    } catch (error) {
-      final initialDocument = widget.initialDocument;
-      if (initialDocument != null) {
-        return initialDocument;
-      }
-
-      rethrow;
-    }
+    return await widget.repository.fetchDocumentSnapshot(
+      offerId: widget.offerId,
+      versionId: widget.versionId,
+    );
   }
 
   @override

@@ -46,7 +46,6 @@ type LeadOfferSummary = {
   status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
   updatedAt: string
   versionCount: number
-  offerHref: string
 }
 
 type SalesUser = {

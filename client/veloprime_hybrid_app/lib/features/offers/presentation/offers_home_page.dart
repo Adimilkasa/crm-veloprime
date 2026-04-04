@@ -7,7 +7,6 @@ import '../../../core/presentation/veloprime_ui.dart';
 import '../../bootstrap/models/bootstrap_payload.dart';
 import '../../leads/data/leads_repository.dart';
 import '../../leads/models/lead_models.dart';
-import '../data/local_offer_document_snapshot.dart';
 import '../data/offers_repository.dart';
 import '../models/offer_detail.dart';
 import 'offer_document_preview_page.dart';
@@ -1182,13 +1181,8 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
   }
 
-  Future<void> _openPreview(ManagedOfferSummary offer, {String? versionId}) async {
+  Future<void> _openPreview({required String offerId, required String versionId}) async {
     if (_isOpeningPreview) {
-      return;
-    }
-
-    final activeOffer = _activeOffer;
-    if (activeOffer == null) {
       return;
     }
 
@@ -1200,20 +1194,9 @@ class _OffersHomePageState extends State<OffersHomePage> {
       return;
     }
 
-    final previewOffer = versionId == null ? _buildCurrentEditorSnapshot(activeOffer) : activeOffer;
-    final initialDocument = versionId == null
-        ? buildLocalOfferDocumentSnapshot(
-            offer: previewOffer,
-            session: widget.session,
-            catalog: widget.bootstrap.catalog,
-          )
-        : null;
-
     setState(() {
       _isOpeningPreview = true;
-      _editorFeedback = versionId == null
-          ? 'Otwieramy podgląd oferty...'
-          : 'Otwieramy dokument PDF...';
+      _editorFeedback = 'Otwieramy wygenerowaną ofertę...';
     });
 
     if (!mounted) {
@@ -1223,10 +1206,9 @@ class _OffersHomePageState extends State<OffersHomePage> {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => OfferDocumentPreviewPage(
-          offerId: previewOffer.id,
+          offerId: offerId,
           versionId: versionId,
           repository: widget.offersRepository,
-          initialDocument: initialDocument,
         ),
       ),
     );
@@ -1268,16 +1250,20 @@ class _OffersHomePageState extends State<OffersHomePage> {
       _populateForm(saved);
 
       final version = await widget.offersRepository.createOfferVersion(offerId: saved.id);
+      final updatedOffer = await widget.offersRepository.fetchOfferDetail(saved.id);
 
       if (!mounted) {
         return;
       }
 
+      _replaceOffer(updatedOffer, replacingOfferId: saved.id);
+      _populateForm(updatedOffer);
+
       setState(() {
-        _editorFeedback = 'Przygotowano wersję ${version.versionNumber} dla ${saved.number}. Otwieram podgląd oferty.';
+        _editorFeedback = 'Przygotowano wersję ${version.versionNumber} dla ${updatedOffer.number}. Otwieram wygenerowaną ofertę.';
       });
 
-      await _openPreview(_mapDetailToSummary(saved), versionId: version.id);
+      await _openPreview(offerId: updatedOffer.id, versionId: version.id);
     } catch (error) {
       if (!mounted) {
         return;
@@ -1300,8 +1286,8 @@ class _OffersHomePageState extends State<OffersHomePage> {
     final activeSummary = _selectedOffer;
     final activeOffer = _activeOffer;
     final isFreeMode = _currentFlowMode == _OfferFlowMode.free;
-    final previewSummary = activeSummary;
     final activeOfferCrmLabel = activeOffer == null ? null : _offerCrmSyncLabel(activeOffer);
+    final latestGeneratedVersion = _latestGeneratedVersion(activeOffer);
 
     return Material(
       type: MaterialType.transparency,
@@ -1411,7 +1397,6 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 crmSyncLabel: activeOfferCrmLabel ?? _offerCrmSyncLabel(activeOffer),
                                 feedback: _editorFeedback,
                                 isSaving: _isSavingOffer,
-                                isOpeningPreview: _isOpeningPreview,
                                 isCreatingPdf: _isCreatingVersion,
                                 isSyncingToCrm: _isSyncingToCrm,
                                 currencyFormat: _currencyFormat,
@@ -1425,7 +1410,12 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 onColorChanged: _handleColorChanged,
                                 onSyncToCrm: _syncActiveOfferToCrm,
                                 onAttachExistingLead: () => _openLeadPicker(_InlineLeadPickerMode.attachLead),
-                                onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
+                                onOpenPreview: latestGeneratedVersion == null || _isSavingOffer
+                                    ? null
+                                    : () => _openPreview(
+                                          offerId: activeOffer.id,
+                                          versionId: latestGeneratedVersion.id,
+                                        ),
                                 onCreatePdf: _createVersionForSelected,
                               ),
                             ),
@@ -1487,7 +1477,6 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               crmSyncLabel: activeOfferCrmLabel ?? _offerCrmSyncLabel(activeOffer),
                               feedback: _editorFeedback,
                               isSaving: _isSavingOffer,
-                              isOpeningPreview: _isOpeningPreview,
                               isCreatingPdf: _isCreatingVersion,
                               isSyncingToCrm: _isSyncingToCrm,
                               currencyFormat: _currencyFormat,
@@ -1501,7 +1490,12 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               onColorChanged: _handleColorChanged,
                               onSyncToCrm: _syncActiveOfferToCrm,
                               onAttachExistingLead: () => _openLeadPicker(_InlineLeadPickerMode.attachLead),
-                              onOpenPreview: previewSummary == null || _isSavingOffer ? null : () => _openPreview(previewSummary),
+                              onOpenPreview: latestGeneratedVersion == null || _isSavingOffer
+                                  ? null
+                                  : () => _openPreview(
+                                        offerId: activeOffer.id,
+                                        versionId: latestGeneratedVersion.id,
+                                      ),
                               onCreatePdf: _createVersionForSelected,
                             ),
                             const SizedBox(height: 18),
@@ -1890,7 +1884,6 @@ class _OfferEditorWorkspace extends StatelessWidget {
     required this.crmSyncLabel,
     required this.feedback,
     required this.isSaving,
-    required this.isOpeningPreview,
     required this.isCreatingPdf,
     required this.isSyncingToCrm,
     required this.currencyFormat,
@@ -1935,7 +1928,6 @@ class _OfferEditorWorkspace extends StatelessWidget {
   final String crmSyncLabel;
   final String? feedback;
   final bool isSaving;
-  final bool isOpeningPreview;
   final bool isCreatingPdf;
   final bool isSyncingToCrm;
   final NumberFormat currencyFormat;
@@ -2417,7 +2409,7 @@ class _OfferEditorWorkspace extends StatelessWidget {
                         )
                       : null;
                   final previewButton = OutlinedButton.icon(
-                    onPressed: isOpeningPreview ? null : onOpenPreview,
+                    onPressed: onOpenPreview,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: previewTint,
                       side: BorderSide(color: previewTint.withValues(alpha: 0.34)),
@@ -2425,17 +2417,8 @@ class _OfferEditorWorkspace extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                     ),
-                    icon: isOpeningPreview
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.1,
-                              valueColor: AlwaysStoppedAnimation<Color>(previewTint),
-                            ),
-                          )
-                        : const Icon(Icons.search_rounded),
-                    label: Text(isOpeningPreview ? 'Otwieranie podglądu...' : 'Podgląd dokumentu'),
+                    icon: const Icon(Icons.description_outlined),
+                    label: Text(onOpenPreview == null ? 'Najpierw wygeneruj ofertę' : 'Otwórz wygenerowaną ofertę'),
                   );
                   final pdfButton = FilledButton.icon(
                     onPressed: isCreatingPdf ? null : onCreatePdf,
@@ -2452,7 +2435,7 @@ class _OfferEditorWorkspace extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2.1, color: Colors.white),
                           )
                         : const Icon(Icons.picture_as_pdf_outlined),
-                    label: Text(isCreatingPdf ? 'Przygotowuję PDF...' : 'Wygeneruj ofertę PDF'),
+                    label: Text(isCreatingPdf ? 'Generuję ofertę...' : 'Wygeneruj ofertę'),
                   );
 
                   if (isStacked) {
@@ -3078,6 +3061,15 @@ ManagedOfferSummary _mapDetailToSummary(OfferDetail detail) {
     updatedAt: detail.updatedAt,
     financingVariant: detail.financingVariant,
   );
+}
+
+OfferVersionInfo? _latestGeneratedVersion(OfferDetail? offer) {
+  if (offer == null || offer.versions.isEmpty) {
+    return null;
+  }
+
+  final versions = [...offer.versions]..sort((left, right) => right.versionNumber.compareTo(left.versionNumber));
+  return versions.first;
 }
 
 class _WorkspaceStat extends StatelessWidget {
