@@ -99,6 +99,7 @@ class OfferDocumentInternalSnapshot {
     this.driveType,
     this.rangeKm,
     required this.customerType,
+    this.salespersonCommission,
     required this.finalPriceGross,
     required this.finalPriceNet,
     required this.selectedColorName,
@@ -119,6 +120,7 @@ class OfferDocumentInternalSnapshot {
   final String? driveType;
   final String? rangeKm;
   final String customerType;
+  final num? salespersonCommission;
   final num? finalPriceGross;
   final num? finalPriceNet;
   final String? selectedColorName;
@@ -140,6 +142,7 @@ class OfferDocumentInternalSnapshot {
       driveType: json['driveType'] as String?,
       rangeKm: json['rangeKm'] as String?,
       customerType: json['customerType'] as String? ?? '',
+      salespersonCommission: json['salespersonCommission'] as num?,
       finalPriceGross: json['finalPriceGross'] as num?,
       finalPriceNet: json['finalPriceNet'] as num?,
       selectedColorName: json['selectedColorName'] as String?,
