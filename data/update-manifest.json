@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v32",
-      "publishedAt": "2026-04-04T14:10:00.000Z",
+      "version": "v33",
+      "publishedAt": "2026-04-04T16:20:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.18 refines the premium offer snapshot with a lighter hero, calmer sections, cleaner gallery overlays and an email-first final presentation.",
+      "summary": "Flutter client 0.1.12.19 removes the dark hero masking and moves the generated offer snapshot onto clean white sections with a simpler seven-field technical overview.",
       "priority": "STANDARD"
     }
   ]

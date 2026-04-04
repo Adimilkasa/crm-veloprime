@@ -282,10 +282,6 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               _PreviewTechnicalItem(Icons.alt_route_outlined, 'Napęd osi', document.payload.internal.driveType!.trim()),
             if (document.payload.internal.year?.trim().isNotEmpty == true)
               _PreviewTechnicalItem(Icons.event_outlined, 'Rocznik', document.payload.internal.year!),
-            if (document.payload.internal.powerHp?.trim().isNotEmpty == true)
-              _PreviewTechnicalItem(Icons.flash_on_outlined, 'Moc', document.payload.internal.powerHp!.trim()),
-            if (document.payload.internal.systemPowerHp?.trim().isNotEmpty == true)
-              _PreviewTechnicalItem(Icons.electric_bolt_outlined, 'Moc układu', document.payload.internal.systemPowerHp!.trim()),
             if (document.payload.internal.batteryCapacityKwh?.trim().isNotEmpty == true)
               _PreviewTechnicalItem(Icons.battery_charging_full_outlined, 'Pojemność baterii', document.payload.internal.batteryCapacityKwh!.trim()),
             if (document.payload.internal.rangeKm?.trim().isNotEmpty == true)
@@ -311,7 +307,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               continue;
             }
             visibleTechnicalItems.add(item);
-            if (visibleTechnicalItems.length == 9) {
+            if (visibleTechnicalItems.length == 7) {
               break;
             }
           }
@@ -346,7 +342,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                   const SizedBox(height: 24),
                   _PreviewSectionCard(
                     title: 'Najważniejsze dane',
-                    subtitle: 'Dziewięć kluczowych informacji o konfiguracji, pokazanych w spokojniejszym i bardziej premium układzie.',
+                    subtitle: 'Siedem kluczowych informacji o konfiguracji, pokazanych na czystym, jasnym tle.',
                     backgroundImageSource: heroImageSource,
                     child: _PreviewTechnicalSection(
                       items: visibleTechnicalItems,
@@ -465,52 +461,7 @@ class _PreviewHeroCard extends StatelessWidget {
                           missingLabel: 'Podgląd grafiki modelu jest niedostępny',
                         )
                       : const SizedBox.shrink(),
-                ),
-              ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.black.withValues(alpha: 0.14),
-                          Colors.black.withValues(alpha: 0.08),
-                          Colors.black.withValues(alpha: 0.38),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
                     ),
-                  ),
-                ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.black.withValues(alpha: 0.34),
-                          Colors.black.withValues(alpha: 0.14),
-                          Colors.black.withValues(alpha: 0.02),
-                        ],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: const Alignment(-0.55, -0.72),
-                        radius: 1.05,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.26),
-                          Colors.white.withValues(alpha: 0.06),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
                 ),
                 Positioned(
                   top: 22,
@@ -537,57 +488,71 @@ class _PreviewHeroCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-                            ),
-                            child: Text(
-                              'Oferta ważna do $validUntilLabel',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.84),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.72,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Oferta przygotowana dla ${customer.customerName}',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.84),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.8,
-                              shadows: const [
-                                Shadow(color: Color(0x33000000), blurRadius: 18, offset: Offset(0, 4)),
+                              color: Colors.white.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.64)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF192330).withValues(alpha: 0.10),
+                                  blurRadius: 26,
+                                  offset: const Offset(0, 16),
+                                ),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            modelLabel,
-                            style: TextStyle(
-                              fontSize: isCompact ? 36 : 60,
-                              height: 0.98,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -1.2,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(color: Color(0x3D000000), blurRadius: 24, offset: Offset(0, 8)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF4F5F7),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(color: const Color(0xFFE3E6EB)),
+                                  ),
+                                  child: Text(
+                                    'Oferta ważna do $validUntilLabel',
+                                    style: const TextStyle(
+                                      color: Color(0xFF4E5968),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.72,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                Text(
+                                  'Oferta przygotowana dla ${customer.customerName}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF4E5968),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  modelLabel,
+                                  style: TextStyle(
+                                    fontSize: isCompact ? 34 : 54,
+                                    height: 0.98,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -1.2,
+                                    color: const Color(0xFF1D1D1F),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                const Text(
+                                  'Konfiguracja, cena i finansowanie ułożone na czystym tle, gotowe do pokazania klientowi bez dodatkowego wizualnego szumu.',
+                                  style: TextStyle(
+                                    color: Color(0xFF4E5968),
+                                    fontSize: 15,
+                                    height: 1.6,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ],
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            'Spokojna prezentacja konfiguracji, ceny i finansowania gotowa do wysłania klientowi.',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.78),
-                              fontSize: 15,
-                              height: 1.6,
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -1357,71 +1322,34 @@ class _PreviewSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(36),
-      child: Stack(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF13284A).withValues(alpha: 0.06),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.78),
-              ),
-              child: backgroundImageSource?.trim().isNotEmpty == true
-                  ? _PreviewImage(
-                      source: backgroundImageSource!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      missingLabel: 'Brak tła sekcji',
-                    )
-                  : const SizedBox.shrink(),
+          Text(title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.05, color: Color(0xFF1D1D1F))),
+          if (subtitle != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              subtitle!,
+              style: const TextStyle(color: Color(0xFF6E6E73), height: 1.75, fontSize: 15),
             ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withValues(alpha: 0.86),
-                    Colors.white.withValues(alpha: 0.8),
-                    Colors.white.withValues(alpha: 0.88),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-          ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(36),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.54)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.045),
-                  blurRadius: 28,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.05, color: Color(0xFF1D1D1F))),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    subtitle!,
-                    style: const TextStyle(color: Color(0xFF6E6E73), height: 1.75, fontSize: 15),
-                  ),
-                ],
-                const SizedBox(height: 22),
-                child,
-              ],
-            ),
-          ),
+          ],
+          const SizedBox(height: 22),
+          child,
         ],
       ),
     );
@@ -1436,115 +1364,80 @@ class _PreviewPdfStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(color: Color(0xFFF4F5F7)),
-              child: backgroundImageSource?.trim().isNotEmpty == true
-                  ? _PreviewImage(
-                      source: backgroundImageSource!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      missingLabel: 'Brak tła sekcji PDF',
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withValues(alpha: 0.92),
-                    Colors.white.withValues(alpha: 0.88),
-                    Colors.white.withValues(alpha: 0.84),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.56)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.035),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isCompact = constraints.maxWidth < 760;
-
-                final descriptionBlock = Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _PreviewCircleIcon(icon: Icons.description_outlined),
-                    SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'PDF z kartą modelu i wyposażenia',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF1D1D1F)),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Dokument z kartą modelu i szczegółami konfiguracji przygotowanej dla klienta.',
-                            style: TextStyle(color: Color(0xFF4E4E56), fontSize: 13, height: 1.55),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-
-                final actionButton = FilledButton.icon(
-                  onPressed: onPressed,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFBE933E),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    shape: const StadiumBorder(),
-                  ),
-                  icon: const Icon(Icons.download_rounded),
-                  label: const Text('Pobierz PDF'),
-                );
-
-                if (isCompact) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      descriptionBlock,
-                      const SizedBox(height: 16),
-                      actionButton,
-                    ],
-                  );
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(child: descriptionBlock),
-                    const SizedBox(width: 20),
-                    actionButton,
-                  ],
-                );
-              },
-            ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF13284A).withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 760;
+
+          final descriptionBlock = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PreviewCircleIcon(icon: Icons.description_outlined),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PDF z kartą modelu i wyposażenia',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF1D1D1F)),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Dokument z kartą modelu i szczegółami konfiguracji przygotowanej dla klienta.',
+                      style: TextStyle(color: Color(0xFF4E4E56), fontSize: 13, height: 1.55),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          final actionButton = FilledButton.icon(
+            onPressed: onPressed,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFBE933E),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              shape: const StadiumBorder(),
+            ),
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('Pobierz PDF'),
+          );
+
+          if (isCompact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                descriptionBlock,
+                const SizedBox(height: 16),
+                actionButton,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: descriptionBlock),
+              const SizedBox(width: 20),
+              actionButton,
+            ],
+          );
+        },
       ),
     );
   }
@@ -1646,186 +1539,152 @@ class _PreviewFinancingSection extends StatelessWidget {
       ('Wariant', financingVariant, false),
     ];
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(36),
-      child: Stack(
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF13284A).withValues(alpha: 0.06),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(color: Color(0xFF1D1D1F)),
-              child: backgroundImageSource?.trim().isNotEmpty == true
-                  ? _PreviewImage(
-                      source: backgroundImageSource!,
+          const Text(
+            'Finansowanie',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.05, color: Color(0xFF1D1D1F)),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Spokojna prezentacja raty, parametrów i ceny końcowej bez dodatkowego tła fotograficznego.',
+            style: TextStyle(color: Color(0xFF6E6E73), height: 1.75, fontSize: 15),
+          ),
+          const SizedBox(height: 22),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 860;
+              final primaryPanel = Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F8FA),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: const Color(0xFFE7EAF0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Finansowanie',
+                      style: TextStyle(color: Color(0xFF6E6E73), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.9),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Szacowana rata miesięczna',
+                      style: TextStyle(color: Color(0xFF1D1D1F), fontSize: 30, fontWeight: FontWeight.w700, height: 1.04),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      insights.monthlyRateLabel ?? 'Do uzupełnienia po pełnej kalkulacji',
+                      style: const TextStyle(color: Color(0xFF1D1D1F), fontSize: 42, height: 0.98, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '${insights.summaryLabel} Wartości pokazujemy w trybie $pricingDisplayMode.',
+                      style: const TextStyle(color: Color(0xFF4E5968), height: 1.65),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
                       width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      missingLabel: 'Brak tła sekcji finansowej',
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withValues(alpha: 0.52),
-                    Colors.black.withValues(alpha: 0.34),
-                    Colors.black.withValues(alpha: 0.62),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xFFE7EAF0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pricingDisplayMode == 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto',
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF6E6E73)),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            primaryFinalPriceLabel,
+                            style: const TextStyle(color: Color(0xFF1D1D1F), fontSize: 28, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            pricingDisplayMode == 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto',
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF6E6E73)),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            secondaryFinalPriceLabel,
+                            style: const TextStyle(color: Color(0xFF3A3A40), fontSize: 18, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                 ),
-              ),
-            ),
+              );
+              final summaryPanel = Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: const Color(0xFFE7EAF0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Parametry',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.9, color: Color(0xFF6E6E73)),
+                    ),
+                    const SizedBox(height: 14),
+                    ...summaryRows.map(
+                      (row) => _PreviewFinanceSummaryRow(
+                        label: row.$1,
+                        value: row.$2,
+                        emphasize: row.$3,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (isCompact) {
+                return Column(
+                  children: [
+                    primaryPanel,
+                    const SizedBox(height: 16),
+                    summaryPanel,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 21, child: primaryPanel),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 19, child: summaryPanel),
+                ],
+              );
+            },
           ),
-          Container(
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(36),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 32,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompact = constraints.maxWidth < 860;
-                    final primaryPanel = Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Finansowanie',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.58),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.9,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          const Text(
-                            'Szacowana rata miesięczna',
-                            style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w700, height: 1.04),
-                          ),
-                          const SizedBox(height: 18),
-                          Text(
-                            insights.monthlyRateLabel ?? 'Do uzupełnienia po pełnej kalkulacji',
-                            style: const TextStyle(color: Colors.white, fontSize: 42, height: 0.98, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '${insights.summaryLabel} Wartości pokazujemy w trybie $pricingDisplayMode.',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.76), height: 1.65),
-                          ),
-                          const SizedBox(height: 20),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.06),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  pricingDisplayMode == 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto',
-                                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.58)),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  primaryFinalPriceLabel,
-                                  style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  pricingDisplayMode == 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto',
-                                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.52)),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  secondaryFinalPriceLabel,
-                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.84), fontSize: 18, fontWeight: FontWeight.w700),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                    final summaryPanel = Container(
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.84),
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Parametry',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.9, color: Color(0xFF6E6E73)),
-                          ),
-                          const SizedBox(height: 14),
-                          ...summaryRows.map(
-                            (row) => _PreviewFinanceSummaryRow(
-                              label: row.$1,
-                              value: row.$2,
-                              emphasize: row.$3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (isCompact) {
-                      return Column(
-                        children: [
-                          primaryPanel,
-                          const SizedBox(height: 16),
-                          summaryPanel,
-                        ],
-                      );
-                    }
-
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 21, child: primaryPanel),
-                        const SizedBox(width: 16),
-                        Expanded(flex: 19, child: summaryPanel),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  '$disclaimer Szczegółowe wyliczenie jest przygotowywane po weryfikacji zdolności finansowej klienta oraz po potwierdzeniu okresu finansowania, wpłaty własnej i wykupu.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.64),
-                    height: 1.6,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: 18),
+          Text(
+            '$disclaimer Szczegółowe wyliczenie jest przygotowywane po weryfikacji zdolności finansowej klienta oraz po potwierdzeniu okresu finansowania, wpłaty własnej i wykupu.',
+            style: const TextStyle(color: Color(0xFF6E6E73), height: 1.6, fontSize: 12),
           ),
         ],
       ),
@@ -1860,92 +1719,57 @@ class _PreviewContactSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(36),
-      child: Stack(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF13284A).withValues(alpha: 0.06),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(color: Color(0xFF1D1D1F)),
-              child: backgroundImageSource?.trim().isNotEmpty == true
-                  ? _PreviewImage(
-                      source: backgroundImageSource!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      missingLabel: 'Brak tła sekcji kontaktowej',
-                    )
-                  : const SizedBox.shrink(),
-            ),
+          const Text(
+            'Oferta gotowa do wysłania',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.05, color: Color(0xFF1D1D1F)),
           ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withValues(alpha: 0.58),
-                    Colors.black.withValues(alpha: 0.42),
-                    Colors.black.withValues(alpha: 0.62),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
+          const SizedBox(height: 10),
+          const Text(
+            'To jest końcowy snapshot do prezentacji klientowi. Wysyłka odbywa się z górnej belki przez adres e-mail klienta.',
+            style: TextStyle(color: Color(0xFF6E6E73), height: 1.7, fontSize: 16),
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(36),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 32,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Oferta gotowa do wysłania',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.05, color: Colors.white),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'To jest końcowy snapshot do prezentacji klientowi. Wysyłka odbywa się z górnej belki przez adres e-mail klienta.',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.76), height: 1.7, fontSize: 16),
-                ),
-                const SizedBox(height: 20),
-                _PreviewDeliveryCard(
-                  customerName: customerName,
-                  customerEmail: customerEmail,
-                  canSendEmail: canSendEmail,
-                ),
-                const SizedBox(height: 12),
-                  _PreviewCalloutBox(
-                    title: 'Dodatkowe ustalenia',
-                  value: notes,
-                  tint: Colors.white.withValues(alpha: 0.92),
-                ),
-                const SizedBox(height: 12),
-                  _PreviewInfoGrid(items: [
-                    _PreviewInfoItem('Numer oferty', offerNumber),
-                    _PreviewInfoItem('Ważna do', validUntilLabel),
-                    _PreviewInfoItem('Specyfikacja', specificationStatus),
-                    _PreviewInfoItem('Prezentacja cen', pricingDisplayMode),
-                  ]),
-                const SizedBox(height: 12),
-                _PreviewCalloutBox(
-                  title: 'Zastrzeżenie formalne',
-                  value: formalNotice,
-                  tint: Colors.white.withValues(alpha: 0.92),
-                ),
-              ],
-            ),
+          const SizedBox(height: 20),
+          _PreviewDeliveryCard(
+            customerName: customerName,
+            customerEmail: customerEmail,
+            canSendEmail: canSendEmail,
+          ),
+          const SizedBox(height: 12),
+          _PreviewCalloutBox(
+            title: 'Dodatkowe ustalenia',
+            value: notes,
+            tint: const Color(0xFFF7F8FA),
+          ),
+          const SizedBox(height: 12),
+          _PreviewInfoGrid(items: [
+            _PreviewInfoItem('Numer oferty', offerNumber),
+            _PreviewInfoItem('Ważna do', validUntilLabel),
+            _PreviewInfoItem('Specyfikacja', specificationStatus),
+            _PreviewInfoItem('Prezentacja cen', pricingDisplayMode),
+          ]),
+          const SizedBox(height: 12),
+          _PreviewCalloutBox(
+            title: 'Zastrzeżenie formalne',
+            value: formalNotice,
+            tint: const Color(0xFFF7F8FA),
           ),
         ],
       ),
@@ -2096,7 +1920,7 @@ class _PreviewCalloutBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: tint,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.42)),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2130,9 +1954,9 @@ class _PreviewDeliveryCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: const Color(0xFFF7F8FA),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -2142,13 +1966,13 @@ class _PreviewDeliveryCard extends StatelessWidget {
             height: isCompact ? 72 : 88,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.6),
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFE7EAF0), width: 1.6),
             ),
             child: Icon(
               Icons.mark_email_read_outlined,
               size: isCompact ? 34 : 40,
-              color: Colors.white.withValues(alpha: 0.92),
+              color: const Color(0xFF243247),
             ),
           );
           final details = Column(
@@ -2156,28 +1980,28 @@ class _PreviewDeliveryCard extends StatelessWidget {
             children: [
               Text(
                 'Kanał doręczenia',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.9,
-                  color: Colors.white.withValues(alpha: 0.78),
+                  color: Color(0xFF6E6E73),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 customerName,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF1D1D1F)),
               ),
               const SizedBox(height: 6),
               Text(
                 hasRecipient ? 'Adres klienta gotowy do użycia' : 'Adres klienta wymaga uzupełnienia',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontWeight: FontWeight.w600),
+                style: const TextStyle(color: Color(0xFF6E6E73), fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
               Text(
                 hasRecipient ? normalizedEmail! : 'Brak adresu e-mail klienta w danych tej oferty.',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.94),
+                style: const TextStyle(
+                  color: Color(0xFF1D1D1F),
                   fontWeight: FontWeight.w600,
                   height: 1.45,
                 ),
@@ -2187,19 +2011,19 @@ class _PreviewDeliveryCard extends StatelessWidget {
                 canSendEmail
                     ? 'Użyj przycisku „Wyślij e-mailem” w górnej belce, aby przekazać klientowi finalną wersję oferty.'
                     : 'Najpierw wygeneruj wersję oferty, a dopiero potem wyślij ją klientowi e-mailem.',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.84), height: 1.55),
+                style: const TextStyle(color: Color(0xFF4E5968), height: 1.55),
               ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                  border: Border.all(color: const Color(0xFFE7EAF0)),
                 ),
                 child: Text(
                   hasRecipient ? 'Wysyłka klientowska: e-mail' : 'Wysyłka wstrzymana do czasu uzupełnienia e-maila',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.92), fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Color(0xFF243247), fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -2285,9 +2109,9 @@ class _PreviewInfoGrid extends StatelessWidget {
               width: 240,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.84),
+                color: const Color(0xFFF7F8FA),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.42)),
+                border: Border.all(color: const Color(0xFFE7EAF0)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
