@@ -344,7 +344,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                   _PreviewSectionCard(
                     title: 'Najważniejsze dane',
                     subtitle: 'Siedem kluczowych informacji o konfiguracji, pokazanych na czystym, jasnym tle.',
-                    sectionTint: VeloPrimePalette.sea,
+                    sectionTint: VeloPrimePalette.bronzeDeep,
                     backgroundImageSource: heroImageSource,
                     child: _PreviewTechnicalSection(
                       items: visibleTechnicalItems,
@@ -355,7 +355,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                   _PreviewSectionCard(
                     title: 'Galeria',
                     subtitle: 'Wybrane ujęcia nadwozia, wnętrza i detali tej konfiguracji.',
-                    sectionTint: const Color(0xFF5F5A4F),
+                    sectionTint: const Color(0xFF8A7441),
                     child: _AssetGallery(
                       media: resolvedMedia,
                     ),
@@ -514,14 +514,14 @@ class _PreviewHeroCard extends StatelessWidget {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                       decoration: BoxDecoration(
-                                        color: Color.alphaBlend(VeloPrimePalette.sea.withValues(alpha: 0.14), Colors.white.withValues(alpha: 0.68)),
+                                        color: Color.alphaBlend(VeloPrimePalette.bronzeDeep.withValues(alpha: 0.12), Colors.white.withValues(alpha: 0.68)),
                                         borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: VeloPrimePalette.sea.withValues(alpha: 0.20)),
+                                        border: Border.all(color: VeloPrimePalette.bronzeDeep.withValues(alpha: 0.18)),
                                       ),
                                       child: Text(
                                         'Oferta ważna do $validUntilLabel',
                                         style: const TextStyle(
-                                          color: Color(0xFF35527E),
+                                          color: Color(0xFF8A7441),
                                           fontSize: 11,
                                           fontWeight: FontWeight.w700,
                                           letterSpacing: 0.72,
@@ -532,7 +532,7 @@ class _PreviewHeroCard extends StatelessWidget {
                                     Text(
                                       'Oferta przygotowana dla ${customer.customerName}',
                                       style: const TextStyle(
-                                        color: Color(0xFF43537B),
+                                        color: Color(0xFF6A5D45),
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
                                         letterSpacing: 0.8,
@@ -553,7 +553,7 @@ class _PreviewHeroCard extends StatelessWidget {
                                     const Text(
                                       'Konfiguracja, cena i finansowanie ułożone na czystym tle, gotowe do pokazania klientowi bez dodatkowego wizualnego szumu.',
                                       style: TextStyle(
-                                        color: Color(0xFF42506D),
+                                        color: Color(0xFF585042),
                                         fontSize: 15,
                                         height: 1.6,
                                         fontWeight: FontWeight.w500,
@@ -612,33 +612,35 @@ class _PreviewTechnicalSection extends StatelessWidget {
                       final tint = _previewTechnicalTint(entry.key);
 
                       return SizedBox(
-                      width: tileWidth,
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: _previewSurfaceDecoration(
-                          tint: tint,
-                          radius: 24,
-                          fillStrength: entry.key == 0 ? 0.14 : 0.08,
-                          borderStrength: entry.key == 0 ? 0.22 : 0.16,
-                          shadowStrength: 0.04,
+                        width: tileWidth,
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: _previewSurfaceDecoration(
+                            tint: tint,
+                            radius: 24,
+                            fillStrength: entry.key == 0 ? 0.07 : 0.03,
+                            borderStrength: entry.key == 0 ? 0.16 : 0.10,
+                            shadowStrength: 0.03,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _PreviewCircleIcon(
+                                icon: item.icon,
+                                foregroundColor: tint,
+                                backgroundColor: entry.key == 0
+                                    ? const Color(0xFFFFF8ED)
+                                    : Colors.white.withValues(alpha: 0.94),
+                                borderColor: tint.withValues(alpha: entry.key == 0 ? 0.18 : 0.10),
+                              ),
+                              const SizedBox(height: 14),
+                              Text(item.label, style: const TextStyle(fontSize: 12, color: VeloPrimePalette.muted, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 6),
+                              Text(item.value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, height: 1.24, color: Color(0xFF1D1D1F))),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _PreviewCircleIcon(
-                              icon: item.icon,
-                              foregroundColor: tint,
-                              backgroundColor: Color.alphaBlend(tint.withValues(alpha: 0.16), Colors.white.withValues(alpha: 0.86)),
-                              borderColor: tint.withValues(alpha: 0.20),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(item.label, style: const TextStyle(fontSize: 12, color: VeloPrimePalette.muted, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 6),
-                            Text(item.value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, height: 1.24, color: Color(0xFF1D1D1F))),
-                          ],
-                        ),
-                      ),
-                    );
+                      );
                     },
                   )
                   .toList(),
@@ -1376,9 +1378,9 @@ class _PreviewPdfStrip extends StatelessWidget {
       decoration: _previewSurfaceDecoration(
         tint: VeloPrimePalette.bronzeDeep,
         radius: 28,
-        fillStrength: 0.09,
-        borderStrength: 0.16,
-        shadowStrength: 0.05,
+        fillStrength: 0.03,
+        borderStrength: 0.10,
+        shadowStrength: 0.04,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1550,8 +1552,9 @@ class _PreviewFinancingSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: _previewSurfaceDecoration(
-        tint: VeloPrimePalette.sea,
-        fillStrength: 0.10,
+        tint: const Color(0xFF8A7441),
+        fillStrength: 0.025,
+        borderStrength: 0.10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1572,66 +1575,70 @@ class _PreviewFinancingSection extends StatelessWidget {
               final primaryPanel = Container(
                 padding: const EdgeInsets.all(24),
                 decoration: _previewSurfaceDecoration(
-                  tint: VeloPrimePalette.sea,
+                  tint: VeloPrimePalette.bronzeDeep,
                   radius: 32,
-                  fillStrength: 0.14,
-                  borderStrength: 0.18,
+                  fillStrength: 0.03,
+                  borderStrength: 0.10,
                   shadowStrength: 0.03,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Finansowanie',
-                      style: TextStyle(color: Color(0xFF6E6E73), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.9),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Szacowana rata miesięczna',
-                      style: TextStyle(color: Color(0xFF1D1D1F), fontSize: 30, fontWeight: FontWeight.w700, height: 1.04),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      insights.monthlyRateLabel ?? 'Do uzupełnienia po pełnej kalkulacji',
-                      style: const TextStyle(color: Color(0xFF1D1D1F), fontSize: 42, height: 0.98, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '${insights.summaryLabel} Wartości pokazujemy w trybie $pricingDisplayMode.',
-                      style: const TextStyle(color: Color(0xFF4E5968), height: 1.65),
-                    ),
-                    const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
-                      decoration: _previewSurfaceDecoration(
-                        tint: const Color(0xFF355F99),
-                        radius: 24,
-                        fillStrength: 0.09,
-                        borderStrength: 0.16,
-                        shadowStrength: 0.02,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF263B61), Color(0xFF35527E)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0E2038).withValues(alpha: 0.14),
+                            blurRadius: 18,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const Text(
+                            'Szacowana rata miesięczna',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Color(0xFFDDE8FF)),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            insights.monthlyRateLabel ?? 'Do uzupełnienia po pełnej kalkulacji',
+                            style: const TextStyle(color: Colors.white, fontSize: 38, height: 0.98, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 14),
                           Text(
                             pricingDisplayMode == 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto',
-                            style: const TextStyle(fontSize: 13, color: Color(0xFF6E6E73)),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFDDE8FF)),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             primaryFinalPriceLabel,
-                            style: const TextStyle(color: Color(0xFF1D1D1F), fontSize: 28, fontWeight: FontWeight.w800),
+                            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 12),
                           Text(
                             pricingDisplayMode == 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto',
-                            style: const TextStyle(fontSize: 13, color: Color(0xFF6E6E73)),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFBFD8FF)),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             secondaryFinalPriceLabel,
-                            style: const TextStyle(color: Color(0xFF3A3A40), fontSize: 18, fontWeight: FontWeight.w700),
+                            style: const TextStyle(color: Color(0xFFDDE8FF), fontSize: 17, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            '${insights.summaryLabel} Wartości pokazujemy w trybie $pricingDisplayMode.',
+                            style: const TextStyle(color: Color(0xFFE5EDFF), height: 1.55),
                           ),
                         ],
                       ),
@@ -1642,10 +1649,10 @@ class _PreviewFinancingSection extends StatelessWidget {
               final summaryPanel = Container(
                 padding: const EdgeInsets.all(22),
                 decoration: _previewSurfaceDecoration(
-                  tint: const Color(0xFF355F99),
+                  tint: const Color(0xFF8A7441),
                   radius: 32,
-                  fillStrength: 0.08,
-                  borderStrength: 0.16,
+                  fillStrength: 0.025,
+                  borderStrength: 0.10,
                   shadowStrength: 0.03,
                 ),
                 child: Column(
@@ -1729,8 +1736,9 @@ class _PreviewContactSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: _previewSurfaceDecoration(
-        tint: const Color(0xFF5F5A4F),
-        fillStrength: 0.09,
+        tint: const Color(0xFF8A7441),
+        fillStrength: 0.025,
+        borderStrength: 0.10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1754,7 +1762,7 @@ class _PreviewContactSection extends StatelessWidget {
           _PreviewCalloutBox(
             title: 'Dodatkowe ustalenia',
             value: notes,
-            tint: Color.alphaBlend(VeloPrimePalette.bronzeDeep.withValues(alpha: 0.08), const Color(0xFFFFFCF8)),
+            tint: const Color(0xFFFFFCF8),
           ),
           const SizedBox(height: 12),
           _PreviewInfoGrid(items: [
@@ -1767,7 +1775,7 @@ class _PreviewContactSection extends StatelessWidget {
           _PreviewCalloutBox(
             title: 'Zastrzeżenie formalne',
             value: formalNotice,
-            tint: Color.alphaBlend(VeloPrimePalette.sea.withValues(alpha: 0.06), const Color(0xFFFFFCF8)),
+            tint: const Color(0xFFFFFCF8),
           ),
         ],
       ),
@@ -1816,10 +1824,10 @@ class _PreviewPricingStatCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: _previewSurfaceDecoration(
-        tint: accent ? VeloPrimePalette.bronzeDeep : const Color(0xFF5F5A4F),
+        tint: accent ? VeloPrimePalette.bronzeDeep : const Color(0xFF8A7441),
         radius: 24,
-        fillStrength: accent ? 0.14 : 0.06,
-        borderStrength: accent ? 0.20 : 0.14,
+        fillStrength: accent ? 0.07 : 0.025,
+        borderStrength: accent ? 0.16 : 0.10,
         shadowStrength: accent ? 0.05 : 0.02,
       ),
       child: Column(
@@ -1855,38 +1863,47 @@ class _PreviewFinalPriceCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
-      decoration: _previewSurfaceDecoration(
-        tint: VeloPrimePalette.bronzeDeep,
-        radius: 28,
-        fillStrength: 0.10,
-        borderStrength: 0.18,
-        shadowStrength: 0.04,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF263B61), Color(0xFF35527E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0E2038).withValues(alpha: 0.14),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(primaryLabel, style: const TextStyle(fontSize: 12, color: VeloPrimePalette.muted, fontWeight: FontWeight.w600)),
+          Text(primaryLabel, style: const TextStyle(fontSize: 12, color: Color(0xFFDDE8FF), fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           Text(
             effectivePriceLabel,
-            style: const TextStyle(fontSize: 38, height: 1.02, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 38, height: 1.02, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: Color.alphaBlend(VeloPrimePalette.bronzeDeep.withValues(alpha: 0.08), const Color(0xFFFFFCF8)),
+              color: Colors.white.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: VeloPrimePalette.bronzeDeep.withValues(alpha: 0.12)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.receipt_long_outlined, size: 18, color: Color(0xFF243247)),
+                const Icon(Icons.receipt_long_outlined, size: 18, color: Color(0xFFDDE8FF)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     '$secondaryLabel: $secondaryPriceLabel',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
                   ),
                 ),
               ],
@@ -1895,7 +1912,7 @@ class _PreviewFinalPriceCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             'Rabat procentowy: $discountPercentLabel',
-            style: const TextStyle(fontSize: 12, color: VeloPrimePalette.muted, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 12, color: Color(0xFFE5EDFF), fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -1956,10 +1973,10 @@ class _PreviewDeliveryCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: _previewSurfaceDecoration(
-        tint: VeloPrimePalette.sea,
+        tint: const Color(0xFF8A7441),
         radius: 24,
-        fillStrength: 0.12,
-        borderStrength: 0.16,
+        fillStrength: 0.025,
+        borderStrength: 0.10,
         shadowStrength: 0.03,
       ),
       child: LayoutBuilder(
@@ -1970,8 +1987,8 @@ class _PreviewDeliveryCard extends StatelessWidget {
             height: isCompact ? 72 : 88,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Color.alphaBlend(VeloPrimePalette.sea.withValues(alpha: 0.10), Colors.white),
-              border: Border.all(color: VeloPrimePalette.sea.withValues(alpha: 0.18), width: 1.6),
+              color: const Color(0xFFFFF8ED),
+              border: Border.all(color: VeloPrimePalette.bronzeDeep.withValues(alpha: 0.16), width: 1.6),
             ),
             child: Icon(
               Icons.mark_email_read_outlined,
@@ -2021,13 +2038,13 @@ class _PreviewDeliveryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Color.alphaBlend(VeloPrimePalette.sea.withValues(alpha: 0.10), Colors.white),
+                  color: const Color(0xFFFFF8ED),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: VeloPrimePalette.sea.withValues(alpha: 0.16)),
+                  border: Border.all(color: VeloPrimePalette.bronzeDeep.withValues(alpha: 0.14)),
                 ),
                 child: Text(
                   hasRecipient ? 'Wysyłka klientowska: e-mail' : 'Wysyłka wstrzymana do czasu uzupełnienia e-maila',
-                  style: const TextStyle(color: Color(0xFF243247), fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Color(0xFF6A5D45), fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -2066,7 +2083,7 @@ class _PreviewFinanceSummaryRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Color(0x1F355F99)),
+          bottom: BorderSide(color: Color(0x1FBE933E)),
         ),
       ),
       child: Row(
@@ -2113,10 +2130,10 @@ class _PreviewInfoGrid extends StatelessWidget {
               width: 240,
               padding: const EdgeInsets.all(14),
               decoration: _previewSurfaceDecoration(
-                tint: const Color(0xFF5F5A4F),
+                tint: const Color(0xFF8A7441),
                 radius: 20,
-                fillStrength: 0.09,
-                borderStrength: 0.14,
+                fillStrength: 0.025,
+                borderStrength: 0.10,
                 shadowStrength: 0.02,
               ),
               child: Column(
@@ -2209,22 +2226,15 @@ String _resolveAbsolutePreviewUrl(String pathOrUrl) {
 }
 
 Color _previewTechnicalTint(int index) {
-  switch (index % 3) {
-    case 0:
-      return VeloPrimePalette.sea;
-    case 1:
-      return VeloPrimePalette.bronzeDeep;
-    default:
-      return const Color(0xFF5F5A4F);
-  }
+  return index == 0 ? VeloPrimePalette.bronzeDeep : const Color(0xFF8A7441);
 }
 
 BoxDecoration _previewSurfaceDecoration({
   required Color tint,
   double radius = 36,
-  double fillStrength = 0.07,
-  double borderStrength = 0.16,
-  double shadowStrength = 0.05,
+  double fillStrength = 0.025,
+  double borderStrength = 0.10,
+  double shadowStrength = 0.04,
 }) {
   return BoxDecoration(
     gradient: LinearGradient(

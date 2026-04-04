@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v34",
-      "publishedAt": "2026-04-04T15:30:00.000Z",
+      "version": "v35",
+      "publishedAt": "2026-04-04T16:10:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.12.20 refines the generated offer snapshot with a glassier hero text card and lead-inspired color accents across pricing, financing, and final delivery sections.",
+      "summary": "Flutter client 0.1.13.21 simplifies the generated offer snapshot to a white-base layout with one stronger highlighted pricing block and restrained premium accents.",
       "priority": "STANDARD"
     }
   ]
