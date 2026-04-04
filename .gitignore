@@ -11,7 +11,9 @@ yarn-error.log*
 pnpm-debug.log*
 tailwindcss-*.log
 vercel-deploy.log
+.vscode/settings.json
 screeny/
+deploy/msix/certs/*.pfx
 client/veloprime_hybrid_app/build/
 client/veloprime_hybrid_app/.dart_tool/
 client/veloprime_hybrid_app/.flutter-plugins
@@ -21,4 +23,6 @@ client/veloprime_hybrid_app/.pub-cache/
 client/veloprime_hybrid_app/deploy/msix/artifacts/
 client/veloprime_hybrid_app/deploy/*.zip
 client/veloprime_hybrid_app/deploy/**/*.pfx
+client/veloprime_hybrid_app/deploy/*.test-lan.json
+client/veloprime_hybrid_app/deploy/INSTALL_TEST_CLIENT.md
 data/leads.json
