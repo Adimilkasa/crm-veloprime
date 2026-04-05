@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
-import { listAssignableLeadOwners, listManagedLeads, listManagedLeadStages } from '@/lib/lead-management'
+import {
+  listAssignableLeadOwners,
+  listCustomerWorkflowStages,
+  listManagedLeads,
+  listManagedLeadStages,
+} from '@/lib/lead-management'
 import { listManagedOffers } from '@/lib/offer-management'
 
 export async function GET(
@@ -15,9 +20,10 @@ export async function GET(
   }
 
   const { leadId } = await context.params
-  const [leads, stages, offers, salespeople] = await Promise.all([
+  const [leads, stages, customerWorkflowStages, offers, salespeople] = await Promise.all([
     listManagedLeads(session),
     listManagedLeadStages(),
+    listCustomerWorkflowStages(),
     listManagedOffers(session),
     listAssignableLeadOwners(session),
   ])
@@ -43,6 +49,7 @@ export async function GET(
     ok: true,
     lead,
     stages,
+    customerWorkflowStages,
     linkedOffers,
     salespeople,
   })

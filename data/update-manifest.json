@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v39",
-      "publishedAt": "2026-04-05T12:30:00.000Z",
+      "version": "v40",
+      "publishedAt": "2026-04-05T18:00:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.15.26 adds lead attachments required for won deals, reminders in the shell and dashboard, and the first operational customer workspace with customer card creation from won leads.",
+      "summary": "Flutter client 0.1.15.27 adds the production customer kanban with 8 universal stages, persistent stage renaming for administrators, and automatic customer workflow tracking for won leads.",
       "priority": "STANDARD"
     }
   ]

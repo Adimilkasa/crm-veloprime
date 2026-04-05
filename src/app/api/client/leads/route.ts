@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
-import { createManagedLead, listAssignableLeadOwners, listManagedLeads, listManagedLeadStages } from '@/lib/lead-management'
+import {
+  createManagedLead,
+  listAssignableLeadOwners,
+  listCustomerWorkflowStages,
+  listManagedLeads,
+  listManagedLeadStages,
+} from '@/lib/lead-management'
 import { listManagedOffers } from '@/lib/offer-management'
 
 export async function GET() {
@@ -11,9 +17,10 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: 'Brak aktywnej sesji.' }, { status: 401 })
   }
 
-  const [leads, stages, offers, salespeople] = await Promise.all([
+  const [leads, stages, customerWorkflowStages, offers, salespeople] = await Promise.all([
     listManagedLeads(session),
     listManagedLeadStages(),
+    listCustomerWorkflowStages(),
     listManagedOffers(session),
     listAssignableLeadOwners(session),
   ])
@@ -50,6 +57,7 @@ export async function GET() {
     ok: true,
     leads,
     stages,
+    customerWorkflowStages,
     leadOffersByLeadId,
     salespeople,
   })

@@ -9,6 +9,23 @@ import { listManagedUsers } from '@/lib/user-management'
 
 export type LeadStageKind = 'OPEN' | 'WON' | 'LOST' | 'HOLD'
 
+export type CustomerWorkflowStage =
+  | 'CUSTOMER_STAGE_1'
+  | 'CUSTOMER_STAGE_2'
+  | 'CUSTOMER_STAGE_3'
+  | 'CUSTOMER_STAGE_4'
+  | 'CUSTOMER_STAGE_5'
+  | 'CUSTOMER_STAGE_6'
+  | 'CUSTOMER_STAGE_7'
+  | 'CUSTOMER_STAGE_8'
+
+export type CustomerWorkflowStageDefinition = {
+  key: CustomerWorkflowStage
+  label: string
+  color: string
+  order: number
+}
+
 export type LeadStage = {
   id: string
   name: string
@@ -56,6 +73,7 @@ export type ManagedLead = {
   email: string | null
   phone: string | null
   customerId: string | null
+  customerWorkflowStage: CustomerWorkflowStage | null
   interestedModel: string | null
   region: string | null
   stageId: string
@@ -106,6 +124,7 @@ type PersistedLeadRecord = {
   email: string | null
   phone: string | null
   customerId: string | null
+  customerWorkflowStage: CustomerWorkflowStage | null
   interestedModel: string | null
   region: string | null
   stageKey: LeadPipelineStageKey
@@ -127,10 +146,18 @@ type PersistedLeadStore = {
   leads: PersistedLeadRecord[]
 }
 
+type PersistedCustomerWorkflowStageRecord = CustomerWorkflowStageDefinition
+
+type PersistedCustomerWorkflowStageStore = {
+  stages: PersistedCustomerWorkflowStageRecord[]
+}
+
 const LEAD_DATA_DIR = path.join(process.cwd(), 'data')
 const LEAD_STORE_PATH = path.join(LEAD_DATA_DIR, 'leads.json')
+const CUSTOMER_WORKFLOW_STAGE_STORE_PATH = path.join(LEAD_DATA_DIR, 'customer-workflow-stages.json')
 
 let inMemoryLeadStore: PersistedLeadStore | null = null
+let inMemoryCustomerWorkflowStageStore: PersistedCustomerWorkflowStageStore | null = null
 
 const FIXED_STAGES: Array<LeadStage & { stageKey: LeadPipelineStageKey }> = [
   { id: 'stage-new-lead', stageKey: 'NEW_LEAD', name: 'Nowy lead', color: '#5AA9E6', order: 0, kind: 'OPEN' },
@@ -145,6 +172,39 @@ const FIXED_STAGES: Array<LeadStage & { stageKey: LeadPipelineStageKey }> = [
 
 const STAGE_BY_ID = new Map(FIXED_STAGES.map((stage) => [stage.id, stage]))
 const STAGE_BY_KEY = new Map(FIXED_STAGES.map((stage) => [stage.stageKey, stage]))
+
+const DEFAULT_CUSTOMER_WORKFLOW_STAGES: CustomerWorkflowStageDefinition[] = [
+  { key: 'CUSTOMER_STAGE_1', label: 'Etap 1', color: '#D69B2B', order: 0 },
+  { key: 'CUSTOMER_STAGE_2', label: 'Etap 2', color: '#C56A4A', order: 1 },
+  { key: 'CUSTOMER_STAGE_3', label: 'Etap 3', color: '#7C5AC8', order: 2 },
+  { key: 'CUSTOMER_STAGE_4', label: 'Etap 4', color: '#2F9B63', order: 3 },
+  { key: 'CUSTOMER_STAGE_5', label: 'Etap 5', color: '#3C7DD9', order: 4 },
+  { key: 'CUSTOMER_STAGE_6', label: 'Etap 6', color: '#A95A96', order: 5 },
+  { key: 'CUSTOMER_STAGE_7', label: 'Etap 7', color: '#B7801A', order: 6 },
+  { key: 'CUSTOMER_STAGE_8', label: 'Etap 8', color: '#5E6C84', order: 7 },
+]
+
+const DEFAULT_CUSTOMER_WORKFLOW_STAGE_BY_KEY = new Map(
+  DEFAULT_CUSTOMER_WORKFLOW_STAGES.map((stage) => [stage.key, stage]),
+)
+
+const CUSTOMER_WORKFLOW_STAGES = new Set<CustomerWorkflowStage>([
+  'CUSTOMER_STAGE_1',
+  'CUSTOMER_STAGE_2',
+  'CUSTOMER_STAGE_3',
+  'CUSTOMER_STAGE_4',
+  'CUSTOMER_STAGE_5',
+  'CUSTOMER_STAGE_6',
+  'CUSTOMER_STAGE_7',
+  'CUSTOMER_STAGE_8',
+])
+
+const LEGACY_CUSTOMER_WORKFLOW_STAGE_MAP: Record<string, CustomerWorkflowStage> = {
+  NEW_CUSTOMER: 'CUSTOMER_STAGE_1',
+  IN_PROGRESS: 'CUSTOMER_STAGE_2',
+  FORMALITIES: 'CUSTOMER_STAGE_3',
+  COMPLETED: 'CUSTOMER_STAGE_4',
+}
 
 let forceFileLeadStorage = false
 
@@ -219,6 +279,222 @@ function normalizeLeadAttachment(entry: Partial<LeadAttachment>): LeadAttachment
   }
 }
 
+function normalizeCustomerWorkflowStage(value: string | null | undefined): CustomerWorkflowStage | null {
+  if (!value) {
+    return null
+  }
+
+  const normalizedValue = LEGACY_CUSTOMER_WORKFLOW_STAGE_MAP[value] ?? value
+
+  return CUSTOMER_WORKFLOW_STAGES.has(normalizedValue as CustomerWorkflowStage)
+    ? (normalizedValue as CustomerWorkflowStage)
+    : null
+}
+
+function normalizeCustomerWorkflowStageDefinition(
+  entry: Partial<PersistedCustomerWorkflowStageRecord>,
+  fallback: CustomerWorkflowStageDefinition,
+): CustomerWorkflowStageDefinition {
+  return {
+    key: fallback.key,
+    label: entry.label?.trim() || fallback.label,
+    color: entry.color?.trim() || fallback.color,
+    order: Number.isFinite(entry.order) ? Math.max(0, Math.round(entry.order ?? fallback.order)) : fallback.order,
+  }
+}
+
+function buildDefaultCustomerWorkflowStageStore(): PersistedCustomerWorkflowStageStore {
+  return {
+    stages: DEFAULT_CUSTOMER_WORKFLOW_STAGES.map((stage) => ({ ...stage })),
+  }
+}
+
+async function ensureCustomerWorkflowStageStoreFile() {
+  try {
+    await mkdir(LEAD_DATA_DIR, { recursive: true })
+    await readFile(CUSTOMER_WORKFLOW_STAGE_STORE_PATH, 'utf8')
+  } catch {
+    const seedStore = buildDefaultCustomerWorkflowStageStore()
+    inMemoryCustomerWorkflowStageStore = seedStore
+
+    try {
+      await writeFile(CUSTOMER_WORKFLOW_STAGE_STORE_PATH, JSON.stringify(seedStore, null, 2), 'utf8')
+    } catch {
+      // Serverless environments may not allow writes to the application filesystem.
+    }
+  }
+}
+
+async function readCustomerWorkflowStageStore() {
+  await ensureCustomerWorkflowStageStoreFile()
+
+  try {
+    const raw = await readFile(CUSTOMER_WORKFLOW_STAGE_STORE_PATH, 'utf8')
+    const parsed = JSON.parse(raw) as Partial<PersistedCustomerWorkflowStageStore>
+    const rawStages = Array.isArray(parsed.stages) ? parsed.stages : []
+
+    return {
+      stages: DEFAULT_CUSTOMER_WORKFLOW_STAGES.map((fallback) => {
+        const existing = rawStages.find((entry) => normalizeCustomerWorkflowStage((entry as Partial<PersistedCustomerWorkflowStageRecord>).key) === fallback.key)
+        return normalizeCustomerWorkflowStageDefinition(
+          (existing as Partial<PersistedCustomerWorkflowStageRecord> | undefined) ?? {},
+          fallback,
+        )
+      }),
+    } satisfies PersistedCustomerWorkflowStageStore
+  } catch {
+    if (!inMemoryCustomerWorkflowStageStore) {
+      inMemoryCustomerWorkflowStageStore = buildDefaultCustomerWorkflowStageStore()
+    }
+
+    return inMemoryCustomerWorkflowStageStore
+  }
+}
+
+async function writeCustomerWorkflowStageStore(store: PersistedCustomerWorkflowStageStore) {
+  inMemoryCustomerWorkflowStageStore = store
+
+  try {
+    await ensureCustomerWorkflowStageStoreFile()
+    await writeFile(CUSTOMER_WORKFLOW_STAGE_STORE_PATH, JSON.stringify(store, null, 2), 'utf8')
+  } catch {
+    // Ignore filesystem write failures in serverless hosting.
+  }
+}
+
+async function listDbCustomerWorkflowStages() {
+  const database = db
+  if (!database) {
+    return []
+  }
+
+  await Promise.all(
+    DEFAULT_CUSTOMER_WORKFLOW_STAGES.map((stage) => database.customerWorkflowStageConfig.upsert({
+      where: { stageKey: stage.key },
+      update: {
+        color: stage.color,
+        sortOrder: stage.order,
+      },
+      create: {
+        stageKey: stage.key,
+        label: stage.label,
+        color: stage.color,
+        sortOrder: stage.order,
+      },
+    })),
+  )
+
+  return database.customerWorkflowStageConfig.findMany({
+    orderBy: { sortOrder: 'asc' },
+  })
+}
+
+export async function listCustomerWorkflowStages() {
+  if (isPrismaLeadStorageEnabled() && db) {
+    try {
+      const stages = await listDbCustomerWorkflowStages()
+
+      return DEFAULT_CUSTOMER_WORKFLOW_STAGES.map((fallback) => {
+        const existing = stages.find((entry) => entry.stageKey === fallback.key)
+        return normalizeCustomerWorkflowStageDefinition(existing ?? {}, fallback)
+      })
+    } catch (error) {
+      if (!canUseFileLeadStorageFallback(error)) {
+        throw error
+      }
+
+      forceFileLeadStorage = true
+    }
+  }
+
+  const store = await readCustomerWorkflowStageStore()
+  return store.stages
+    .map((stage) => normalizeCustomerWorkflowStageDefinition(stage, DEFAULT_CUSTOMER_WORKFLOW_STAGE_BY_KEY.get(stage.key) ?? DEFAULT_CUSTOMER_WORKFLOW_STAGES[0]))
+    .sort((left, right) => left.order - right.order)
+}
+
+export async function updateCustomerWorkflowStageDefinition(
+  session: AuthSession,
+  stageKey: string,
+  input: { label: string },
+) {
+  if (session.role !== 'ADMIN') {
+    return { ok: false as const, error: 'Tylko administrator może zmieniać nazwy etapów klientów.' }
+  }
+
+  const normalizedStageKey = normalizeCustomerWorkflowStage(stageKey)
+  if (!normalizedStageKey) {
+    return { ok: false as const, error: 'Nieprawidłowy etap klienta.' }
+  }
+
+  const label = input.label.trim()
+  if (!label) {
+    return { ok: false as const, error: 'Podaj nazwę etapu klienta.' }
+  }
+
+  const fallback = DEFAULT_CUSTOMER_WORKFLOW_STAGE_BY_KEY.get(normalizedStageKey)
+  if (!fallback) {
+    return { ok: false as const, error: 'Nie znaleziono definicji etapu klienta.' }
+  }
+
+  if (isPrismaLeadStorageEnabled() && db) {
+    try {
+      const updated = await db.customerWorkflowStageConfig.upsert({
+        where: { stageKey: normalizedStageKey },
+        update: {
+          label,
+          color: fallback.color,
+          sortOrder: fallback.order,
+        },
+        create: {
+          stageKey: normalizedStageKey,
+          label,
+          color: fallback.color,
+          sortOrder: fallback.order,
+        },
+      })
+
+      return {
+        ok: true as const,
+        stage: normalizeCustomerWorkflowStageDefinition({
+          key: normalizedStageKey,
+          label: updated.label,
+          color: updated.color,
+          order: updated.sortOrder,
+        }, fallback),
+      }
+    } catch (error) {
+      if (!canUseFileLeadStorageFallback(error)) {
+        throw error
+      }
+
+      forceFileLeadStorage = true
+    }
+  }
+
+  const store = await readCustomerWorkflowStageStore()
+  const nextStages = DEFAULT_CUSTOMER_WORKFLOW_STAGES.map((defaultStage) => {
+    const existing = store.stages.find((stage) => stage.key === defaultStage.key)
+
+    if (defaultStage.key === normalizedStageKey) {
+      return {
+        ...normalizeCustomerWorkflowStageDefinition(existing ?? {}, defaultStage),
+        label,
+      }
+    }
+
+    return normalizeCustomerWorkflowStageDefinition(existing ?? {}, defaultStage)
+  })
+
+  const nextStore = { stages: nextStages } satisfies PersistedCustomerWorkflowStageStore
+  await writeCustomerWorkflowStageStore(nextStore)
+
+  return {
+    ok: true as const,
+    stage: nextStages.find((stage) => stage.key === normalizedStageKey) ?? fallback,
+  }
+}
+
 function mapStageKeyToId(stageKey?: string | null) {
   return STAGE_BY_KEY.get((stageKey ?? 'NEW_LEAD') as LeadPipelineStageKey)?.id ?? FIXED_STAGES[0].id
 }
@@ -231,6 +507,7 @@ function mapPersistedLead(record: PersistedLeadRecord): ManagedLead {
     email: record.email,
     phone: record.phone,
     customerId: record.customerId ?? null,
+    customerWorkflowStage: normalizeCustomerWorkflowStage(record.customerWorkflowStage),
     interestedModel: record.interestedModel,
     region: record.region,
     stageId: mapStageKeyToId(record.stageKey),
@@ -259,6 +536,7 @@ function mapDbLead(record: {
   email: string | null
   phone: string | null
   customerId: string | null
+  customerWorkflowStage: string | null
   message: string | null
   interestedModel: string | null
   region: string | null
@@ -298,6 +576,7 @@ function mapDbLead(record: {
     email: record.email,
     phone: record.phone,
     customerId: record.customerId,
+    customerWorkflowStage: normalizeCustomerWorkflowStage(record.customerWorkflowStage),
     interestedModel: record.interestedModel,
     region: record.region,
     stageId: mapStageKeyToId(record.pipelineStage),
@@ -450,6 +729,7 @@ async function readStore() {
               email: record.email?.trim() || null,
               phone: record.phone?.trim() || null,
               customerId: record.customerId?.trim() || null,
+              customerWorkflowStage: normalizeCustomerWorkflowStage(record.customerWorkflowStage),
               interestedModel: record.interestedModel?.trim() || null,
               region: record.region?.trim() || null,
               stageKey: STAGE_BY_KEY.has((record.stageKey ?? '') as LeadPipelineStageKey)
@@ -513,6 +793,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
       email: 'marek.w@example.com',
       phone: '+48 501 225 881',
       customerId: null,
+      customerWorkflowStage: null,
       interestedModel: 'BYD Seal 6 DM-i',
       region: 'Warszawa',
       stageKey: 'NEW_LEAD',
@@ -551,6 +832,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
       email: 'anna.maj@example.com',
       phone: '+48 604 112 337',
       customerId: null,
+      customerWorkflowStage: null,
       interestedModel: 'BYD Seal U',
       region: 'Krakow',
       stageKey: 'FIRST_CONTACT',
@@ -582,6 +864,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
       email: 'piotr.b@example.com',
       phone: '+48 602 778 190',
       customerId: null,
+      customerWorkflowStage: null,
       interestedModel: 'BYD Dolphin Surf',
       region: 'Poznan',
       stageKey: 'OFFER_SHARED',
@@ -758,6 +1041,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
         interestedModel,
         region: input.region?.trim() || null,
         pipelineStage: stage.stageKey,
+        customerWorkflowStage: null,
         managerId: supervisor?.id ?? null,
         salespersonId: owner.id,
         nextActionAt: null,
@@ -795,6 +1079,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
     email,
     phone,
     customerId: null,
+    customerWorkflowStage: null,
     interestedModel,
     region: input.region?.trim() || null,
     stageKey: stage.stageKey,
@@ -904,6 +1189,9 @@ export async function moveManagedLeadToStage(
         where: { id: leadId },
         data: {
           pipelineStage: stage.stageKey,
+          customerWorkflowStage: stage.kind === 'WON'
+            ? (lead.customerWorkflowStage ?? DEFAULT_CUSTOMER_WORKFLOW_STAGES[0].key)
+            : null,
           acceptedOfferId: stage.kind === 'WON' ? acceptedOfferId : null,
           acceptedAt: stage.kind === 'WON' ? new Date(updatedAt) : null,
         },
@@ -952,6 +1240,9 @@ export async function moveManagedLeadToStage(
   store.leads[leadIndex] = {
     ...store.leads[leadIndex],
     stageKey: stage.stageKey,
+    customerWorkflowStage: stage.kind === 'WON'
+      ? (store.leads[leadIndex].customerWorkflowStage ?? DEFAULT_CUSTOMER_WORKFLOW_STAGES[0].key)
+      : null,
     acceptedOfferId: stage.kind === 'WON' ? acceptedOfferId : null,
     acceptedAt: stage.kind === 'WON' ? updatedAt : null,
     updatedAt,
@@ -960,6 +1251,102 @@ export async function moveManagedLeadToStage(
         kind: 'INFO',
         label: 'Zmiana etapu',
         value: `Lead został przesunięty do etapu ${stage.name}.`,
+        authorName: session.fullName,
+        createdAt: updatedAt,
+      }),
+      ...store.leads[leadIndex].details,
+    ],
+  }
+
+  await writeStore(store)
+  return { ok: true as const, lead: mapPersistedLead(store.leads[leadIndex]) }
+}
+
+export async function updateManagedLeadCustomerWorkflowStage(
+  session: AuthSession,
+  leadId: string,
+  customerWorkflowStage: string,
+) {
+  const users = await listManagedUsers()
+  const lead = await getManagedLeadByIdInternal(leadId, session)
+  const stageDefinitions = await listCustomerWorkflowStages()
+
+  if (!lead) {
+    return { ok: false as const, error: 'Nie znaleziono leada.' }
+  }
+
+  const normalizedStage = normalizeCustomerWorkflowStage(customerWorkflowStage)
+
+  if (!normalizedStage) {
+    return { ok: false as const, error: 'Nieprawidłowy etap klienta.' }
+  }
+
+  const leadStage = STAGE_BY_ID.get(lead.stageId)
+  if (leadStage?.kind != 'WON') {
+    return { ok: false as const, error: 'Etap klienta można ustawić tylko dla leada w sekcji Wygrane.' }
+  }
+
+  const updatedAt = new Date().toISOString()
+  const stageLabel = stageDefinitions.find((stage) => stage.key === normalizedStage)?.label ?? normalizedStage
+
+  if (isPrismaLeadStorageEnabled() && db) {
+    await db.$transaction([
+      db.lead.update({
+        where: { id: leadId },
+        data: {
+          customerWorkflowStage: normalizedStage,
+        },
+      }),
+      db.leadDetailEntry.create({
+        data: {
+          leadId,
+          kind: 'INFO',
+          label: 'Zmiana etapu klienta',
+          value: `Klient został przesunięty do etapu ${stageLabel}.`,
+          authorUserId: session.sub,
+          createdAt: new Date(updatedAt),
+        },
+      }),
+    ])
+
+    const refreshed = await db.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        manager: true,
+        salesperson: true,
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+        },
+        details: {
+          include: { authorUser: true },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    })
+
+    if (!refreshed) {
+      return { ok: false as const, error: 'Nie znaleziono leada po zapisaniu etapu klienta.' }
+    }
+
+    return { ok: true as const, lead: mapDbLead(refreshed) }
+  }
+
+  const store = await getFileStore(users)
+  const leadIndex = store.leads.findIndex((entry) => entry.id === leadId)
+
+  if (leadIndex === -1) {
+    return { ok: false as const, error: 'Nie znaleziono leada.' }
+  }
+
+  store.leads[leadIndex] = {
+    ...store.leads[leadIndex],
+    customerWorkflowStage: normalizedStage,
+    updatedAt,
+    details: [
+      buildActivityEntry({
+        kind: 'INFO',
+        label: 'Zmiana etapu klienta',
+        value: `Klient został przesunięty do etapu ${stageLabel}.`,
         authorName: session.fullName,
         createdAt: updatedAt,
       }),

@@ -31,7 +31,8 @@ class LeadsHomePage extends StatefulWidget {
   final OffersRepository offersRepository;
   final RemindersRepository remindersRepository;
   final Future<void> Function() onRemindersChanged;
-  final Future<void> Function(OfferWorkspaceLaunchRequest request) onOpenOfferWorkspaceForLead;
+  final Future<void> Function(OfferWorkspaceLaunchRequest request)
+      onOpenOfferWorkspaceForLead;
 
   @override
   State<LeadsHomePage> createState() => _LeadsHomePageState();
@@ -105,8 +106,10 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
 
   Future<void> _openLead(String leadId) async {
     try {
-      final cachedPayload = await widget.repository.readCachedLeadDetail(leadId);
-      final payload = cachedPayload ?? await widget.repository.fetchLeadDetail(leadId);
+      final cachedPayload =
+          await widget.repository.readCachedLeadDetail(leadId);
+      final payload =
+          cachedPayload ?? await widget.repository.fetchLeadDetail(leadId);
 
       if (!mounted) {
         return;
@@ -188,7 +191,8 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
       return;
     }
 
-    final existing = overview.leads.where((lead) => lead.id == leadId).firstOrNull;
+    final existing =
+        overview.leads.where((lead) => lead.id == leadId).firstOrNull;
     if (existing == null || existing.stageId == stageId) {
       return;
     }
@@ -196,10 +200,13 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
     final now = DateTime.now().toIso8601String();
     final nextOverview = LeadsOverview(
       leads: overview.leads
-          .map((lead) => lead.id == leadId ? lead.copyWith(stageId: stageId, updatedAt: now) : lead)
+          .map((lead) => lead.id == leadId
+              ? lead.copyWith(stageId: stageId, updatedAt: now)
+              : lead)
           .toList(),
       stages: overview.stages,
       salespeople: overview.salespeople,
+      customerWorkflowStages: overview.customerWorkflowStages,
     );
 
     setState(() {
@@ -277,20 +284,31 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
   @override
   Widget build(BuildContext context) {
     final overview = _overview;
-    final filteredLeads = overview == null ? const <ManagedLeadSummary>[] : _filterLeads(overview);
+    final filteredLeads = overview == null
+        ? const <ManagedLeadSummary>[]
+        : _filterLeads(overview);
     final openCount = overview == null
         ? 0
-        : filteredLeads.where((lead) => _stageKind(overview, lead.stageId) == 'OPEN').length;
+        : filteredLeads
+            .where((lead) => _stageKind(overview, lead.stageId) == 'OPEN')
+            .length;
     final wonCount = overview == null
         ? 0
-        : filteredLeads.where((lead) => _stageKind(overview, lead.stageId) == 'WON').length;
+        : filteredLeads
+            .where((lead) => _stageKind(overview, lead.stageId) == 'WON')
+            .length;
     final lostCount = overview == null
         ? 0
-        : filteredLeads.where((lead) => _stageKind(overview, lead.stageId) == 'LOST').length;
+        : filteredLeads
+            .where((lead) => _stageKind(overview, lead.stageId) == 'LOST')
+            .length;
     final holdCount = overview == null
-      ? 0
-      : filteredLeads.where((lead) => _stageKind(overview, lead.stageId) == 'HOLD').length;
-    final offersCount = filteredLeads.fold<int>(0, (count, lead) => count + lead.linkedOffers.length);
+        ? 0
+        : filteredLeads
+            .where((lead) => _stageKind(overview, lead.stageId) == 'HOLD')
+            .length;
+    final offersCount = filteredLeads.fold<int>(
+        0, (count, lead) => count + lead.linkedOffers.length);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -318,7 +336,8 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                         tint: Color(0xFF4E6EF2),
                         eyebrow: 'Leady',
                         title: 'Brak leadów',
-                        message: 'Po synchronizacji lub dodaniu pierwszego kontaktu pipeline pojawi się tutaj.',
+                        message:
+                            'Po synchronizacji lub dodaniu pierwszego kontaktu pipeline pojawi się tutaj.',
                         icon: Icons.inbox_outlined,
                       )
                     : CustomScrollView(
@@ -326,7 +345,8 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                           SliverToBoxAdapter(
                             child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+                              padding:
+                                  const EdgeInsets.fromLTRB(22, 22, 22, 20),
                               decoration: veloPrimeWorkspacePanelDecoration(
                                 tint: const Color(0xFF4E6EF2),
                                 radius: 30,
@@ -336,22 +356,32 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            VeloPrimeSectionEyebrow(label: 'Filtry operacyjne'),
+                                            VeloPrimeSectionEyebrow(
+                                                label: 'Filtry operacyjne'),
                                             SizedBox(height: 12),
                                             Text(
                                               'Zawęź pipeline do właściwego wycinka pracy.',
-                                              style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, height: 1.08, color: Color(0xFF23315C)),
+                                              style: TextStyle(
+                                                  fontSize: 30,
+                                                  fontWeight: FontWeight.w700,
+                                                  height: 1.08,
+                                                  color: Color(0xFF23315C)),
                                             ),
                                             SizedBox(height: 10),
                                             Text(
                                               'Ustaw zakres widoku, a potem przejdź do konkretnego klienta lub etapu sprzedaży.',
-                                              style: TextStyle(color: Color(0xFF66729C), height: 1.55, fontSize: 14),
+                                              style: TextStyle(
+                                                  color: Color(0xFF66729C),
+                                                  height: 1.55,
+                                                  fontSize: 14),
                                             ),
                                           ],
                                         ),
@@ -362,24 +392,42 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                         runSpacing: 12,
                                         children: [
                                           OutlinedButton.icon(
-                                            onPressed: _isLoading ? null : _load,
+                                            onPressed:
+                                                _isLoading ? null : _load,
                                             icon: const Icon(Icons.refresh),
                                             label: const Text('Odśwież'),
                                             style: OutlinedButton.styleFrom(
-                                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-                                              backgroundColor: Colors.white.withValues(alpha: 0.68),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 18,
+                                                      vertical: 18),
+                                              backgroundColor: Colors.white
+                                                  .withValues(alpha: 0.68),
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          999)),
                                             ),
                                           ),
                                           FilledButton.icon(
-                                            onPressed: _isLoading ? null : () => _openCreateLead(overview),
+                                            onPressed: _isLoading
+                                                ? null
+                                                : () =>
+                                                    _openCreateLead(overview),
                                             icon: const Icon(Icons.add),
                                             label: const Text('Nowy lead'),
                                             style: FilledButton.styleFrom(
-                                              backgroundColor: const Color(0xFF245CC6),
+                                              backgroundColor:
+                                                  const Color(0xFF245CC6),
                                               foregroundColor: Colors.white,
-                                              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 22,
+                                                      vertical: 18),
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          999)),
                                             ),
                                           ),
                                         ],
@@ -391,29 +439,51 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                     spacing: 12,
                                     runSpacing: 12,
                                     children: [
-                                      _OverviewChip(label: 'Otwarte $openCount', tint: const Color(0xFF2B63D6)),
-                                      _OverviewChip(label: 'Wygrane $wonCount', tint: VeloPrimePalette.sea),
-                                      _OverviewChip(label: 'Utracone $lostCount', tint: const Color(0xFFB26B5B)),
-                                      _OverviewChip(label: 'Wstrzymane $holdCount', tint: const Color(0xFF667085)),
-                                      _OverviewChip(label: 'Oferty $offersCount', tint: const Color(0xFF4E6EF2)),
+                                      _OverviewChip(
+                                          label: 'Otwarte $openCount',
+                                          tint: const Color(0xFF2B63D6)),
+                                      _OverviewChip(
+                                          label: 'Wygrane $wonCount',
+                                          tint: VeloPrimePalette.sea),
+                                      _OverviewChip(
+                                          label: 'Utracone $lostCount',
+                                          tint: const Color(0xFFB26B5B)),
+                                      _OverviewChip(
+                                          label: 'Wstrzymane $holdCount',
+                                          tint: const Color(0xFF667085)),
+                                      _OverviewChip(
+                                          label: 'Oferty $offersCount',
+                                          tint: const Color(0xFF4E6EF2)),
                                     ],
                                   ),
                                   const SizedBox(height: 18),
                                   Wrap(
                                     spacing: 14,
                                     runSpacing: 14,
-                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       SizedBox(
                                         width: 320,
                                         child: _FilterDropdownField<String>(
                                           label: 'Opiekun',
-                                          initialValue: _selectedSalespersonFilter,
+                                          initialValue:
+                                              _selectedSalespersonFilter,
                                           items: [
-                                            const DropdownMenuItem<String>(value: _allSalespeople, child: Text('Wszyscy opiekunowie')),
-                                            const DropdownMenuItem<String>(value: _unassignedSalespeople, child: Text('Bez przypisanego opiekuna')),
+                                            const DropdownMenuItem<String>(
+                                                value: _allSalespeople,
+                                                child: Text(
+                                                    'Wszyscy opiekunowie')),
+                                            const DropdownMenuItem<String>(
+                                                value: _unassignedSalespeople,
+                                                child: Text(
+                                                    'Bez przypisanego opiekuna')),
                                             ...overview.salespeople.map(
-                                              (user) => DropdownMenuItem<String>(value: user.fullName, child: Text(user.fullName)),
+                                              (user) =>
+                                                  DropdownMenuItem<String>(
+                                                      value: user.fullName,
+                                                      child:
+                                                          Text(user.fullName)),
                                             ),
                                           ],
                                           onChanged: (value) {
@@ -421,7 +491,8 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                               return;
                                             }
                                             setState(() {
-                                              _selectedSalespersonFilter = value;
+                                              _selectedSalespersonFilter =
+                                                  value;
                                             });
                                           },
                                         ),
@@ -430,13 +501,24 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                         width: 240,
                                         child: _FilterDropdownField<String>(
                                           label: 'Typ etapu',
-                                          initialValue: _selectedStageKindFilter,
+                                          initialValue:
+                                              _selectedStageKindFilter,
                                           items: const [
-                                            DropdownMenuItem<String>(value: _allStageKinds, child: Text('Wszystkie etapy')),
-                                            DropdownMenuItem<String>(value: 'OPEN', child: Text('Aktywne')),
-                                            DropdownMenuItem<String>(value: 'WON', child: Text('Wygrane')),
-                                            DropdownMenuItem<String>(value: 'LOST', child: Text('Utracone')),
-                                            DropdownMenuItem<String>(value: 'HOLD', child: Text('Wstrzymane')),
+                                            DropdownMenuItem<String>(
+                                                value: _allStageKinds,
+                                                child: Text('Wszystkie etapy')),
+                                            DropdownMenuItem<String>(
+                                                value: 'OPEN',
+                                                child: Text('Aktywne')),
+                                            DropdownMenuItem<String>(
+                                                value: 'WON',
+                                                child: Text('Wygrane')),
+                                            DropdownMenuItem<String>(
+                                                value: 'LOST',
+                                                child: Text('Utracone')),
+                                            DropdownMenuItem<String>(
+                                                value: 'HOLD',
+                                                child: Text('Wstrzymane')),
                                           ],
                                           onChanged: (value) {
                                             if (value == null) {
@@ -456,78 +538,109 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                             _onlyWithOffers = value;
                                           });
                                         },
-                                        backgroundColor: Colors.white.withValues(alpha: 0.92),
+                                        backgroundColor: Colors.white
+                                            .withValues(alpha: 0.92),
                                         selectedColor: const Color(0xFFE9F0FF),
-                                        side: const BorderSide(color: Color(0x1F3159B9)),
-                                        labelStyle: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF24418A)),
+                                        side: const BorderSide(
+                                            color: Color(0x1F3159B9)),
+                                        labelStyle: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF24418A)),
                                       ),
-                                      if (_selectedSalespersonFilter != _allSalespeople ||
-                                          _selectedStageKindFilter != _allStageKinds ||
+                                      if (_selectedSalespersonFilter !=
+                                              _allSalespeople ||
+                                          _selectedStageKindFilter !=
+                                              _allStageKinds ||
                                           _onlyWithOffers ||
                                           _searchController.text.isNotEmpty)
                                         TextButton.icon(
                                           onPressed: () {
                                             _searchController.clear();
                                             setState(() {
-                                              _selectedSalespersonFilter = _allSalespeople;
-                                              _selectedStageKindFilter = _allStageKinds;
+                                              _selectedSalespersonFilter =
+                                                  _allSalespeople;
+                                              _selectedStageKindFilter =
+                                                  _allStageKinds;
                                               _onlyWithOffers = false;
                                             });
                                           },
-                                          icon: const Icon(Icons.filter_alt_off_outlined),
+                                          icon: const Icon(
+                                              Icons.filter_alt_off_outlined),
                                           label: const Text('Wyczyść filtry'),
                                         ),
                                     ],
                                   ),
                                   const SizedBox(height: 16),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.92),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.92),
                                       borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(color: const Color(0x183159B9)),
+                                      border: Border.all(
+                                          color: const Color(0x183159B9)),
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.search, color: Color(0xFF274FA8)),
+                                        const Icon(Icons.search,
+                                            color: Color(0xFF274FA8)),
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: TextField(
                                             controller: _searchController,
                                             onChanged: (_) => setState(() {}),
-                                            decoration: veloPrimeInputDecoration(
+                                            decoration:
+                                                veloPrimeInputDecoration(
                                               'Szukaj',
-                                              hintText: 'Klient, kontakt, model, region lub opiekun',
+                                              hintText:
+                                                  'Klient, kontakt, model, region lub opiekun',
                                             ).copyWith(
-                                              floatingLabelBehavior: FloatingLabelBehavior.never,
+                                              floatingLabelBehavior:
+                                                  FloatingLabelBehavior.never,
                                               labelText: null,
                                               fillColor: Colors.transparent,
-                                              hintStyle: const TextStyle(color: Color(0xFF67739D), fontSize: 16, fontWeight: FontWeight.w500),
-                                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 18),
+                                              hintStyle: const TextStyle(
+                                                  color: Color(0xFF67739D),
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w500),
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 4,
+                                                      vertical: 18),
                                               enabledBorder: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(22),
-                                                borderSide: const BorderSide(color: Colors.transparent),
+                                                borderRadius:
+                                                    BorderRadius.circular(22),
+                                                borderSide: const BorderSide(
+                                                    color: Colors.transparent),
                                               ),
                                               focusedBorder: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(22),
-                                                borderSide: const BorderSide(color: Colors.transparent),
+                                                borderRadius:
+                                                    BorderRadius.circular(22),
+                                                borderSide: const BorderSide(
+                                                    color: Colors.transparent),
                                               ),
-                                              suffixIcon: _searchController.text.isEmpty
-                                                  ? null
-                                                  : IconButton(
-                                                      onPressed: () {
-                                                        _searchController.clear();
-                                                        setState(() {});
-                                                      },
-                                                      icon: const Icon(Icons.close),
-                                                    ),
+                                              suffixIcon:
+                                                  _searchController.text.isEmpty
+                                                      ? null
+                                                      : IconButton(
+                                                          onPressed: () {
+                                                            _searchController
+                                                                .clear();
+                                                            setState(() {});
+                                                          },
+                                                          icon: const Icon(
+                                                              Icons.close),
+                                                        ),
                                             ),
                                           ),
                                         ),
                                         const SizedBox(width: 12),
                                         Text(
                                           '${overview.stages.length} etapów • ${filteredLeads.length}',
-                                          style: const TextStyle(color: Color(0xFF67739D), fontWeight: FontWeight.w700),
+                                          style: const TextStyle(
+                                              color: Color(0xFF67739D),
+                                              fontWeight: FontWeight.w700),
                                         ),
                                       ],
                                     ),
@@ -554,27 +667,39 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                     children: [
                                       const Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            VeloPrimeSectionEyebrow(label: 'Pipeline'),
+                                            VeloPrimeSectionEyebrow(
+                                                label: 'Pipeline'),
                                             SizedBox(height: 8),
                                             Text(
                                               'Przegląd etapów i ruch leadów.',
-                                              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, height: 1.08, color: Color(0xFF23315C)),
+                                              style: TextStyle(
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.w700,
+                                                  height: 1.08,
+                                                  color: Color(0xFF23315C)),
                                             ),
                                           ],
                                         ),
                                       ),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 10),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.68),
-                                          borderRadius: BorderRadius.circular(999),
-                                          border: Border.all(color: const Color(0x1D3159B9)),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.68),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          border: Border.all(
+                                              color: const Color(0x1D3159B9)),
                                         ),
                                         child: const Text(
                                           'Kanban operacyjny',
-                                          style: TextStyle(color: Color(0xFF67739D), fontWeight: FontWeight.w700),
+                                          style: TextStyle(
+                                              color: Color(0xFF67739D),
+                                              fontWeight: FontWeight.w700),
                                         ),
                                       ),
                                     ],
@@ -588,14 +713,21 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                         controller: _kanbanScrollController,
                                         scrollDirection: Axis.horizontal,
                                         child: Row(
-                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
                                           children: overview.stages
                                               .map(
                                                 (stage) => Padding(
-                                                  padding: const EdgeInsets.only(right: 18),
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          right: 18),
                                                   child: _KanbanStageColumn(
                                                     stage: stage,
-                                                    leads: filteredLeads.where((lead) => lead.stageId == stage.id).toList(),
+                                                    leads: filteredLeads
+                                                        .where((lead) =>
+                                                            lead.stageId ==
+                                                            stage.id)
+                                                        .toList(),
                                                     dateFormat: _dateFormat,
                                                     movingLeadId: _movingLeadId,
                                                     onOpenLead: _openLead,
@@ -620,7 +752,11 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
 }
 
 String _stageKind(LeadsOverview overview, String stageId) {
-  return overview.stages.where((stage) => stage.id == stageId).firstOrNull?.kind ?? 'OPEN';
+  return overview.stages
+          .where((stage) => stage.id == stageId)
+          .firstOrNull
+          ?.kind ??
+      'OPEN';
 }
 
 String _stageKindLabel(String kind) {
@@ -663,8 +799,11 @@ class _KanbanStageColumnState extends State<_KanbanStageColumn> {
   @override
   Widget build(BuildContext context) {
     final stageColor = _parseColor(widget.stage.color);
-    final assignedCount = widget.leads.where((lead) => (lead.salespersonName ?? '').isNotEmpty).length;
-    final offersCount = widget.leads.fold<int>(0, (total, lead) => total + lead.linkedOffers.length);
+    final assignedCount = widget.leads
+        .where((lead) => (lead.salespersonName ?? '').isNotEmpty)
+        .length;
+    final offersCount = widget.leads
+        .fold<int>(0, (total, lead) => total + lead.linkedOffers.length);
 
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) {
@@ -696,12 +835,15 @@ class _KanbanStageColumnState extends State<_KanbanStageColumn> {
             gradient: stageSurface,
             borderRadius: BorderRadius.circular(32),
             border: Border.all(
-              color: _isHovering ? VeloPrimePalette.bronze.withValues(alpha: 0.28) : stageColor.withValues(alpha: 0.16),
+              color: _isHovering
+                  ? VeloPrimePalette.bronze.withValues(alpha: 0.28)
+                  : stageColor.withValues(alpha: 0.16),
               width: _isHovering ? 1.8 : 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1F1F1F).withValues(alpha: _isHovering ? 0.08 : 0.045),
+                color: const Color(0xFF1F1F1F)
+                    .withValues(alpha: _isHovering ? 0.08 : 0.045),
                 blurRadius: _isHovering ? 30 : 22,
                 offset: const Offset(0, 16),
               ),
@@ -729,12 +871,19 @@ class _KanbanStageColumnState extends State<_KanbanStageColumn> {
                             children: [
                               Text(
                                 widget.stage.name,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink),
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: VeloPrimePalette.ink),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 '${widget.leads.length} leadów',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF6F6553), fontWeight: FontWeight.w700, letterSpacing: 0.7),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF6F6553),
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.7),
                               ),
                             ],
                           ),
@@ -747,15 +896,22 @@ class _KanbanStageColumnState extends State<_KanbanStageColumn> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 7),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.82),
                                     borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: stageColor.withValues(alpha: 0.28)),
+                                    border: Border.all(
+                                        color:
+                                            stageColor.withValues(alpha: 0.28)),
                                   ),
                                   child: Text(
-                                      _stageKindLabel(widget.stage.kind),
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: stageColor, letterSpacing: 0.8),
+                                    _stageKindLabel(widget.stage.kind),
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: stageColor,
+                                        letterSpacing: 0.8),
                                   ),
                                 ),
                               ],
@@ -767,7 +923,11 @@ class _KanbanStageColumnState extends State<_KanbanStageColumn> {
                     const SizedBox(height: 10),
                     Text(
                       '${widget.leads.length}',
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: VeloPrimePalette.ink, height: 1),
+                      style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: VeloPrimePalette.ink,
+                          height: 1),
                     ),
                   ],
                 ),
@@ -777,8 +937,14 @@ class _KanbanStageColumnState extends State<_KanbanStageColumn> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _StageStatPill(label: 'Przypisane', value: '$assignedCount/${widget.leads.length}', accentColor: stageColor),
-                  _StageStatPill(label: 'Oferty', value: '$offersCount', accentColor: stageColor),
+                  _StageStatPill(
+                      label: 'Przypisane',
+                      value: '$assignedCount/${widget.leads.length}',
+                      accentColor: stageColor),
+                  _StageStatPill(
+                      label: 'Oferty',
+                      value: '$offersCount',
+                      accentColor: stageColor),
                 ],
               ),
               const SizedBox(height: 10),
@@ -787,18 +953,29 @@ class _KanbanStageColumnState extends State<_KanbanStageColumn> {
                     ? Container(
                         width: double.infinity,
                         alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 32),
                         decoration: BoxDecoration(
-                          color: _isHovering ? VeloPrimePalette.bronze.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.5),
+                          color: _isHovering
+                              ? VeloPrimePalette.bronze.withValues(alpha: 0.08)
+                              : Colors.white.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(22),
                           border: Border.all(
-                            color: _isHovering ? VeloPrimePalette.bronze.withValues(alpha: 0.36) : const Color(0xFFE7DFD0),
+                            color: _isHovering
+                                ? VeloPrimePalette.bronze
+                                    .withValues(alpha: 0.36)
+                                : const Color(0xFFE7DFD0),
                           ),
                         ),
                         child: Text(
-                          _isHovering ? 'Upuść leada, aby przenieść go do tego etapu.' : 'Miejsce na pierwszego leada.',
+                          _isHovering
+                              ? 'Upuść leada, aby przenieść go do tego etapu.'
+                              : 'Miejsce na pierwszego leada.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF8A826F), height: 1.45),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF8A826F),
+                              height: 1.45),
                         ),
                       )
                     : SingleChildScrollView(
@@ -814,7 +991,7 @@ class _KanbanStageColumnState extends State<_KanbanStageColumn> {
                                     onOpenLead: widget.onOpenLead,
                                     stageColor: stageColor,
                                   ),
-                ),
+                                ),
                               )
                               .toList(),
                         ),
@@ -859,33 +1036,50 @@ class _LeadKanbanCardState extends State<_LeadKanbanCard> {
     final metaGradient = _leadMetaGradient(widget.stageColor);
     final shortActivity = _formatCompactDate(lead.updatedAt) ?? '-';
     final nextAction = _formatActionDate(lead.nextActionAt);
-    final primaryContact = lead.phone ?? lead.email ?? 'Brak danych kontaktowych';
-    final primaryActionLabel = lead.linkedOffers.isNotEmpty ? 'Oferty ${lead.linkedOffers.length}' : 'Więcej';
+    final primaryContact =
+        lead.phone ?? lead.email ?? 'Brak danych kontaktowych';
+    final primaryActionLabel = lead.linkedOffers.isNotEmpty
+        ? 'Oferty ${lead.linkedOffers.length}'
+        : 'Więcej';
 
     Widget buildCard({bool forFeedback = false}) {
       return Opacity(
         opacity: widget.isMoving ? 0.45 : 1,
         child: AnimatedScale(
-          scale: _isDragging ? 1.02 : _isPointerHovering ? 1.012 : 1,
+          scale: _isDragging
+              ? 1.02
+              : _isPointerHovering
+                  ? 1.012
+                  : 1,
           duration: const Duration(milliseconds: 140),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 140),
-            transform: Matrix4.translationValues(0, _isPointerHovering && !forFeedback ? -2 : 0, 0),
+            transform: Matrix4.translationValues(
+                0, _isPointerHovering && !forFeedback ? -2 : 0, 0),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: widget.isMoving ? null : () => widget.onOpenLead(lead.id),
+                onTap:
+                    widget.isMoving ? null : () => widget.onOpenLead(lead.id),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
                   decoration: BoxDecoration(
                     gradient: cardGradient,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: hasOwner ? const Color(0xCCDCE3F0) : widget.stageColor.withValues(alpha: 0.22)),
+                    border: Border.all(
+                        color: hasOwner
+                            ? const Color(0xCCDCE3F0)
+                            : widget.stageColor.withValues(alpha: 0.22)),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF1F1F1F).withValues(alpha: hasOwner ? 0.05 : 0.07),
-                        blurRadius: _isDragging ? 32 : hasOwner ? 24 : 28,
+                        color: const Color(0xFF1F1F1F)
+                            .withValues(alpha: hasOwner ? 0.05 : 0.07),
+                        blurRadius: _isDragging
+                            ? 32
+                            : hasOwner
+                                ? 24
+                                : 28,
                         offset: const Offset(0, 12),
                       ),
                     ],
@@ -920,15 +1114,23 @@ class _LeadKanbanCardState extends State<_LeadKanbanCard> {
                                   lead.fullName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF22315C)),
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF22315C)),
                                 ),
                                 const SizedBox(height: 6),
                                 Wrap(
                                   spacing: 6,
                                   runSpacing: 6,
                                   children: [
-                                    _LeadTinyPill(label: lead.source, gradient: metaGradient),
-                                    if ((lead.region ?? '').isNotEmpty) _LeadTinyPill(label: lead.region!, gradient: metaGradient),
+                                    _LeadTinyPill(
+                                        label: lead.source,
+                                        gradient: metaGradient),
+                                    if ((lead.region ?? '').isNotEmpty)
+                                      _LeadTinyPill(
+                                          label: lead.region!,
+                                          gradient: metaGradient),
                                   ],
                                 ),
                               ],
@@ -938,19 +1140,26 @@ class _LeadKanbanCardState extends State<_LeadKanbanCard> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 7),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.84),
                                   borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: widget.stageColor.withValues(alpha: 0.18)),
+                                  border: Border.all(
+                                      color: widget.stageColor
+                                          .withValues(alpha: 0.18)),
                                 ),
                                 child: Text(
                                   shortActivity,
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: widget.stageColor),
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: widget.stageColor),
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              const Icon(Icons.drag_indicator, color: Color(0xFFB09A63), size: 16),
+                              const Icon(Icons.drag_indicator,
+                                  color: Color(0xFFB09A63), size: 16),
                             ],
                           ),
                         ],
@@ -960,11 +1169,16 @@ class _LeadKanbanCardState extends State<_LeadKanbanCard> {
                         lead.interestedModel ?? 'Model nieokreślony',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF43537B)),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF43537B)),
                       ),
                       const SizedBox(height: 12),
                       _LeadInfoStrip(
-                        icon: lead.phone != null ? Icons.call_outlined : Icons.alternate_email,
+                        icon: lead.phone != null
+                            ? Icons.call_outlined
+                            : Icons.alternate_email,
                         label: primaryContact,
                         accent: widget.stageColor,
                       ),
@@ -984,23 +1198,32 @@ class _LeadKanbanCardState extends State<_LeadKanbanCard> {
                         children: [
                           _LeadStatusPill(
                             text: 'Opiekun: ${lead.salespersonName ?? 'Brak'}',
-                            accent: hasOwner ? const Color(0xFF5F5A4F) : VeloPrimePalette.bronzeDeep,
-                            background: hasOwner ? Colors.white : const Color(0xFFFFFAF0),
-                            borderColor: hasOwner ? const Color(0xFFE7DFD0) : const Color(0xFFEFE0BA),
+                            accent: hasOwner
+                                ? const Color(0xFF5F5A4F)
+                                : VeloPrimePalette.bronzeDeep,
+                            background: hasOwner
+                                ? Colors.white
+                                : const Color(0xFFFFFAF0),
+                            borderColor: hasOwner
+                                ? const Color(0xFFE7DFD0)
+                                : const Color(0xFFEFE0BA),
                           ),
                           if (lead.linkedOffers.isNotEmpty)
                             _LeadStatusPill(
                               text: 'Oferty: ${lead.linkedOffers.length}',
                               accent: const Color(0xFF355F99),
-                              background: widget.stageColor.withValues(alpha: 0.12),
-                              borderColor: widget.stageColor.withValues(alpha: 0.3),
+                              background:
+                                  widget.stageColor.withValues(alpha: 0.12),
+                              borderColor:
+                                  widget.stageColor.withValues(alpha: 0.3),
                             ),
                           if (lead.detailCount > 0)
                             _LeadStatusPill(
                               text: 'Wpisy: ${lead.detailCount}',
                               accent: const Color(0xFF5F5A4F),
                               background: Colors.white,
-                              borderColor: widget.stageColor.withValues(alpha: 0.22),
+                              borderColor:
+                                  widget.stageColor.withValues(alpha: 0.22),
                             ),
                         ],
                       ),
@@ -1010,28 +1233,39 @@ class _LeadKanbanCardState extends State<_LeadKanbanCard> {
                           Expanded(
                             child: _LeadInfoStrip(
                               icon: Icons.person_outline,
-                              label: 'Opiekun: ${lead.salespersonName ?? 'Brak'}',
+                              label:
+                                  'Opiekun: ${lead.salespersonName ?? 'Brak'}',
                               accent: widget.stageColor,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  Color.alphaBlend(widget.stageColor.withValues(alpha: 0.22), Colors.white),
-                                  Color.alphaBlend(widget.stageColor.withValues(alpha: 0.44), Colors.white),
+                                  Color.alphaBlend(
+                                      widget.stageColor.withValues(alpha: 0.22),
+                                      Colors.white),
+                                  Color.alphaBlend(
+                                      widget.stageColor.withValues(alpha: 0.44),
+                                      Colors.white),
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: widget.stageColor.withValues(alpha: 0.26)),
+                              border: Border.all(
+                                  color: widget.stageColor
+                                      .withValues(alpha: 0.26)),
                             ),
                             child: Text(
                               primaryActionLabel,
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: widget.stageColor),
+                              style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: widget.stageColor),
                             ),
                           ),
                         ],
@@ -1086,8 +1320,10 @@ class _LeadKanbanCardState extends State<_LeadKanbanCard> {
 LinearGradient _stageSurface(Color stageColor) {
   return LinearGradient(
     colors: [
-      Color.alphaBlend(stageColor.withValues(alpha: 0.12), Colors.white.withValues(alpha: 0.76)),
-      Color.alphaBlend(stageColor.withValues(alpha: 0.05), const Color(0xB8F9F7FC)),
+      Color.alphaBlend(stageColor.withValues(alpha: 0.12),
+          Colors.white.withValues(alpha: 0.76)),
+      Color.alphaBlend(
+          stageColor.withValues(alpha: 0.05), const Color(0xB8F9F7FC)),
     ],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -1097,8 +1333,10 @@ LinearGradient _stageSurface(Color stageColor) {
 LinearGradient _stageHeaderSurface(Color stageColor) {
   return LinearGradient(
     colors: [
-      Color.alphaBlend(stageColor.withValues(alpha: 0.24), Colors.white.withValues(alpha: 0.86)),
-      Color.alphaBlend(stageColor.withValues(alpha: 0.08), const Color(0xCCFFFCF8)),
+      Color.alphaBlend(stageColor.withValues(alpha: 0.24),
+          Colors.white.withValues(alpha: 0.86)),
+      Color.alphaBlend(
+          stageColor.withValues(alpha: 0.08), const Color(0xCCFFFCF8)),
     ],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -1110,10 +1348,12 @@ LinearGradient _leadCardGradient(Color stageColor, bool hasOwner) {
     colors: hasOwner
         ? [
             Colors.white.withValues(alpha: 0.92),
-            Color.alphaBlend(stageColor.withValues(alpha: 0.04), const Color(0xE8FFFCF8)),
+            Color.alphaBlend(
+                stageColor.withValues(alpha: 0.04), const Color(0xE8FFFCF8)),
           ]
         : [
-            Color.alphaBlend(stageColor.withValues(alpha: 0.1), const Color(0xE8FFFBF3)),
+            Color.alphaBlend(
+                stageColor.withValues(alpha: 0.1), const Color(0xE8FFFBF3)),
             Colors.white.withValues(alpha: 0.92),
           ],
     begin: Alignment.topLeft,
@@ -1125,7 +1365,8 @@ LinearGradient _leadMetaGradient(Color stageColor) {
   return LinearGradient(
     colors: [
       Colors.white.withValues(alpha: 0.74),
-      Color.alphaBlend(stageColor.withValues(alpha: 0.04), Colors.white.withValues(alpha: 0.7)),
+      Color.alphaBlend(stageColor.withValues(alpha: 0.04),
+          Colors.white.withValues(alpha: 0.7)),
     ],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -1175,7 +1416,11 @@ class _LeadTinyPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 9, letterSpacing: 0.8, color: Color(0xFF6A604D), fontWeight: FontWeight.w800),
+        style: const TextStyle(
+            fontSize: 9,
+            letterSpacing: 0.8,
+            color: Color(0xFF6A604D),
+            fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -1211,7 +1456,10 @@ class _LeadInfoStrip extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w700, color: Color(0xFF35415F)),
+              style: const TextStyle(
+                  fontSize: 10.8,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF35415F)),
             ),
           ),
         ],
@@ -1242,7 +1490,8 @@ class _LeadFocusPanel extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             Color.alphaBlend(accent.withValues(alpha: 0.12), Colors.white),
-            Color.alphaBlend(accent.withValues(alpha: 0.03), const Color(0xFFFFFCF8)),
+            Color.alphaBlend(
+                accent.withValues(alpha: 0.03), const Color(0xFFFFFCF8)),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1268,12 +1517,19 @@ class _LeadFocusPanel extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 9.8, letterSpacing: 0.6, fontWeight: FontWeight.w800, color: Color(0xFF5F5A4F)),
+                  style: const TextStyle(
+                      fontSize: 9.8,
+                      letterSpacing: 0.6,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF5F5A4F)),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 11.6, fontWeight: FontWeight.w700, color: Color(0xFF22315C)),
+                  style: const TextStyle(
+                      fontSize: 11.6,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF22315C)),
                 ),
               ],
             ),
@@ -1305,14 +1561,19 @@ class _LeadMessagePanel extends StatelessWidget {
         children: [
           Text(
             'Notatka',
-            style: TextStyle(fontSize: 9.8, letterSpacing: 0.6, fontWeight: FontWeight.w800, color: accent),
+            style: TextStyle(
+                fontSize: 9.8,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w800,
+                color: accent),
           ),
           const SizedBox(height: 5),
           Text(
             message,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11.2, color: Color(0xFF666666), height: 1.5),
+            style: const TextStyle(
+                fontSize: 11.2, color: Color(0xFF666666), height: 1.5),
           ),
         ],
       ),
@@ -1340,7 +1601,11 @@ class _OverviewChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: tint, letterSpacing: 0.4),
+        style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: tint,
+            letterSpacing: 0.4),
       ),
     );
   }
@@ -1370,7 +1635,11 @@ class _LeadStatusPill extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 10, letterSpacing: 0.5, color: accent, fontWeight: FontWeight.w700),
+        style: TextStyle(
+            fontSize: 10,
+            letterSpacing: 0.5,
+            color: accent,
+            fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -1405,9 +1674,17 @@ class _StageStatPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF6B6B6B), fontSize: 10, fontWeight: FontWeight.w600)),
+          Text(label,
+              style: const TextStyle(
+                  color: Color(0xFF6B6B6B),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10, color: VeloPrimePalette.ink)),
+          Text(value,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  color: VeloPrimePalette.ink)),
         ],
       ),
     );
@@ -1437,7 +1714,8 @@ class _FilterDropdownField<T> extends StatelessWidget {
       dropdownColor: const Color(0xFFFFFEFB),
       borderRadius: BorderRadius.circular(22),
       menuMaxHeight: 320,
-      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: VeloPrimePalette.bronzeDeep),
+      icon: const Icon(Icons.keyboard_arrow_down_rounded,
+          color: VeloPrimePalette.bronzeDeep),
       style: const TextStyle(
         color: VeloPrimePalette.ink,
         fontSize: 14,
@@ -1445,7 +1723,8 @@ class _FilterDropdownField<T> extends StatelessWidget {
       ),
       decoration: veloPrimeInputDecoration(label).copyWith(
         fillColor: Colors.white.withValues(alpha: 0.8),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(22),
           borderSide: const BorderSide(color: Color(0x33D6C5A0)),
@@ -1458,4 +1737,3 @@ class _FilterDropdownField<T> extends StatelessWidget {
     );
   }
 }
-

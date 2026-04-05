@@ -96,7 +96,8 @@ class LeadsRepository {
     try {
       final pendingMutations = await _localStore.readPendingMutations();
       final overview = await _fetchLeadsFromNetwork();
-      final merged = _applyPendingMutationsToOverview(overview, pendingMutations);
+      final merged =
+          _applyPendingMutationsToOverview(overview, pendingMutations);
       await _storeOverview(merged);
       return merged;
     } catch (_) {
@@ -147,17 +148,23 @@ class LeadsRepository {
   }) async {
     final current = await _ensureLeadPayload(leadId);
     final now = DateTime.now().toIso8601String();
+    final targetStage =
+        current.stages.where((stage) => stage.id == stageId).firstOrNull;
     final updated = LeadDetailPayload(
       lead: current.lead.copyWith(
         stageId: stageId,
         acceptedOfferId: acceptedOfferId,
         acceptedAt: acceptedOfferId == null ? null : now,
+        customerWorkflowStage: targetStage?.kind == 'WON'
+            ? (current.lead.customerWorkflowStage ?? 'CUSTOMER_STAGE_1')
+            : null,
         clearAcceptedOfferId: acceptedOfferId == null,
         clearAcceptedAt: acceptedOfferId == null,
         updatedAt: now,
       ),
       stages: current.stages,
       salespeople: current.salespeople,
+      customerWorkflowStages: current.customerWorkflowStages,
     );
 
     await _saveLeadPayload(updated);
@@ -196,13 +203,80 @@ class LeadsRepository {
     return refreshed;
   }
 
+  Future<LeadDetailPayload> updateCustomerWorkflowStage({
+    required String leadId,
+    required String customerWorkflowStage,
+  }) async {
+    final current = await _ensureLeadPayload(leadId);
+    final now = DateTime.now().toIso8601String();
+    final updated = LeadDetailPayload(
+      lead: current.lead.copyWith(
+        customerWorkflowStage: customerWorkflowStage,
+        updatedAt: now,
+      ),
+      stages: current.stages,
+      salespeople: current.salespeople,
+      customerWorkflowStages: current.customerWorkflowStages,
+    );
+
+    await _saveLeadPayload(updated);
+    await _enqueueMutation(
+      PendingLeadMutation(
+        id: 'lead-customer-stage-$leadId-${DateTime.now().microsecondsSinceEpoch}',
+        type: 'setCustomerWorkflowStage',
+        leadId: leadId,
+        payload: {
+          'customerWorkflowStage': customerWorkflowStage,
+        },
+        createdAt: now,
+      ),
+    );
+    unawaited(_flushPendingMutations());
+
+    return updated;
+  }
+
+  Future<LeadsOverview> updateCustomerWorkflowStageLabel({
+    required String stageKey,
+    required String label,
+  }) async {
+    final overview = await readCachedLeads() ?? await fetchLeads();
+    final previousOverview = overview;
+    final nextOverview = LeadsOverview(
+      leads: overview.leads,
+      stages: overview.stages,
+      salespeople: overview.salespeople,
+      customerWorkflowStages: overview.customerWorkflowStages
+          .map(
+            (stage) =>
+                stage.key == stageKey ? stage.copyWith(label: label) : stage,
+          )
+          .toList(),
+    );
+
+    await _storeOverview(nextOverview);
+
+    try {
+      await _apiClient.patchJson(
+        '/api/client/leads/customer-workflow-stages/$stageKey',
+        {'label': label},
+      );
+      return nextOverview;
+    } catch (_) {
+      await _storeOverview(previousOverview);
+      rethrow;
+    }
+  }
+
   Future<LeadDetailPayload> assignSalesperson({
     required String leadId,
     required String salespersonId,
   }) async {
     final current = await _ensureLeadPayload(leadId);
     final now = DateTime.now().toIso8601String();
-    final salesperson = current.salespeople.where((entry) => entry.id == salespersonId).firstOrNull;
+    final salesperson = current.salespeople
+        .where((entry) => entry.id == salespersonId)
+        .firstOrNull;
     final updated = LeadDetailPayload(
       lead: current.lead.copyWith(
         salespersonName: salesperson?.fullName,
@@ -210,6 +284,7 @@ class LeadsRepository {
       ),
       stages: current.stages,
       salespeople: current.salespeople,
+      customerWorkflowStages: current.customerWorkflowStages,
     );
 
     await _saveLeadPayload(updated);
@@ -253,6 +328,7 @@ class LeadsRepository {
       ),
       stages: current.stages,
       salespeople: current.salespeople,
+      customerWorkflowStages: current.customerWorkflowStages,
     );
 
     await _saveLeadPayload(updated);
@@ -310,23 +386,24 @@ class LeadsRepository {
         .map(SalespersonOption.fromJson)
         .toList();
 
-    final offersByLeadId = (json['leadOffersByLeadId'] as Map<String, dynamic>? ?? const {})
-        .map(
-          (leadId, value) => MapEntry(
-            leadId,
-            (value as List<dynamic>? ?? const [])
-                .whereType<Map<String, dynamic>>()
-                .map(LeadOfferSummary.fromJson)
-                .toList(),
-          ),
-        );
+    final offersByLeadId =
+        (json['leadOffersByLeadId'] as Map<String, dynamic>? ?? const {}).map(
+      (leadId, value) => MapEntry(
+        leadId,
+        (value as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(LeadOfferSummary.fromJson)
+            .toList(),
+      ),
+    );
 
     final leads = (json['leads'] as List<dynamic>? ?? const [])
         .whereType<Map<String, dynamic>>()
         .map(
           (entry) => ManagedLeadSummary.fromJson(
             entry,
-            linkedOffers: offersByLeadId[entry['id'] as String? ?? ''] ?? const [],
+            linkedOffers:
+                offersByLeadId[entry['id'] as String? ?? ''] ?? const [],
           ),
         )
         .toList();
@@ -335,6 +412,11 @@ class LeadsRepository {
       leads: leads,
       stages: stages,
       salespeople: salespeople,
+      customerWorkflowStages:
+          (json['customerWorkflowStages'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .map(CustomerWorkflowStageInfo.fromJson)
+              .toList(),
     );
   }
 
@@ -364,6 +446,11 @@ class LeadsRepository {
       lead: lead,
       stages: stages,
       salespeople: salespeople,
+      customerWorkflowStages:
+          (json['customerWorkflowStages'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .map(CustomerWorkflowStageInfo.fromJson)
+              .toList(),
     );
   }
 
@@ -387,7 +474,8 @@ class LeadsRepository {
     }
 
     final nextSummary = _mapDetailToSummary(payload.lead);
-    final existingIndex = cachedOverview.leads.indexWhere((lead) => lead.id == nextSummary.id);
+    final existingIndex =
+        cachedOverview.leads.indexWhere((lead) => lead.id == nextSummary.id);
     final nextLeads = [...cachedOverview.leads];
 
     if (existingIndex >= 0) {
@@ -401,6 +489,7 @@ class LeadsRepository {
         leads: nextLeads,
         stages: payload.stages,
         salespeople: payload.salespeople,
+        customerWorkflowStages: payload.customerWorkflowStages,
       ),
     );
   }
@@ -418,6 +507,7 @@ class LeadsRepository {
       email: lead.email,
       phone: lead.phone,
       customerId: lead.customerId,
+      customerWorkflowStage: lead.customerWorkflowStage,
       interestedModel: lead.interestedModel,
       region: lead.region,
       stageId: lead.stageId,
@@ -450,11 +540,19 @@ class LeadsRepository {
       final lead = leads[index];
       switch (mutation.type) {
         case 'moveStage':
-          final acceptedOfferId = mutation.payload['acceptedOfferId'] as String?;
+          final acceptedOfferId =
+              mutation.payload['acceptedOfferId'] as String?;
+          final targetStage = overview.stages
+              .where((stage) =>
+                  stage.id == (mutation.payload['stageId'] as String? ?? ''))
+              .firstOrNull;
           leads[index] = lead.copyWith(
             stageId: mutation.payload['stageId'] as String? ?? lead.stageId,
             acceptedOfferId: acceptedOfferId,
             acceptedAt: acceptedOfferId == null ? null : mutation.createdAt,
+            customerWorkflowStage: targetStage?.kind == 'WON'
+                ? (lead.customerWorkflowStage ?? 'CUSTOMER_STAGE_1')
+                : null,
             updatedAt: mutation.createdAt,
           );
           break;
@@ -470,6 +568,13 @@ class LeadsRepository {
             updatedAt: mutation.createdAt,
           );
           break;
+        case 'setCustomerWorkflowStage':
+          leads[index] = lead.copyWith(
+            customerWorkflowStage:
+                mutation.payload['customerWorkflowStage'] as String?,
+            updatedAt: mutation.createdAt,
+          );
+          break;
       }
     }
 
@@ -477,6 +582,7 @@ class LeadsRepository {
       leads: leads,
       stages: overview.stages,
       salespeople: overview.salespeople,
+      customerWorkflowStages: overview.customerWorkflowStages,
     );
   }
 
@@ -486,14 +592,23 @@ class LeadsRepository {
   ) {
     var lead = payload.lead;
 
-    for (final mutation in mutations.where((entry) => entry.leadId == lead.id)) {
+    for (final mutation
+        in mutations.where((entry) => entry.leadId == lead.id)) {
       switch (mutation.type) {
         case 'moveStage':
-          final acceptedOfferId = mutation.payload['acceptedOfferId'] as String?;
+          final acceptedOfferId =
+              mutation.payload['acceptedOfferId'] as String?;
+          final targetStage = payload.stages
+              .where((stage) =>
+                  stage.id == (mutation.payload['stageId'] as String? ?? ''))
+              .firstOrNull;
           lead = lead.copyWith(
             stageId: mutation.payload['stageId'] as String? ?? lead.stageId,
             acceptedOfferId: acceptedOfferId,
             acceptedAt: acceptedOfferId == null ? null : mutation.createdAt,
+            customerWorkflowStage: targetStage?.kind == 'WON'
+                ? (lead.customerWorkflowStage ?? 'CUSTOMER_STAGE_1')
+                : null,
             clearAcceptedOfferId: acceptedOfferId == null,
             clearAcceptedAt: acceptedOfferId == null,
             updatedAt: mutation.createdAt,
@@ -511,15 +626,24 @@ class LeadsRepository {
               ? LeadDetailEntryModel.fromJson(entryJson)
               : entryJson is Map
                   ? LeadDetailEntryModel.fromJson(
-                      entryJson.map((key, value) => MapEntry(key.toString(), value)),
+                      entryJson
+                          .map((key, value) => MapEntry(key.toString(), value)),
                     )
                   : null;
-          if (entry != null && !lead.details.any((detail) => detail.id == entry.id)) {
+          if (entry != null &&
+              !lead.details.any((detail) => detail.id == entry.id)) {
             lead = lead.copyWith(
               updatedAt: mutation.createdAt,
               details: [entry, ...lead.details],
             );
           }
+          break;
+        case 'setCustomerWorkflowStage':
+          lead = lead.copyWith(
+            customerWorkflowStage:
+                mutation.payload['customerWorkflowStage'] as String?,
+            updatedAt: mutation.createdAt,
+          );
           break;
       }
     }
@@ -528,6 +652,7 @@ class LeadsRepository {
       lead: lead,
       stages: payload.stages,
       salespeople: payload.salespeople,
+      customerWorkflowStages: payload.customerWorkflowStages,
     );
   }
 
@@ -535,7 +660,15 @@ class LeadsRepository {
     final pending = [...await _localStore.readPendingMutations()];
     if (mutation.type == 'moveStage' || mutation.type == 'assignSalesperson') {
       pending.removeWhere(
-        (entry) => entry.type == mutation.type && entry.leadId == mutation.leadId,
+        (entry) =>
+            entry.type == mutation.type && entry.leadId == mutation.leadId,
+      );
+    }
+
+    if (mutation.type == 'setCustomerWorkflowStage') {
+      pending.removeWhere(
+        (entry) =>
+            entry.type == mutation.type && entry.leadId == mutation.leadId,
       );
     }
 
@@ -601,22 +734,33 @@ class LeadsRepository {
       try {
         switch (mutation.type) {
           case 'moveStage':
-            await _apiClient.patchJson('/api/client/leads/${mutation.leadId}/stage', {
+            await _apiClient
+                .patchJson('/api/client/leads/${mutation.leadId}/stage', {
               'stageId': mutation.payload['stageId'] ?? '',
               'acceptedOfferId': mutation.payload['acceptedOfferId'],
             });
             break;
           case 'assignSalesperson':
-            await _apiClient.patchJson('/api/client/leads/${mutation.leadId}/salesperson', {
+            await _apiClient
+                .patchJson('/api/client/leads/${mutation.leadId}/salesperson', {
               'salespersonId': mutation.payload['salespersonId'] ?? '',
             });
             break;
           case 'addDetailEntry':
-            await _apiClient.postJson('/api/client/leads/${mutation.leadId}/details', {
+            await _apiClient
+                .postJson('/api/client/leads/${mutation.leadId}/details', {
               'kind': mutation.payload['kind'] ?? 'INFO',
               'label': mutation.payload['label'],
               'value': mutation.payload['value'] ?? '',
             });
+            break;
+          case 'setCustomerWorkflowStage':
+            await _apiClient.patchJson(
+                '/api/client/leads/${mutation.leadId}/customer-workflow-stage',
+                {
+                  'customerWorkflowStage':
+                      mutation.payload['customerWorkflowStage'] ?? '',
+                });
             break;
           default:
             break;
@@ -633,8 +777,9 @@ class LeadsRepository {
       syncSnapshot.value.copyWith(
         pendingChanges: remaining.length,
         isSyncing: false,
-        lastSuccessfulSyncAt:
-            remaining.isEmpty ? DateTime.now() : syncSnapshot.value.lastSuccessfulSyncAt,
+        lastSuccessfulSyncAt: remaining.isEmpty
+            ? DateTime.now()
+            : syncSnapshot.value.lastSuccessfulSyncAt,
         lastError: lastError,
         clearLastError: remaining.isEmpty,
       ),
@@ -644,7 +789,8 @@ class LeadsRepository {
 
   Future<void> _restoreSyncSnapshot() async {
     final pending = await _localStore.readPendingMutations();
-    _setSyncSnapshot(syncSnapshot.value.copyWith(pendingChanges: pending.length));
+    _setSyncSnapshot(
+        syncSnapshot.value.copyWith(pendingChanges: pending.length));
   }
 
   void _setSyncSnapshot(LeadSyncSnapshot nextSnapshot) {

@@ -175,6 +175,7 @@ model Lead {
   nextActionAt      DateTime?
   customerId        String?
   customer          Customer?   @relation(fields: [customerId], references: [id])
+  customerWorkflowStage String?
   acceptedOfferId   String?
   acceptedAt        DateTime?
   details           LeadDetailEntry[]
@@ -186,6 +187,18 @@ model Lead {
   @@index([pipelineStage])
   @@index([salespersonId])
   @@index([updatedAt])
+}
+
+model CustomerWorkflowStageConfig {
+  id        String   @id @default(cuid())
+  stageKey  String   @unique
+  label     String
+  color     String
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
 }
 
 model LeadAttachment {
