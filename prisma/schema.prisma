@@ -128,6 +128,8 @@ model User {
   managedLeads   Lead[]        @relation("LeadManager")
   assignedLeads  Lead[]        @relation("LeadSalesOwner")
   leadDetailEntriesAuthored LeadDetailEntry[] @relation("LeadDetailEntryAuthor")
+  remindersCreated Reminder[] @relation("ReminderCreator")
+  remindersOwned   Reminder[] @relation("ReminderOwner")
   customers      Customer[]
   offers         Offer[]
   commissionRulesOwned SalesCommissionRule[] @relation("CommissionRuleOwner")
@@ -173,13 +175,56 @@ model Lead {
   nextActionAt      DateTime?
   customerId        String?
   customer          Customer?   @relation(fields: [customerId], references: [id])
+  acceptedOfferId   String?
+  acceptedAt        DateTime?
   details           LeadDetailEntry[]
+  attachments       LeadAttachment[]
+  reminders         Reminder[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
   @@index([pipelineStage])
   @@index([salespersonId])
   @@index([updatedAt])
+}
+
+model LeadAttachment {
+  id               String   @id @default(cuid())
+  leadId           String
+  lead             Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fileName         String
+  fileUrl          String
+  mimeType         String?
+  sizeBytes        Int
+  uploadedByUserId String?
+  uploadedByName   String?
+  createdAt        DateTime @default(now())
+
+  @@index([leadId, createdAt])
+}
+
+model Reminder {
+  id                    String   @id @default(cuid())
+  title                 String
+  note                  String?
+  remindAt              DateTime
+  isCompleted           Boolean  @default(false)
+  completedAt           DateTime?
+  leadId                String?
+  lead                  Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  leadNameSnapshot      String?
+  ownerUserId           String?
+  ownerUser             User?    @relation("ReminderOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  ownerNameSnapshot     String?
+  createdByUserId       String?
+  createdByUser         User?    @relation("ReminderCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByNameSnapshot String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([ownerUserId, remindAt])
+  @@index([leadId, remindAt])
+  @@index([isCompleted, remindAt])
 }
 
 model LeadDetailEntry {

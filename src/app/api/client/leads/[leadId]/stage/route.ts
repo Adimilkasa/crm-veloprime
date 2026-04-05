@@ -28,6 +28,9 @@ export async function PATCH(
     session,
     leadId,
     typeof payload.stageId === 'string' ? payload.stageId : '',
+    {
+      acceptedOfferId: typeof payload.acceptedOfferId === 'string' ? payload.acceptedOfferId : null,
+    },
   )
 
   if (!result.ok) {

@@ -38,12 +38,24 @@ export type LeadDetailEntry = {
   createdAt: string
 }
 
+export type LeadAttachment = {
+  id: string
+  fileName: string
+  fileUrl: string
+  mimeType: string | null
+  sizeBytes: number
+  uploadedByUserId: string | null
+  uploadedByName: string | null
+  createdAt: string
+}
+
 export type ManagedLead = {
   id: string
   source: string
   fullName: string
   email: string | null
   phone: string | null
+  customerId: string | null
   interestedModel: string | null
   region: string | null
   stageId: string
@@ -53,7 +65,10 @@ export type ManagedLead = {
   salespersonId: string | null
   salespersonName: string | null
   nextActionAt: string | null
+  acceptedOfferId: string | null
+  acceptedAt: string | null
   details: LeadDetailEntry[]
+  attachments: LeadAttachment[]
   createdAt: string
   updatedAt: string
 }
@@ -90,6 +105,7 @@ type PersistedLeadRecord = {
   fullName: string
   email: string | null
   phone: string | null
+  customerId: string | null
   interestedModel: string | null
   region: string | null
   stageKey: LeadPipelineStageKey
@@ -99,7 +115,10 @@ type PersistedLeadRecord = {
   salespersonId: string | null
   salespersonName: string | null
   nextActionAt: string | null
+  acceptedOfferId: string | null
+  acceptedAt: string | null
   details: LeadDetailEntry[]
+  attachments: LeadAttachment[]
   createdAt: string
   updatedAt: string
 }
@@ -187,6 +206,19 @@ function buildActivityEntry(input: {
   })
 }
 
+function normalizeLeadAttachment(entry: Partial<LeadAttachment>): LeadAttachment {
+  return {
+    id: entry.id ?? `lead-attachment-${crypto.randomUUID()}`,
+    fileName: entry.fileName?.trim() || 'zalacznik',
+    fileUrl: entry.fileUrl?.trim() || '',
+    mimeType: entry.mimeType?.trim() || null,
+    sizeBytes: Number.isFinite(entry.sizeBytes) ? Math.max(0, Math.round(entry.sizeBytes ?? 0)) : 0,
+    uploadedByUserId: entry.uploadedByUserId?.trim() || null,
+    uploadedByName: entry.uploadedByName?.trim() || null,
+    createdAt: entry.createdAt ?? new Date().toISOString(),
+  }
+}
+
 function mapStageKeyToId(stageKey?: string | null) {
   return STAGE_BY_KEY.get((stageKey ?? 'NEW_LEAD') as LeadPipelineStageKey)?.id ?? FIXED_STAGES[0].id
 }
@@ -198,6 +230,7 @@ function mapPersistedLead(record: PersistedLeadRecord): ManagedLead {
     fullName: record.fullName,
     email: record.email,
     phone: record.phone,
+    customerId: record.customerId ?? null,
     interestedModel: record.interestedModel,
     region: record.region,
     stageId: mapStageKeyToId(record.stageKey),
@@ -207,7 +240,12 @@ function mapPersistedLead(record: PersistedLeadRecord): ManagedLead {
     salespersonId: record.salespersonId,
     salespersonName: record.salespersonName,
     nextActionAt: record.nextActionAt,
+    acceptedOfferId: record.acceptedOfferId,
+    acceptedAt: record.acceptedAt,
     details: Array.isArray(record.details) ? record.details.map((entry) => normalizeDetailEntry(entry)) : [],
+    attachments: Array.isArray(record.attachments)
+      ? record.attachments.map((entry) => normalizeLeadAttachment(entry)).filter((entry) => Boolean(entry.fileUrl))
+      : [],
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }
@@ -220,6 +258,7 @@ function mapDbLead(record: {
   lastName: string | null
   email: string | null
   phone: string | null
+  customerId: string | null
   message: string | null
   interestedModel: string | null
   region: string | null
@@ -229,6 +268,8 @@ function mapDbLead(record: {
   salespersonId: string | null
   salesperson?: { fullName: string } | null
   nextActionAt: Date | null
+  acceptedOfferId: string | null
+  acceptedAt: Date | null
   details: Array<{
     id: string
     kind: 'INFO' | 'COMMENT'
@@ -236,6 +277,16 @@ function mapDbLead(record: {
     value: string
     createdAt: Date
     authorUser?: { fullName: string } | null
+  }>
+  attachments: Array<{
+    id: string
+    fileName: string
+    fileUrl: string
+    mimeType: string | null
+    sizeBytes: number
+    uploadedByUserId: string | null
+    uploadedByName: string | null
+    createdAt: Date
   }>
   createdAt: Date
   updatedAt: Date
@@ -246,6 +297,7 @@ function mapDbLead(record: {
     fullName: joinFullName(record.firstName, record.lastName),
     email: record.email,
     phone: record.phone,
+    customerId: record.customerId,
     interestedModel: record.interestedModel,
     region: record.region,
     stageId: mapStageKeyToId(record.pipelineStage),
@@ -255,12 +307,24 @@ function mapDbLead(record: {
     salespersonId: record.salespersonId,
     salespersonName: record.salesperson?.fullName ?? null,
     nextActionAt: record.nextActionAt?.toISOString() ?? null,
+    acceptedOfferId: record.acceptedOfferId,
+    acceptedAt: record.acceptedAt?.toISOString() ?? null,
     details: record.details.map((entry) => ({
       id: entry.id,
       kind: entry.kind,
       label: entry.label,
       value: entry.value,
       authorName: entry.authorUser?.fullName ?? null,
+      createdAt: entry.createdAt.toISOString(),
+    })),
+    attachments: record.attachments.map((entry) => ({
+      id: entry.id,
+      fileName: entry.fileName,
+      fileUrl: entry.fileUrl,
+      mimeType: entry.mimeType,
+      sizeBytes: entry.sizeBytes,
+      uploadedByUserId: entry.uploadedByUserId,
+      uploadedByName: entry.uploadedByName,
       createdAt: entry.createdAt.toISOString(),
     })),
     createdAt: record.createdAt.toISOString(),
@@ -385,6 +449,7 @@ async function readStore() {
               fullName: record.fullName?.trim() || 'Klient bez nazwy',
               email: record.email?.trim() || null,
               phone: record.phone?.trim() || null,
+              customerId: record.customerId?.trim() || null,
               interestedModel: record.interestedModel?.trim() || null,
               region: record.region?.trim() || null,
               stageKey: STAGE_BY_KEY.has((record.stageKey ?? '') as LeadPipelineStageKey)
@@ -396,7 +461,12 @@ async function readStore() {
               salespersonId: record.salespersonId?.trim() || null,
               salespersonName: record.salespersonName?.trim() || null,
               nextActionAt: record.nextActionAt ?? null,
+              acceptedOfferId: record.acceptedOfferId?.trim() || null,
+              acceptedAt: record.acceptedAt ?? null,
               details: Array.isArray(record.details) ? record.details.map((detail) => normalizeDetailEntry(detail)) : [],
+              attachments: Array.isArray(record.attachments)
+                ? record.attachments.map((attachment) => normalizeLeadAttachment(attachment)).filter((attachment) => Boolean(attachment.fileUrl))
+                : [],
               createdAt: record.createdAt ?? new Date().toISOString(),
               updatedAt: record.updatedAt ?? new Date().toISOString(),
             } satisfies PersistedLeadRecord
@@ -442,6 +512,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
       fullName: 'Marek Witkowski',
       email: 'marek.w@example.com',
       phone: '+48 501 225 881',
+      customerId: null,
       interestedModel: 'BYD Seal 6 DM-i',
       region: 'Warszawa',
       stageKey: 'NEW_LEAD',
@@ -451,6 +522,8 @@ async function buildSeedLeads(users: ManagedUser[]) {
       salespersonId: owner.id,
       salespersonName: owner.fullName,
       nextActionAt: new Date('2026-03-24T09:00:00.000Z').toISOString(),
+      acceptedOfferId: null,
+      acceptedAt: null,
       details: [
         buildActivityEntry({
           kind: 'INFO',
@@ -467,6 +540,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
           createdAt: new Date('2026-03-21T11:00:00.000Z').toISOString(),
         }),
       ],
+      attachments: [],
       createdAt: new Date('2026-03-21T08:10:00.000Z').toISOString(),
       updatedAt: new Date('2026-03-21T11:00:00.000Z').toISOString(),
     },
@@ -476,6 +550,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
       fullName: 'Anna Maj',
       email: 'anna.maj@example.com',
       phone: '+48 604 112 337',
+      customerId: null,
       interestedModel: 'BYD Seal U',
       region: 'Krakow',
       stageKey: 'FIRST_CONTACT',
@@ -485,6 +560,8 @@ async function buildSeedLeads(users: ManagedUser[]) {
       salespersonId: owner.id,
       salespersonName: owner.fullName,
       nextActionAt: new Date('2026-03-25T13:30:00.000Z').toISOString(),
+      acceptedOfferId: null,
+      acceptedAt: null,
       details: [
         buildActivityEntry({
           kind: 'INFO',
@@ -494,6 +571,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
           createdAt: new Date('2026-03-21T09:45:00.000Z').toISOString(),
         }),
       ],
+      attachments: [],
       createdAt: new Date('2026-03-20T12:30:00.000Z').toISOString(),
       updatedAt: new Date('2026-03-21T09:45:00.000Z').toISOString(),
     },
@@ -503,6 +581,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
       fullName: 'Piotr Bielski',
       email: 'piotr.b@example.com',
       phone: '+48 602 778 190',
+      customerId: null,
       interestedModel: 'BYD Dolphin Surf',
       region: 'Poznan',
       stageKey: 'OFFER_SHARED',
@@ -512,6 +591,8 @@ async function buildSeedLeads(users: ManagedUser[]) {
       salespersonId: owner.id,
       salespersonName: owner.fullName,
       nextActionAt: new Date('2026-03-23T15:00:00.000Z').toISOString(),
+      acceptedOfferId: null,
+      acceptedAt: null,
       details: [
         buildActivityEntry({
           kind: 'INFO',
@@ -521,6 +602,7 @@ async function buildSeedLeads(users: ManagedUser[]) {
           createdAt: new Date('2026-03-21T11:20:00.000Z').toISOString(),
         }),
       ],
+      attachments: [],
       createdAt: new Date('2026-03-18T15:15:00.000Z').toISOString(),
       updatedAt: new Date('2026-03-21T11:20:00.000Z').toISOString(),
     },
@@ -548,6 +630,9 @@ async function listDbLeads() {
     include: {
       manager: true,
       salesperson: true,
+      attachments: {
+        orderBy: { createdAt: 'desc' },
+      },
       details: {
         include: { authorUser: true },
         orderBy: { createdAt: 'desc' },
@@ -689,6 +774,9 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
       include: {
         manager: true,
         salesperson: true,
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+        },
         details: {
           include: { authorUser: true },
           orderBy: { createdAt: 'desc' },
@@ -706,6 +794,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
     fullName,
     email,
     phone,
+    customerId: null,
     interestedModel,
     region: input.region?.trim() || null,
     stageKey: stage.stageKey,
@@ -715,6 +804,8 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
     salespersonId: owner.id,
     salespersonName: owner.fullName,
     nextActionAt: null,
+    acceptedOfferId: null,
+    acceptedAt: null,
     details: [
       buildActivityEntry({
         kind: 'INFO',
@@ -724,6 +815,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
         createdAt,
       }),
     ],
+    attachments: [],
     createdAt,
     updatedAt: createdAt,
   }
@@ -734,7 +826,51 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
   return { ok: true as const, lead: mapPersistedLead(nextLead) }
 }
 
-export async function moveManagedLeadToStage(session: AuthSession, leadId: string, stageId: string) {
+async function validateWonLeadTransition(input: {
+  lead: ManagedLead
+  leadId: string
+  acceptedOfferId: string | null
+}) {
+  if (!input.acceptedOfferId) {
+    return { ok: false as const, error: 'Przed przeniesieniem do Wygrane wybierz zaakceptowaną ofertę.' }
+  }
+
+  if (input.lead.attachments.length === 0) {
+    return { ok: false as const, error: 'Przed przeniesieniem do Wygrane dodaj przynajmniej jeden dokument do leada.' }
+  }
+
+  if (!db) {
+    return { ok: true as const }
+  }
+
+  const [leadRecord, offer] = await Promise.all([
+    db.lead.findUnique({
+      where: { id: input.leadId },
+      select: { customerId: true },
+    }),
+    db.offer.findUnique({
+      where: { id: input.acceptedOfferId },
+      select: { id: true, customerId: true },
+    }),
+  ])
+
+  if (!offer) {
+    return { ok: false as const, error: 'Wybrana oferta nie istnieje.' }
+  }
+
+  if (leadRecord?.customerId && offer.customerId !== leadRecord.customerId) {
+    return { ok: false as const, error: 'Wybrana oferta nie jest przypięta do tego leada.' }
+  }
+
+  return { ok: true as const }
+}
+
+export async function moveManagedLeadToStage(
+  session: AuthSession,
+  leadId: string,
+  stageId: string,
+  input?: { acceptedOfferId?: string | null }
+) {
   const [stage, users] = await Promise.all([resolveStage(stageId), listManagedUsers()])
 
   if (!stage) {
@@ -748,12 +884,29 @@ export async function moveManagedLeadToStage(session: AuthSession, leadId: strin
   }
 
   const updatedAt = new Date().toISOString()
+  const acceptedOfferId = input?.acceptedOfferId?.trim() || null
+
+  if (stage.kind === 'WON') {
+    const validation = await validateWonLeadTransition({
+      lead,
+      leadId,
+      acceptedOfferId,
+    })
+
+    if (!validation.ok) {
+      return validation
+    }
+  }
 
   if (isPrismaLeadStorageEnabled() && db) {
     await db.$transaction([
       db.lead.update({
         where: { id: leadId },
-        data: { pipelineStage: stage.stageKey },
+        data: {
+          pipelineStage: stage.stageKey,
+          acceptedOfferId: stage.kind === 'WON' ? acceptedOfferId : null,
+          acceptedAt: stage.kind === 'WON' ? new Date(updatedAt) : null,
+        },
       }),
       db.leadDetailEntry.create({
         data: {
@@ -772,6 +925,9 @@ export async function moveManagedLeadToStage(session: AuthSession, leadId: strin
       include: {
         manager: true,
         salesperson: true,
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+        },
         details: {
           include: { authorUser: true },
           orderBy: { createdAt: 'desc' },
@@ -796,6 +952,8 @@ export async function moveManagedLeadToStage(session: AuthSession, leadId: strin
   store.leads[leadIndex] = {
     ...store.leads[leadIndex],
     stageKey: stage.stageKey,
+    acceptedOfferId: stage.kind === 'WON' ? acceptedOfferId : null,
+    acceptedAt: stage.kind === 'WON' ? updatedAt : null,
     updatedAt,
     details: [
       buildActivityEntry({
@@ -896,6 +1054,95 @@ export async function addManagedLeadDetailEntry(
 
   await writeStore(store)
   return { ok: true as const, entry: nextEntry }
+}
+
+export async function addManagedLeadAttachment(
+  session: AuthSession,
+  input: {
+    leadId: string
+    fileName: string
+    fileUrl: string
+    mimeType?: string | null
+    sizeBytes: number
+  }
+) {
+  const users = await listManagedUsers()
+  const lead = await getManagedLeadByIdInternal(input.leadId, session)
+
+  if (!lead) {
+    return { ok: false as const, error: 'Nie znaleziono leada.' }
+  }
+
+  const fileName = input.fileName.trim()
+  const fileUrl = input.fileUrl.trim()
+  const sizeBytes = Math.max(0, Math.round(input.sizeBytes))
+
+  if (!fileName || !fileUrl) {
+    return { ok: false as const, error: 'Nie udało się zapisać metadanych załącznika.' }
+  }
+
+  const createdAt = new Date().toISOString()
+
+  if (isPrismaLeadStorageEnabled() && db) {
+    const attachment = await db.leadAttachment.create({
+      data: {
+        leadId: input.leadId,
+        fileName,
+        fileUrl,
+        mimeType: input.mimeType?.trim() || null,
+        sizeBytes,
+        uploadedByUserId: session.sub,
+        uploadedByName: session.fullName,
+        createdAt: new Date(createdAt),
+      },
+    })
+
+    await db.lead.update({
+      where: { id: input.leadId },
+      data: { updatedAt: new Date(createdAt) },
+    })
+
+    return {
+      ok: true as const,
+      attachment: {
+        id: attachment.id,
+        fileName: attachment.fileName,
+        fileUrl: attachment.fileUrl,
+        mimeType: attachment.mimeType,
+        sizeBytes: attachment.sizeBytes,
+        uploadedByUserId: attachment.uploadedByUserId,
+        uploadedByName: attachment.uploadedByName,
+        createdAt: attachment.createdAt.toISOString(),
+      } satisfies LeadAttachment,
+    }
+  }
+
+  const store = await getFileStore(users)
+  const leadIndex = store.leads.findIndex((entry) => entry.id === input.leadId)
+
+  if (leadIndex === -1) {
+    return { ok: false as const, error: 'Nie znaleziono leada.' }
+  }
+
+  const nextAttachment = normalizeLeadAttachment({
+    id: `lead-attachment-${crypto.randomUUID()}`,
+    fileName,
+    fileUrl,
+    mimeType: input.mimeType?.trim() || null,
+    sizeBytes,
+    uploadedByUserId: session.sub,
+    uploadedByName: session.fullName,
+    createdAt,
+  })
+
+  store.leads[leadIndex] = {
+    ...store.leads[leadIndex],
+    updatedAt: createdAt,
+    attachments: [nextAttachment, ...store.leads[leadIndex].attachments],
+  }
+
+  await writeStore(store)
+  return { ok: true as const, attachment: nextAttachment }
 }
 
 export async function logManagedLeadActivity(

@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v38",
-      "publishedAt": "2026-04-05T10:05:00.000Z",
+      "version": "v39",
+      "publishedAt": "2026-04-05T12:30:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.15.25 avoids the disabled ms-appinstaller protocol during in-app updates and keeps pricing labels consistent between netto and brutto in the offer workspace.",
+      "summary": "Flutter client 0.1.15.26 adds lead attachments required for won deals, reminders in the shell and dashboard, and the first operational customer workspace with customer card creation from won leads.",
       "priority": "STANDARD"
     }
   ]

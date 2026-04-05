@@ -9,6 +9,7 @@ import '../data/leads_repository.dart';
 import '../models/lead_models.dart';
 import '../../offers/data/offers_repository.dart';
 import '../../offers/presentation/offers_home_page.dart';
+import '../../reminders/data/reminders_repository.dart';
 import 'lead_create_page.dart';
 import 'lead_detail_page.dart';
 
@@ -19,6 +20,8 @@ class LeadsHomePage extends StatefulWidget {
     required this.bootstrap,
     required this.repository,
     required this.offersRepository,
+    required this.remindersRepository,
+    required this.onRemindersChanged,
     required this.onOpenOfferWorkspaceForLead,
   });
 
@@ -26,6 +29,8 @@ class LeadsHomePage extends StatefulWidget {
   final BootstrapPayload bootstrap;
   final LeadsRepository repository;
   final OffersRepository offersRepository;
+  final RemindersRepository remindersRepository;
+  final Future<void> Function() onRemindersChanged;
   final Future<void> Function(OfferWorkspaceLaunchRequest request) onOpenOfferWorkspaceForLead;
 
   @override
@@ -114,7 +119,9 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
             bootstrap: widget.bootstrap,
             repository: widget.repository,
             offersRepository: widget.offersRepository,
+            remindersRepository: widget.remindersRepository,
             initialPayload: payload,
+            onRemindersChanged: widget.onRemindersChanged,
             onOpenOfferWorkspaceForLead: widget.onOpenOfferWorkspaceForLead,
           ),
         ),
@@ -160,7 +167,9 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
           bootstrap: widget.bootstrap,
           repository: widget.repository,
           offersRepository: widget.offersRepository,
+          remindersRepository: widget.remindersRepository,
           initialPayload: payload,
+          onRemindersChanged: widget.onRemindersChanged,
           onOpenOfferWorkspaceForLead: widget.onOpenOfferWorkspaceForLead,
         ),
       ),

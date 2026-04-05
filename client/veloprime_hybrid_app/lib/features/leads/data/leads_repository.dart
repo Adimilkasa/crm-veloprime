@@ -143,11 +143,19 @@ class LeadsRepository {
   Future<LeadDetailPayload> moveLeadToStage({
     required String leadId,
     required String stageId,
+    String? acceptedOfferId,
   }) async {
     final current = await _ensureLeadPayload(leadId);
     final now = DateTime.now().toIso8601String();
     final updated = LeadDetailPayload(
-      lead: current.lead.copyWith(stageId: stageId, updatedAt: now),
+      lead: current.lead.copyWith(
+        stageId: stageId,
+        acceptedOfferId: acceptedOfferId,
+        acceptedAt: acceptedOfferId == null ? null : now,
+        clearAcceptedOfferId: acceptedOfferId == null,
+        clearAcceptedAt: acceptedOfferId == null,
+        updatedAt: now,
+      ),
       stages: current.stages,
       salespeople: current.salespeople,
     );
@@ -158,13 +166,34 @@ class LeadsRepository {
         id: 'lead-stage-$leadId-${DateTime.now().microsecondsSinceEpoch}',
         type: 'moveStage',
         leadId: leadId,
-        payload: {'stageId': stageId},
+        payload: {
+          'stageId': stageId,
+          'acceptedOfferId': acceptedOfferId,
+        },
         createdAt: now,
       ),
     );
     unawaited(_flushPendingMutations());
 
     return updated;
+  }
+
+  Future<LeadDetailPayload> uploadAttachment({
+    required String leadId,
+    required String filePath,
+    required String fileName,
+  }) async {
+    await _apiClient.postMultipart(
+      '/api/client/leads/$leadId/attachments',
+      fields: {'fileName': fileName},
+      fileField: 'file',
+      filePath: filePath,
+      fileName: fileName,
+    );
+
+    final refreshed = await _fetchLeadDetailFromNetwork(leadId);
+    await _saveLeadPayload(refreshed);
+    return refreshed;
   }
 
   Future<LeadDetailPayload> assignSalesperson({
@@ -388,6 +417,7 @@ class LeadsRepository {
       fullName: lead.fullName,
       email: lead.email,
       phone: lead.phone,
+      customerId: lead.customerId,
       interestedModel: lead.interestedModel,
       region: lead.region,
       stageId: lead.stageId,
@@ -395,9 +425,12 @@ class LeadsRepository {
       managerName: lead.managerName,
       salespersonName: lead.salespersonName,
       nextActionAt: lead.nextActionAt,
+      acceptedOfferId: lead.acceptedOfferId,
+      acceptedAt: lead.acceptedAt,
       createdAt: lead.createdAt,
       updatedAt: lead.updatedAt,
       detailCount: lead.details.length,
+      attachmentCount: lead.attachments.length,
       linkedOffers: lead.linkedOffers,
     );
   }
@@ -417,8 +450,11 @@ class LeadsRepository {
       final lead = leads[index];
       switch (mutation.type) {
         case 'moveStage':
+          final acceptedOfferId = mutation.payload['acceptedOfferId'] as String?;
           leads[index] = lead.copyWith(
             stageId: mutation.payload['stageId'] as String? ?? lead.stageId,
+            acceptedOfferId: acceptedOfferId,
+            acceptedAt: acceptedOfferId == null ? null : mutation.createdAt,
             updatedAt: mutation.createdAt,
           );
           break;
@@ -453,8 +489,13 @@ class LeadsRepository {
     for (final mutation in mutations.where((entry) => entry.leadId == lead.id)) {
       switch (mutation.type) {
         case 'moveStage':
+          final acceptedOfferId = mutation.payload['acceptedOfferId'] as String?;
           lead = lead.copyWith(
             stageId: mutation.payload['stageId'] as String? ?? lead.stageId,
+            acceptedOfferId: acceptedOfferId,
+            acceptedAt: acceptedOfferId == null ? null : mutation.createdAt,
+            clearAcceptedOfferId: acceptedOfferId == null,
+            clearAcceptedAt: acceptedOfferId == null,
             updatedAt: mutation.createdAt,
           );
           break;
@@ -562,6 +603,7 @@ class LeadsRepository {
           case 'moveStage':
             await _apiClient.patchJson('/api/client/leads/${mutation.leadId}/stage', {
               'stageId': mutation.payload['stageId'] ?? '',
+              'acceptedOfferId': mutation.payload['acceptedOfferId'],
             });
             break;
           case 'assignSalesperson':

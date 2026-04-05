@@ -9,9 +9,11 @@ import 'features/bootstrap/data/bootstrap_repository.dart';
 import 'features/bootstrap/models/bootstrap_payload.dart' hide UpdateManifestInfo;
 import 'features/account/data/account_repository.dart';
 import 'features/commissions/data/commissions_repository.dart';
+import 'features/customers/data/customers_repository.dart';
 import 'features/leads/data/leads_repository.dart';
 import 'features/offers/data/offers_repository.dart';
 import 'features/pricing/data/pricing_repository.dart';
+import 'features/reminders/data/reminders_repository.dart';
 import 'features/shell/presentation/crm_shell_page.dart';
 import 'features/startup/presentation/startup_preparation_page.dart';
 import 'features/update/data/update_repository.dart';
@@ -32,9 +34,11 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
   late final BootstrapRepository _bootstrapRepository = BootstrapRepository(_apiClient);
   late final AccountRepository _accountRepository = AccountRepository(_apiClient);
   late final CommissionsRepository _commissionsRepository = CommissionsRepository(_apiClient);
+  late final CustomersRepository _customersRepository = CustomersRepository(_apiClient);
   late final LeadsRepository _leadsRepository = LeadsRepository(_apiClient);
   late final OffersRepository _offersRepository = OffersRepository(_apiClient);
   late final PricingRepository _pricingRepository = PricingRepository(_apiClient);
+  late final RemindersRepository _remindersRepository = RemindersRepository(_apiClient);
   late final UpdateRepository _updateRepository = UpdateRepository(_apiClient);
   late final UsersRepository _usersRepository = UsersRepository(_apiClient);
 
@@ -313,9 +317,11 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
               bootstrap: _bootstrap!,
               accountRepository: _accountRepository,
               commissionsRepository: _commissionsRepository,
+              customersRepository: _customersRepository,
               leadsRepository: _leadsRepository,
               offersRepository: _offersRepository,
               pricingRepository: _pricingRepository,
+              remindersRepository: _remindersRepository,
               updateRepository: _updateRepository,
               usersRepository: _usersRepository,
               onRefreshBootstrap: _refreshBootstrap,

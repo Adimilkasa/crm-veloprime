@@ -132,6 +132,54 @@ class LeadDetailEntryModel {
   }
 }
 
+class LeadAttachmentModel {
+  const LeadAttachmentModel({
+    required this.id,
+    required this.fileName,
+    required this.fileUrl,
+    required this.mimeType,
+    required this.sizeBytes,
+    required this.uploadedByUserId,
+    required this.uploadedByName,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String fileName;
+  final String fileUrl;
+  final String? mimeType;
+  final int sizeBytes;
+  final String? uploadedByUserId;
+  final String? uploadedByName;
+  final String createdAt;
+
+  factory LeadAttachmentModel.fromJson(Map<String, dynamic> json) {
+    return LeadAttachmentModel(
+      id: json['id'] as String? ?? '',
+      fileName: json['fileName'] as String? ?? '',
+      fileUrl: json['fileUrl'] as String? ?? '',
+      mimeType: json['mimeType'] as String?,
+      sizeBytes: json['sizeBytes'] as int? ?? 0,
+      uploadedByUserId: json['uploadedByUserId'] as String?,
+      uploadedByName: json['uploadedByName'] as String?,
+      createdAt: json['createdAt'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'fileName': fileName,
+      'fileUrl': fileUrl,
+      'mimeType': mimeType,
+      'sizeBytes': sizeBytes,
+      'uploadedByUserId': uploadedByUserId,
+      'uploadedByName': uploadedByName,
+      'createdAt': createdAt,
+    };
+  }
+}
+
 class SalespersonOption {
   const SalespersonOption({
     required this.id,
@@ -167,6 +215,7 @@ class ManagedLeadSummary {
     required this.fullName,
     required this.email,
     required this.phone,
+    required this.customerId,
     required this.interestedModel,
     required this.region,
     required this.stageId,
@@ -174,9 +223,12 @@ class ManagedLeadSummary {
     required this.managerName,
     required this.salespersonName,
     required this.nextActionAt,
+    required this.acceptedOfferId,
+    required this.acceptedAt,
     required this.createdAt,
     required this.updatedAt,
     required this.detailCount,
+    required this.attachmentCount,
     required this.linkedOffers,
   });
 
@@ -185,6 +237,7 @@ class ManagedLeadSummary {
   final String fullName;
   final String? email;
   final String? phone;
+  final String? customerId;
   final String? interestedModel;
   final String? region;
   final String stageId;
@@ -192,9 +245,12 @@ class ManagedLeadSummary {
   final String? managerName;
   final String? salespersonName;
   final String? nextActionAt;
+  final String? acceptedOfferId;
+  final String? acceptedAt;
   final String createdAt;
   final String updatedAt;
   final int detailCount;
+  final int attachmentCount;
   final List<LeadOfferSummary> linkedOffers;
 
   factory ManagedLeadSummary.fromJson(
@@ -202,6 +258,7 @@ class ManagedLeadSummary {
     List<LeadOfferSummary> linkedOffers = const [],
   }) {
     final details = json['details'] as List<dynamic>? ?? const [];
+    final attachments = json['attachments'] as List<dynamic>? ?? const [];
 
     return ManagedLeadSummary(
       id: json['id'] as String? ?? '',
@@ -209,6 +266,7 @@ class ManagedLeadSummary {
       fullName: json['fullName'] as String? ?? '',
       email: json['email'] as String?,
       phone: json['phone'] as String?,
+      customerId: json['customerId'] as String?,
       interestedModel: json['interestedModel'] as String?,
       region: json['region'] as String?,
       stageId: json['stageId'] as String? ?? '',
@@ -216,9 +274,12 @@ class ManagedLeadSummary {
       managerName: json['managerName'] as String?,
       salespersonName: json['salespersonName'] as String?,
       nextActionAt: json['nextActionAt'] as String?,
+      acceptedOfferId: json['acceptedOfferId'] as String?,
+      acceptedAt: json['acceptedAt'] as String?,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
       detailCount: json['detailCount'] as int? ?? details.length,
+      attachmentCount: json['attachmentCount'] as int? ?? attachments.length,
       linkedOffers: linkedOffers,
     );
   }
@@ -227,7 +288,10 @@ class ManagedLeadSummary {
     String? stageId,
     String? updatedAt,
     int? detailCount,
+    int? attachmentCount,
     String? salespersonName,
+    String? acceptedOfferId,
+    String? acceptedAt,
     List<LeadOfferSummary>? linkedOffers,
   }) {
     return ManagedLeadSummary(
@@ -236,6 +300,7 @@ class ManagedLeadSummary {
       fullName: fullName,
       email: email,
       phone: phone,
+      customerId: customerId,
       interestedModel: interestedModel,
       region: region,
       stageId: stageId ?? this.stageId,
@@ -243,9 +308,12 @@ class ManagedLeadSummary {
       managerName: managerName,
       salespersonName: salespersonName ?? this.salespersonName,
       nextActionAt: nextActionAt,
+      acceptedOfferId: acceptedOfferId ?? this.acceptedOfferId,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       detailCount: detailCount ?? this.detailCount,
+      attachmentCount: attachmentCount ?? this.attachmentCount,
       linkedOffers: linkedOffers ?? this.linkedOffers,
     );
   }
@@ -257,6 +325,7 @@ class ManagedLeadSummary {
       'fullName': fullName,
       'email': email,
       'phone': phone,
+      'customerId': customerId,
       'interestedModel': interestedModel,
       'region': region,
       'stageId': stageId,
@@ -264,9 +333,12 @@ class ManagedLeadSummary {
       'managerName': managerName,
       'salespersonName': salespersonName,
       'nextActionAt': nextActionAt,
+      'acceptedOfferId': acceptedOfferId,
+      'acceptedAt': acceptedAt,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'detailCount': detailCount,
+      'attachmentCount': attachmentCount,
       'linkedOffers': linkedOffers.map((offer) => offer.toJson()).toList(),
     };
   }
@@ -279,6 +351,7 @@ class ManagedLeadDetail {
     required this.fullName,
     required this.email,
     required this.phone,
+    required this.customerId,
     required this.interestedModel,
     required this.region,
     required this.stageId,
@@ -286,9 +359,12 @@ class ManagedLeadDetail {
     required this.managerName,
     required this.salespersonName,
     required this.nextActionAt,
+    required this.acceptedOfferId,
+    required this.acceptedAt,
     required this.createdAt,
     required this.updatedAt,
     required this.details,
+    required this.attachments,
     required this.linkedOffers,
   });
 
@@ -297,6 +373,7 @@ class ManagedLeadDetail {
   final String fullName;
   final String? email;
   final String? phone;
+  final String? customerId;
   final String? interestedModel;
   final String? region;
   final String stageId;
@@ -304,9 +381,12 @@ class ManagedLeadDetail {
   final String? managerName;
   final String? salespersonName;
   final String? nextActionAt;
+  final String? acceptedOfferId;
+  final String? acceptedAt;
   final String createdAt;
   final String updatedAt;
   final List<LeadDetailEntryModel> details;
+  final List<LeadAttachmentModel> attachments;
   final List<LeadOfferSummary> linkedOffers;
 
   factory ManagedLeadDetail.fromJson(
@@ -321,6 +401,7 @@ class ManagedLeadDetail {
       fullName: json['fullName'] as String? ?? '',
       email: json['email'] as String?,
       phone: json['phone'] as String?,
+      customerId: json['customerId'] as String?,
       interestedModel: json['interestedModel'] as String?,
       region: json['region'] as String?,
       stageId: json['stageId'] as String? ?? '',
@@ -328,9 +409,15 @@ class ManagedLeadDetail {
       managerName: json['managerName'] as String?,
       salespersonName: json['salespersonName'] as String?,
       nextActionAt: json['nextActionAt'] as String?,
+      acceptedOfferId: json['acceptedOfferId'] as String?,
+      acceptedAt: json['acceptedAt'] as String?,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
       details: rawDetails.whereType<Map<String, dynamic>>().map(LeadDetailEntryModel.fromJson).toList(),
+      attachments: (json['attachments'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(LeadAttachmentModel.fromJson)
+          .toList(),
       linkedOffers: linkedOffers,
     );
   }
@@ -341,6 +428,7 @@ class ManagedLeadDetail {
     String? fullName,
     String? email,
     String? phone,
+    String? customerId,
     String? interestedModel,
     String? region,
     String? stageId,
@@ -348,9 +436,14 @@ class ManagedLeadDetail {
     String? managerName,
     String? salespersonName,
     String? nextActionAt,
+    String? acceptedOfferId,
+    String? acceptedAt,
+    bool clearAcceptedOfferId = false,
+    bool clearAcceptedAt = false,
     String? createdAt,
     String? updatedAt,
     List<LeadDetailEntryModel>? details,
+    List<LeadAttachmentModel>? attachments,
     List<LeadOfferSummary>? linkedOffers,
   }) {
     return ManagedLeadDetail(
@@ -359,6 +452,7 @@ class ManagedLeadDetail {
       fullName: fullName ?? this.fullName,
       email: email ?? this.email,
       phone: phone ?? this.phone,
+      customerId: customerId ?? this.customerId,
       interestedModel: interestedModel ?? this.interestedModel,
       region: region ?? this.region,
       stageId: stageId ?? this.stageId,
@@ -366,9 +460,12 @@ class ManagedLeadDetail {
       managerName: managerName ?? this.managerName,
       salespersonName: salespersonName ?? this.salespersonName,
       nextActionAt: nextActionAt ?? this.nextActionAt,
+      acceptedOfferId: clearAcceptedOfferId ? null : acceptedOfferId ?? this.acceptedOfferId,
+      acceptedAt: clearAcceptedAt ? null : acceptedAt ?? this.acceptedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       details: details ?? this.details,
+      attachments: attachments ?? this.attachments,
       linkedOffers: linkedOffers ?? this.linkedOffers,
     );
   }
@@ -380,6 +477,7 @@ class ManagedLeadDetail {
       'fullName': fullName,
       'email': email,
       'phone': phone,
+      'customerId': customerId,
       'interestedModel': interestedModel,
       'region': region,
       'stageId': stageId,
@@ -387,9 +485,12 @@ class ManagedLeadDetail {
       'managerName': managerName,
       'salespersonName': salespersonName,
       'nextActionAt': nextActionAt,
+      'acceptedOfferId': acceptedOfferId,
+      'acceptedAt': acceptedAt,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'details': details.map((entry) => entry.toJson()).toList(),
+      'attachments': attachments.map((entry) => entry.toJson()).toList(),
       'linkedOffers': linkedOffers.map((offer) => offer.toJson()).toList(),
     };
   }

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/presentation/veloprime_ui.dart';
 import '../../bootstrap/models/bootstrap_payload.dart';
+import '../../reminders/models/reminder_models.dart';
 
 final NumberFormat _currencyFormat = NumberFormat.currency(
   locale: 'pl_PL',
@@ -76,37 +77,92 @@ Color _statusTone(String status) {
   }
 }
 
-class DashboardHomePage extends StatelessWidget {
+class DashboardHomePage extends StatefulWidget {
   const DashboardHomePage({
     super.key,
     required this.session,
     required this.bootstrap,
+    required this.reminders,
     required this.onOpenLeads,
     required this.onOpenOffers,
     required this.onOpenCustomers,
     required this.onOpenVehicles,
+    required this.onOpenReminder,
+    required this.onCompleteReminder,
   });
 
   final SessionInfo session;
   final BootstrapPayload bootstrap;
+  final List<ManagedReminderInfo> reminders;
   final VoidCallback onOpenLeads;
   final VoidCallback onOpenOffers;
   final VoidCallback onOpenCustomers;
   final VoidCallback onOpenVehicles;
+  final Future<void> Function(ManagedReminderInfo reminder) onOpenReminder;
+  final Future<void> Function(String reminderId) onCompleteReminder;
+
+  @override
+  State<DashboardHomePage> createState() => _DashboardHomePageState();
+}
+
+class _DashboardHomePageState extends State<DashboardHomePage> {
+  String? _lastReminderDialogSignature;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showReminderDialogIfNeeded());
+  }
+
+  @override
+  void didUpdateWidget(covariant DashboardHomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showReminderDialogIfNeeded());
+  }
+
+  Future<void> _showReminderDialogIfNeeded() async {
+    if (!mounted) {
+      return;
+    }
+
+    final dueReminders = _dueDashboardReminders(widget.reminders);
+    if (dueReminders.isEmpty) {
+      _lastReminderDialogSignature = null;
+      return;
+    }
+
+    final signature = dueReminders.map((entry) => '${entry.id}:${entry.updatedAt}').join('|');
+    if (signature == _lastReminderDialogSignature) {
+      return;
+    }
+
+    _lastReminderDialogSignature = signature;
+
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.22),
+      builder: (_) => _DashboardReminderDialog(
+        reminders: dueReminders,
+        onOpenReminder: widget.onOpenReminder,
+        onCompleteReminder: widget.onCompleteReminder,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final uniqueModels = bootstrap.pricingOptions
+    final uniqueModels = widget.bootstrap.pricingOptions
         .map((option) => '${option.brand}::${option.model}'.trim())
         .where((value) => value.isNotEmpty && value != '::')
         .toSet()
         .length;
-    final draftOffers = bootstrap.offers.where((offer) => offer.status == 'DRAFT').length;
-    final sentOffers = bootstrap.offers.where((offer) => offer.status == 'SENT').length;
-    final approvedOffers = bootstrap.offers.where((offer) => offer.status == 'APPROVED').length;
-    final sortedOffers = [...bootstrap.offers]
+    final draftOffers = widget.bootstrap.offers.where((offer) => offer.status == 'DRAFT').length;
+    final sentOffers = widget.bootstrap.offers.where((offer) => offer.status == 'SENT').length;
+    final approvedOffers = widget.bootstrap.offers.where((offer) => offer.status == 'APPROVED').length;
+    final sortedOffers = [...widget.bootstrap.offers]
       ..sort((left, right) => right.updatedAt.compareTo(left.updatedAt));
     final featuredOffer = sortedOffers.isEmpty ? null : sortedOffers.first;
+    final dueReminders = _dueDashboardReminders(widget.reminders);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -118,14 +174,15 @@ class DashboardHomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _DashboardHero(
-                session: session,
-                leadCount: bootstrap.leadOptions.length,
-                offerCount: bootstrap.offers.length,
-                pricingCount: bootstrap.pricingOptions.length,
+                session: widget.session,
+                dueReminderCount: dueReminders.length,
+                leadCount: widget.bootstrap.leadOptions.length,
+                offerCount: widget.bootstrap.offers.length,
+                pricingCount: widget.bootstrap.pricingOptions.length,
                 uniqueModels: uniqueModels,
                 featuredOffer: featuredOffer,
-                onOpenLeads: onOpenLeads,
-                onOpenOffers: onOpenOffers,
+                onOpenLeads: widget.onOpenLeads,
+                onOpenOffers: widget.onOpenOffers,
               ),
               const SizedBox(height: 18),
               LayoutBuilder(
@@ -134,12 +191,12 @@ class DashboardHomePage extends StatelessWidget {
                   final metricCards = [
                     VeloPrimeMetricCard(
                       label: 'Leady aktywne',
-                      value: '${bootstrap.leadOptions.length}',
+                      value: '${widget.bootstrap.leadOptions.length}',
                       accentColor: VeloPrimePalette.sea,
                     ),
                     VeloPrimeMetricCard(
                       label: 'Oferty PDF',
-                      value: '${bootstrap.offers.length}',
+                      value: '${widget.bootstrap.offers.length}',
                       accentColor: VeloPrimePalette.bronzeDeep,
                     ),
                     VeloPrimeMetricCard(
@@ -147,6 +204,12 @@ class DashboardHomePage extends StatelessWidget {
                       value: '$uniqueModels',
                       accentColor: VeloPrimePalette.olive,
                     ),
+                    VeloPrimeMetricCard(
+                      label: 'Przypomnienia dziś',
+                      value: '${dueReminders.length}',
+                      accentColor: VeloPrimePalette.violet,
+                    ),
+                    
                     VeloPrimeMetricCard(
                       label: 'Szkice robocze',
                       value: '$draftOffers',
@@ -208,7 +271,7 @@ class DashboardHomePage extends StatelessWidget {
                           description: 'Kanban handlowy, obsługa kontaktów i przejście z leada do oferty w jednym strumieniu pracy.',
                           accentColor: VeloPrimePalette.sea,
                           icon: Icons.view_kanban_outlined,
-                          onTap: onOpenLeads,
+                          onTap: widget.onOpenLeads,
                         ),
                         const SizedBox(height: 12),
                         _DashboardModuleTile(
@@ -216,7 +279,7 @@ class DashboardHomePage extends StatelessWidget {
                           description: 'Docelowe centrum relacji i historii obsługi po przejściu z leada do właściwej współpracy.',
                           accentColor: VeloPrimePalette.olive,
                           icon: Icons.groups_2_outlined,
-                          onTap: onOpenCustomers,
+                          onTap: widget.onOpenCustomers,
                         ),
                         const SizedBox(height: 12),
                         _DashboardModuleTile(
@@ -224,7 +287,7 @@ class DashboardHomePage extends StatelessWidget {
                           description: 'Moduł oferty modelowej i floty, utrzymany jako osobna warstwa produktowa CRM.',
                           accentColor: VeloPrimePalette.rose,
                           icon: Icons.directions_car_outlined,
-                          onTap: onOpenVehicles,
+                          onTap: widget.onOpenVehicles,
                         ),
                         const SizedBox(height: 12),
                         _DashboardModuleTile(
@@ -232,7 +295,7 @@ class DashboardHomePage extends StatelessWidget {
                           description: 'Generator ofert z kalkulacją, podglądem dokumentu i finalizacją PDF w jednym workspace.',
                           accentColor: VeloPrimePalette.bronzeDeep,
                           icon: Icons.description_outlined,
-                          onTap: onOpenOffers,
+                          onTap: widget.onOpenOffers,
                         ),
                       ],
                     ),
@@ -290,12 +353,17 @@ class DashboardHomePage extends StatelessWidget {
                         const SizedBox(height: 18),
                         _SummaryLine(
                           label: 'Aktywna sesja',
-                          value: '${session.fullName} • ${_roleLabel(session.role)}',
+                          value: '${widget.session.fullName} • ${_roleLabel(widget.session.role)}',
                         ),
                         const SizedBox(height: 10),
                         _SummaryLine(
                           label: 'Leady do pracy',
-                          value: '${bootstrap.leadOptions.length} kontaktów',
+                          value: '${widget.bootstrap.leadOptions.length} kontaktów',
+                        ),
+                        const SizedBox(height: 10),
+                        _SummaryLine(
+                          label: 'Przypomnienia aktywne',
+                          value: dueReminders.isEmpty ? 'Brak pilnych zadań' : '${dueReminders.length} na dziś lub po terminie',
                         ),
                         const SizedBox(height: 10),
                         _SummaryLine(
@@ -341,6 +409,7 @@ class DashboardHomePage extends StatelessWidget {
 class _DashboardHero extends StatelessWidget {
   const _DashboardHero({
     required this.session,
+    required this.dueReminderCount,
     required this.leadCount,
     required this.offerCount,
     required this.pricingCount,
@@ -351,6 +420,7 @@ class _DashboardHero extends StatelessWidget {
   });
 
   final SessionInfo session;
+  final int dueReminderCount;
   final int leadCount;
   final int offerCount;
   final int pricingCount;
@@ -413,6 +483,7 @@ class _DashboardHero extends StatelessWidget {
 
           final sidePanel = _HeroInsightPanel(
             session: session,
+            dueReminderCount: dueReminderCount,
             leadCount: leadCount,
             offerCount: offerCount,
             pricingCount: pricingCount,
@@ -444,6 +515,7 @@ class _DashboardHero extends StatelessWidget {
 class _HeroInsightPanel extends StatelessWidget {
   const _HeroInsightPanel({
     required this.session,
+    required this.dueReminderCount,
     required this.leadCount,
     required this.offerCount,
     required this.pricingCount,
@@ -452,6 +524,7 @@ class _HeroInsightPanel extends StatelessWidget {
   });
 
   final SessionInfo session;
+  final int dueReminderCount;
   final int leadCount;
   final int offerCount;
   final int pricingCount;
@@ -528,7 +601,7 @@ class _HeroInsightPanel extends StatelessWidget {
             children: [
               Expanded(child: _HeroStat(label: 'Pozycje', value: '$pricingCount')),
               const SizedBox(width: 12),
-              Expanded(child: _HeroStat(label: 'Modele', value: '$uniqueModels')),
+              Expanded(child: _HeroStat(label: dueReminderCount > 0 ? 'Dzisiaj' : 'Modele', value: dueReminderCount > 0 ? '$dueReminderCount' : '$uniqueModels')),
             ],
           ),
           if (featuredOffer != null) ...[
@@ -822,6 +895,194 @@ class _FeaturedOfferCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DashboardReminderDialog extends StatelessWidget {
+  const _DashboardReminderDialog({
+    required this.reminders,
+    required this.onOpenReminder,
+    required this.onCompleteReminder,
+  });
+
+  final List<ManagedReminderInfo> reminders;
+  final Future<void> Function(ManagedReminderInfo reminder) onOpenReminder;
+  final Future<void> Function(String reminderId) onCompleteReminder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: VeloPrimeWorkspacePanel(
+          tint: VeloPrimePalette.violet,
+          radius: 32,
+          padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const VeloPrimeSectionEyebrow(label: 'Dzisiaj', color: VeloPrimePalette.violet),
+              const SizedBox(height: 12),
+              const Text(
+                'Masz aktywne przypomnienia wymagające uwagi',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink, height: 1.08),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'To przypomnienia na dziś albo po terminie. Możesz od razu wejść do sprawy albo oznaczyć zadanie jako wykonane.',
+                style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+              ),
+              const SizedBox(height: 22),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: reminders
+                        .map(
+                          (reminder) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _DashboardReminderCard(
+                              reminder: reminder,
+                              onOpen: () async {
+                                Navigator.of(context).pop();
+                                await onOpenReminder(reminder);
+                              },
+                              onComplete: () async {
+                                Navigator.of(context).pop();
+                                await onCompleteReminder(reminder.id);
+                              },
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('Później'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardReminderCard extends StatelessWidget {
+  const _DashboardReminderCard({
+    required this.reminder,
+    required this.onOpen,
+    required this.onComplete,
+  });
+
+  final ManagedReminderInfo reminder;
+  final VoidCallback onOpen;
+  final VoidCallback onComplete;
+
+  @override
+  Widget build(BuildContext context) {
+    final remindAt = DateTime.tryParse(reminder.remindAt);
+    final isOverdue = remindAt != null && remindAt.isBefore(DateTime.now());
+    final accent = isOverdue ? const Color(0xFFC53030) : VeloPrimePalette.violet;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.alphaBlend(accent.withValues(alpha: 0.06), Colors.white),
+            Colors.white,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: accent.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(reminder.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
+              ),
+              Text(
+                _formatReminderDateTime(reminder.remindAt),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: accent),
+              ),
+            ],
+          ),
+          if ((reminder.note ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(reminder.note!, style: const TextStyle(color: VeloPrimePalette.muted, height: 1.5)),
+          ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if ((reminder.leadName ?? '').isNotEmpty)
+                VeloPrimeBadge(label: 'Lead', value: reminder.leadName!),
+              if ((reminder.ownerName ?? '').isNotEmpty)
+                VeloPrimeBadge(label: 'Opiekun', value: reminder.ownerName!),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: onComplete,
+                icon: const Icon(Icons.check_circle_outline_rounded),
+                label: const Text('Gotowe'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onOpen,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: Text((reminder.leadId ?? '').isNotEmpty ? 'Otwórz lead' : 'Przejdź do leadów'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<ManagedReminderInfo> _dueDashboardReminders(List<ManagedReminderInfo> reminders) {
+  final now = DateTime.now();
+  final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+  final due = reminders.where((reminder) {
+    final remindAt = DateTime.tryParse(reminder.remindAt);
+    if (remindAt == null) {
+      return false;
+    }
+
+    return !remindAt.isAfter(endOfDay);
+  }).toList()
+    ..sort((left, right) => left.remindAt.compareTo(right.remindAt));
+
+  return due.take(5).toList();
+}
+
+String _formatReminderDateTime(String value) {
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) {
+    return value;
+  }
+
+  return DateFormat('dd.MM.yyyy HH:mm').format(parsed);
 }
 
 class _MiniInfo extends StatelessWidget {

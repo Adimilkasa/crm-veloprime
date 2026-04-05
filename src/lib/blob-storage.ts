@@ -35,6 +35,13 @@ type UploadUserAvatarInput = {
   mimeType?: string | null
 }
 
+type UploadLeadAttachmentInput = {
+  leadId: string
+  fileName: string
+  file: File
+  mimeType?: string | null
+}
+
 export async function uploadModelAssetToBlob(input: UploadBlobInput) {
   const token = process.env.BLOB_READ_WRITE_TOKEN
 
@@ -69,6 +76,25 @@ export async function uploadUserAvatarToBlob(input: UploadUserAvatarInput) {
   const userSegment = sanitizeSegment(input.userId || 'user') || 'user'
   const fileSegment = sanitizeSegment(input.fileName || 'avatar') || 'avatar'
   const pathname = `crm-users/${userSegment}/avatar/${Date.now()}-${fileSegment}`
+
+  return put(pathname, input.file, {
+    access: 'public',
+    token,
+    addRandomSuffix: false,
+    contentType: (input.mimeType ?? input.file.type) || undefined,
+  })
+}
+
+export async function uploadLeadAttachmentToBlob(input: UploadLeadAttachmentInput) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN
+
+  if (!token) {
+    throw new Error('Brak konfiguracji Vercel Blob.')
+  }
+
+  const leadSegment = sanitizeSegment(input.leadId || 'lead') || 'lead'
+  const fileSegment = sanitizeSegment(input.fileName || 'attachment') || 'attachment'
+  const pathname = `crm-leads/${leadSegment}/attachments/${Date.now()}-${fileSegment}`
 
   return put(pathname, input.file, {
     access: 'public',

@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/presentation/veloprime_ui.dart';
 import '../../bootstrap/models/bootstrap_payload.dart';
@@ -9,6 +11,7 @@ import '../data/leads_repository.dart';
 import '../models/lead_models.dart';
 import '../../offers/data/offers_repository.dart';
 import '../../offers/presentation/offers_home_page.dart';
+import '../../reminders/data/reminders_repository.dart';
 
 class LeadDetailPage extends StatefulWidget {
   const LeadDetailPage({
@@ -17,7 +20,9 @@ class LeadDetailPage extends StatefulWidget {
     required this.bootstrap,
     required this.repository,
     required this.offersRepository,
+    required this.remindersRepository,
     required this.initialPayload,
+    required this.onRemindersChanged,
     required this.onOpenOfferWorkspaceForLead,
   });
 
@@ -25,7 +30,9 @@ class LeadDetailPage extends StatefulWidget {
   final BootstrapPayload bootstrap;
   final LeadsRepository repository;
   final OffersRepository offersRepository;
+  final RemindersRepository remindersRepository;
   final LeadDetailPayload initialPayload;
+  final Future<void> Function() onRemindersChanged;
   final Future<void> Function(OfferWorkspaceLaunchRequest request) onOpenOfferWorkspaceForLead;
 
   @override
@@ -35,11 +42,16 @@ class LeadDetailPage extends StatefulWidget {
 class _LeadDetailPageState extends State<LeadDetailPage> {
   static final DateFormat _dateTimeFormat = DateFormat('dd.MM.yyyy HH:mm');
   static final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
+  static const String _internalInfoPrefix = 'WEW::';
 
   late LeadDetailPayload _payload;
   bool _isUpdatingStage = false;
   bool _isAddingEntry = false;
+  bool _isUploadingAttachment = false;
+  bool _isCreatingReminder = false;
   bool _isCreatingOffer = false;
+
+  bool get _isAdmin => widget.session.role == 'ADMIN';
 
   @override
   void initState() {
@@ -48,7 +60,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
     unawaited(_reloadLeadSilently());
   }
 
-  Future<void> _moveStage(String stageId) async {
+  Future<void> _moveStage(String stageId, {String? acceptedOfferId}) async {
     setState(() {
       _isUpdatingStage = true;
     });
@@ -57,6 +69,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
       final nextPayload = await widget.repository.moveLeadToStage(
         leadId: _payload.lead.id,
         stageId: stageId,
+        acceptedOfferId: acceptedOfferId,
       );
 
       if (!mounted) {
@@ -72,6 +85,163 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
       if (mounted) {
         setState(() {
           _isUpdatingStage = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleStageChange(String stageId) async {
+    final nextStage = _payload.stages.where((entry) => entry.id == stageId).firstOrNull;
+
+    if (nextStage == null) {
+      _showError('Nie znaleziono wybranego etapu.');
+      return;
+    }
+
+    if (nextStage.kind != 'WON') {
+      await _moveStage(stageId);
+      return;
+    }
+
+    if (_payload.lead.linkedOffers.isEmpty) {
+      _showError('Przed oznaczeniem leada jako wygrany przypnij do niego ofertę.');
+      return;
+    }
+
+    var currentPayload = _payload;
+
+    if (currentPayload.lead.attachments.isEmpty) {
+      final shouldUpload = await showDialog<bool>(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.22),
+        builder: (context) => const _LeadAttachmentRequiredDialog(),
+      );
+
+      if (shouldUpload != true) {
+        return;
+      }
+
+      final uploaded = await _pickAttachment();
+      if (!uploaded || !mounted) {
+        return;
+      }
+
+      currentPayload = _payload;
+    }
+
+    final acceptedOfferId = await showDialog<String>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.22),
+      builder: (context) => _LeadAcceptedOfferDialog(
+        offers: currentPayload.lead.linkedOffers,
+        initialOfferId: currentPayload.lead.acceptedOfferId,
+      ),
+    );
+
+    if (acceptedOfferId == null || acceptedOfferId.isEmpty) {
+      return;
+    }
+
+    await _moveStage(stageId, acceptedOfferId: acceptedOfferId);
+  }
+
+  Future<bool> _pickAttachment() async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: 'Dokumenty i załączniki',
+          extensions: ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx', 'xls', 'xlsx'],
+        ),
+      ],
+    );
+
+    if (file == null) {
+      return false;
+    }
+
+    setState(() {
+      _isUploadingAttachment = true;
+    });
+
+    try {
+      final nextPayload = await widget.repository.uploadAttachment(
+        leadId: _payload.lead.id,
+        filePath: file.path,
+        fileName: file.name,
+      );
+
+      if (!mounted) {
+        return false;
+      }
+
+      setState(() {
+        _payload = nextPayload;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Załącznik został dodany do leada.')),
+      );
+      return true;
+    } catch (error) {
+      _showError(error.toString());
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingAttachment = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openAttachment(LeadAttachmentModel attachment) async {
+    try {
+      final opened = await launchUrl(Uri.parse(attachment.fileUrl), mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        _showError('Nie udało się otworzyć załącznika ${attachment.fileName}.');
+      }
+    } catch (error) {
+      _showError(error.toString());
+    }
+  }
+
+  Future<void> _addReminder() async {
+    final result = await showDialog<_LeadReminderInputResult>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.22),
+      builder: (context) => _LeadReminderDialog(leadName: _payload.lead.fullName),
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    setState(() {
+      _isCreatingReminder = true;
+    });
+
+    try {
+      await widget.remindersRepository.createReminder(
+        title: result.title,
+        note: result.note,
+        remindAt: result.remindAt,
+        leadId: _payload.lead.id,
+      );
+      await widget.onRemindersChanged();
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Przypomnienie zostało zapisane.')),
+      );
+    } catch (error) {
+      _showError(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCreatingReminder = false;
         });
       }
     }
@@ -93,10 +263,15 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
     });
 
     try {
+      final normalizedKind = kind == 'INTERNAL' ? 'INFO' : kind;
+      final normalizedLabel = kind == 'INTERNAL'
+          ? '$_internalInfoPrefix${result.label?.trim() ?? ''}'
+          : result.label;
+
       final nextPayload = await widget.repository.addDetailEntry(
         leadId: _payload.lead.id,
-        kind: kind,
-        label: result.label,
+        kind: normalizedKind,
+        label: normalizedLabel,
         value: result.value,
       );
 
@@ -183,19 +358,6 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
     }
   }
 
-  List<OfferLeadOption> _buildLeadOptions() {
-    final currentLead = OfferLeadOption(
-      id: _payload.lead.id,
-      label: _payload.lead.fullName,
-      modelName: _payload.lead.interestedModel,
-      contact: _payload.lead.phone ?? _payload.lead.email,
-      ownerName: _payload.lead.salespersonName,
-    );
-
-    final others = widget.bootstrap.leadOptions.where((lead) => lead.id != currentLead.id);
-    return [currentLead, ...others];
-  }
-
   void _showError(String message) {
     if (!mounted) {
       return;
@@ -206,15 +368,29 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
     );
   }
 
+  bool _isInternalInfoEntry(LeadDetailEntryModel entry) {
+    return entry.kind == 'INFO' && entry.label.startsWith(_internalInfoPrefix);
+  }
+
+  String _displayEntryLabel(LeadDetailEntryModel entry) {
+    if (_isInternalInfoEntry(entry)) {
+      return entry.label.substring(_internalInfoPrefix.length).trim();
+    }
+
+    return entry.label;
+  }
+
   @override
   Widget build(BuildContext context) {
     final lead = _payload.lead;
     final stage = _payload.stages.where((entry) => entry.id == lead.stageId).firstOrNull;
-    final informationEntries = lead.details.where((entry) => entry.kind == 'INFO').toList();
+    final internalEntries = lead.details.where(_isInternalInfoEntry).toList();
+    final informationEntries = lead.details.where((entry) => entry.kind == 'INFO' && !_isInternalInfoEntry(entry)).toList();
     final commentEntries = lead.details.where((entry) => entry.kind == 'COMMENT').toList();
     final nextActionLabel = _formatNullableDate(lead.nextActionAt, _dateFormat) ?? 'Brak terminu';
     final refreshedAtLabel = _formatNullableDate(lead.updatedAt, _dateTimeFormat) ?? '-';
     final primaryContact = lead.phone ?? lead.email ?? 'Brak danych kontaktowych';
+    final acceptedOffer = lead.linkedOffers.where((offer) => offer.id == lead.acceptedOfferId).firstOrNull;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -232,7 +408,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                   VeloPrimeWorkspacePanel(
                     tint: VeloPrimePalette.sea,
                     radius: 30,
-                    padding: const EdgeInsets.all(26),
+                    padding: const EdgeInsets.all(22),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -250,19 +426,19 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                       icon: const Icon(Icons.arrow_back_outlined),
                                       label: const Text('Powrót do leadów'),
                                     ),
-                                    const SizedBox(height: 18),
+                                    const SizedBox(height: 14),
                                     const VeloPrimeSectionEyebrow(label: 'Lead', color: VeloPrimePalette.sea),
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 12),
                                     Text(
                                       lead.fullName,
-                                      style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink, height: 1.02),
+                                      style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink, height: 1.02),
                                     ),
-                                    const SizedBox(height: 10),
-                                    const Text(
-                                      'Najważniejsze informacje o kliencie, etapie sprzedaży i kolejnych krokach w jednym miejscu.',
-                                      style: TextStyle(fontSize: 14, height: 1.65, color: VeloPrimePalette.muted),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Etap ${stage?.name ?? lead.stageId} • kontakt $primaryContact • opiekun ${lead.salespersonName ?? 'Nie przypisano'}',
+                                      style: const TextStyle(fontSize: 13, height: 1.5, color: VeloPrimePalette.muted),
                                     ),
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 14),
                                     Wrap(
                                       spacing: 10,
                                       runSpacing: 10,
@@ -278,7 +454,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                               ),
                               const SizedBox(width: 18),
                               Expanded(
-                                flex: 4,
+                                flex: 3,
                                 child: _LeadActionPanel(
                                   primaryContact: primaryContact,
                                   ownerName: lead.salespersonName ?? 'Nie przypisano',
@@ -299,19 +475,19 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                 icon: const Icon(Icons.arrow_back_outlined),
                                 label: const Text('Powrót do leadów'),
                               ),
-                              const SizedBox(height: 18),
+                              const SizedBox(height: 14),
                               const VeloPrimeSectionEyebrow(label: 'Lead', color: VeloPrimePalette.sea),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               Text(
                                 lead.fullName,
-                                style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink, height: 1.04),
+                                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink, height: 1.04),
                               ),
-                              const SizedBox(height: 10),
-                              const Text(
-                                'Sprawdź kontakt, historię działań i oferty powiązane z tym klientem.',
-                                style: TextStyle(fontSize: 14, height: 1.65, color: VeloPrimePalette.muted),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Etap ${stage?.name ?? lead.stageId} • kontakt $primaryContact',
+                                style: const TextStyle(fontSize: 13, height: 1.5, color: VeloPrimePalette.muted),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 14),
                               Wrap(
                                 spacing: 10,
                                 runSpacing: 10,
@@ -340,6 +516,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                           children: [
                             _MetricCard(label: 'Etap', value: stage?.name ?? lead.stageId, accent: const Color(0xFF9D7B27)),
                             _MetricCard(label: 'Oferty', value: '${lead.linkedOffers.length}', accent: const Color(0xFF4A90E2)),
+                            _MetricCard(label: 'Dokumenty', value: '${lead.attachments.length}', accent: VeloPrimePalette.olive),
                             _MetricCard(label: 'Wpisy', value: '${lead.details.length}', accent: const Color(0xFF3F7D64)),
                             _MetricCard(label: 'Aktywność', value: _formatNullableDate(lead.updatedAt, _dateFormat) ?? '-', accent: VeloPrimePalette.violet),
                           ],
@@ -357,52 +534,57 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: _DetailCard(
-                                      title: 'Kontakt',
-                                      subtitle: 'Najważniejsze dane kontaktowe klienta.',
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          _KeyValueLine(label: 'Telefon', value: lead.phone ?? 'Brak telefonu'),
-                                          _KeyValueLine(label: 'Email', value: lead.email ?? 'Brak adresu email'),
-                                          _KeyValueLine(label: 'Region', value: lead.region ?? 'Brak regionu'),
-                                        ],
-                                      ),
+                              _DetailCard(
+                                title: 'Kontakt i obsługa',
+                                subtitle: 'Kompaktowy podgląd danych klienta i bieżącej opieki bez rozbijania na osobne boksy.',
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _KeyValueLine(label: 'Telefon', value: lead.phone ?? 'Brak telefonu'),
+                                    _KeyValueLine(label: 'Email', value: lead.email ?? 'Brak adresu email'),
+                                    _KeyValueLine(label: 'Region', value: lead.region ?? 'Brak regionu'),
+                                    _KeyValueLine(label: 'Przełożony', value: lead.managerName ?? 'Nie przypisano'),
+                                    _KeyValueLine(label: 'Opiekun', value: lead.salespersonName ?? 'Nie przypisano'),
+                                    _KeyValueLine(
+                                      label: 'Wygrana oferta',
+                                      value: acceptedOffer == null ? 'Jeszcze nie wybrano' : '${acceptedOffer.number} • ${acceptedOffer.title}',
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: _DetailCard(
-                                      title: 'Obsługa',
-                                      subtitle: 'Status opieki i rytm dalszej pracy.',
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          _KeyValueLine(label: 'Przełożony', value: lead.managerName ?? 'Nie przypisano'),
-                                          _KeyValueLine(label: 'Opiekun', value: lead.salespersonName ?? 'Nie przypisano'),
-                                          _KeyValueLine(label: 'Następna akcja', value: nextActionLabel),
-                                          _KeyValueLine(label: 'Aktualizacja', value: refreshedAtLabel),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                    _KeyValueLine(label: 'Następna akcja', value: nextActionLabel),
+                                    _KeyValueLine(label: 'Aktualizacja', value: refreshedAtLabel),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 16),
-                              if ((lead.message ?? '').isNotEmpty) ...[
-                                _DetailCard(
-                                  title: 'Notatka startowa',
-                                  subtitle: 'Pierwotna wiadomość leada.',
-                                  child: Text(
-                                    lead.message!,
-                                    style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF555555)),
-                                  ),
+                              _DetailCard(
+                                title: 'Dokumenty klienta',
+                                subtitle: 'Umowy, potwierdzenia i inne załączniki wymagane przed oznaczeniem leada jako wygrany.',
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (lead.attachments.isEmpty)
+                                      const Text(
+                                        'Brak załączników. Przed przejściem do Wygrane dodaj przynajmniej jeden dokument.',
+                                        style: TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF666666)),
+                                      )
+                                    else
+                                      ...lead.attachments.map(
+                                        (attachment) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 12),
+                                          child: _LeadAttachmentCard(
+                                            attachment: attachment,
+                                            dateLabel: _formatNullableDate(attachment.createdAt, _dateTimeFormat) ?? '-',
+                                            onOpen: () => _openAttachment(attachment),
+                                          ),
+                                        ),
+                                      ),
+                                    FilledButton.tonalIcon(
+                                      onPressed: _isUploadingAttachment ? null : _pickAttachment,
+                                      icon: const Icon(Icons.attach_file_rounded),
+                                      label: Text(_isUploadingAttachment ? 'Wysyłanie...' : 'Dodaj dokument'),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                               const SizedBox(height: 16),
                               _DetailCard(
                                 title: 'Oferty klienta',
@@ -437,6 +619,58 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                   ],
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              _DetailCard(
+                                title: 'Obsługa wewnętrzna',
+                                subtitle: _isAdmin
+                                    ? 'Długofalowe informacje operacyjne widoczne dla całego zespołu. Dodawanie tylko przez administratora.'
+                                    : 'Długofalowe informacje operacyjne widoczne dla całego zespołu. Tylko administrator może dodawać nowe wpisy.',
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (internalEntries.isEmpty)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 8),
+                                        child: Text(
+                                          'Brak wpisów wewnętrznych. Tu mogą trafiać statusy typu podpisana umowa, wydanie auta albo inne ustalenia długoterminowe.',
+                                          style: TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF666666)),
+                                        ),
+                                      )
+                                    else
+                                      ...internalEntries.map(
+                                        (entry) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 12),
+                                          child: _HistoryEntryCard(
+                                            title: _displayEntryLabel(entry).isNotEmpty ? _displayEntryLabel(entry) : 'Informacja wewnętrzna',
+                                            value: entry.value,
+                                            author: entry.authorName,
+                                            dateLabel: _formatNullableDate(entry.createdAt, _dateTimeFormat) ?? '-',
+                                            accent: VeloPrimePalette.olive,
+                                          ),
+                                        ),
+                                      ),
+                                    if (_isAdmin) ...[
+                                      const SizedBox(height: 6),
+                                      FilledButton.tonalIcon(
+                                        onPressed: _isAddingEntry ? null : () => _addEntry(kind: 'INTERNAL'),
+                                        icon: const Icon(Icons.admin_panel_settings_outlined),
+                                        label: const Text('Dodaj wpis wewnętrzny'),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if ((lead.message ?? '').isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                _DetailCard(
+                                  title: 'Pierwotna wiadomość',
+                                  subtitle: 'Źródłowa notatka z początku obsługi leada.',
+                                  child: Text(
+                                    lead.message!,
+                                    style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF555555)),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -471,7 +705,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                               if (value == null || value == lead.stageId) {
                                                 return;
                                               }
-                                              _moveStage(value);
+                                              _handleStageChange(value);
                                             },
                                     ),
                                     const SizedBox(height: 14),
@@ -483,6 +717,11 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                           onPressed: _isAddingEntry ? null : () => _addEntry(kind: 'INFO'),
                                           icon: const Icon(Icons.info_outline),
                                           label: const Text('Dodaj informację'),
+                                        ),
+                                        FilledButton.tonalIcon(
+                                          onPressed: _isCreatingReminder ? null : _addReminder,
+                                          icon: const Icon(Icons.alarm_add_outlined),
+                                          label: Text(_isCreatingReminder ? 'Zapisywanie...' : 'Ustaw przypomnienie'),
                                         ),
                                         FilledButton.tonalIcon(
                                           onPressed: _isAddingEntry ? null : () => _addEntry(kind: 'COMMENT'),
@@ -542,6 +781,10 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                               _KeyValueLine(label: 'Telefon', value: lead.phone ?? 'Brak telefonu'),
                               _KeyValueLine(label: 'Email', value: lead.email ?? 'Brak adresu email'),
                               _KeyValueLine(label: 'Opiekun', value: lead.salespersonName ?? 'Nie przypisano'),
+                              _KeyValueLine(
+                                label: 'Wygrana oferta',
+                                value: acceptedOffer == null ? 'Jeszcze nie wybrano' : '${acceptedOffer.number} • ${acceptedOffer.title}',
+                              ),
                               _KeyValueLine(label: 'Następna akcja', value: nextActionLabel),
                             ],
                           ),
@@ -572,7 +815,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                         if (value == null || value == lead.stageId) {
                                           return;
                                         }
-                                        _moveStage(value);
+                                        _handleStageChange(value);
                                       },
                               ),
                               const SizedBox(height: 14),
@@ -591,11 +834,77 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                     label: const Text('Dodaj informację'),
                                   ),
                                   FilledButton.tonalIcon(
+                                    onPressed: _isCreatingReminder ? null : _addReminder,
+                                    icon: const Icon(Icons.alarm_add_outlined),
+                                    label: Text(_isCreatingReminder ? 'Zapisywanie...' : 'Ustaw przypomnienie'),
+                                  ),
+                                  FilledButton.tonalIcon(
                                     onPressed: _isAddingEntry ? null : () => _addEntry(kind: 'COMMENT'),
                                     icon: const Icon(Icons.comment_outlined),
                                     label: const Text('Dodaj komentarz'),
                                   ),
                                 ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _DetailCard(
+                          title: 'Obsługa wewnętrzna',
+                          subtitle: _isAdmin
+                              ? 'Wpisy długoterminowe widoczne dla zespołu. Dodawanie tylko przez administratora.'
+                              : 'Wpisy długoterminowe widoczne dla zespołu. Tylko administrator może dodawać nowe wpisy.',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (internalEntries.isEmpty)
+                                const Text('Brak wpisów wewnętrznych.')
+                              else
+                                ...internalEntries.map(
+                                  (entry) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _HistoryEntryCard(
+                                      title: _displayEntryLabel(entry).isNotEmpty ? _displayEntryLabel(entry) : 'Informacja wewnętrzna',
+                                      value: entry.value,
+                                      author: entry.authorName,
+                                      dateLabel: _formatNullableDate(entry.createdAt, _dateTimeFormat) ?? '-',
+                                      accent: VeloPrimePalette.olive,
+                                    ),
+                                  ),
+                                ),
+                              if (_isAdmin)
+                                FilledButton.tonalIcon(
+                                  onPressed: _isAddingEntry ? null : () => _addEntry(kind: 'INTERNAL'),
+                                  icon: const Icon(Icons.admin_panel_settings_outlined),
+                                  label: const Text('Dodaj wpis wewnętrzny'),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _DetailCard(
+                          title: 'Dokumenty klienta',
+                          subtitle: 'Załączniki przypięte do sprawy i wymagane przy wygraniu leada.',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (lead.attachments.isEmpty)
+                                const Text('Brak załączników. Dodaj dokument przed przejściem do Wygrane.')
+                              else
+                                ...lead.attachments.map(
+                                  (attachment) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _LeadAttachmentCard(
+                                      attachment: attachment,
+                                      dateLabel: _formatNullableDate(attachment.createdAt, _dateTimeFormat) ?? '-',
+                                      onOpen: () => _openAttachment(attachment),
+                                    ),
+                                  ),
+                                ),
+                              FilledButton.tonalIcon(
+                                onPressed: _isUploadingAttachment ? null : _pickAttachment,
+                                icon: const Icon(Icons.attach_file_rounded),
+                                label: Text(_isUploadingAttachment ? 'Wysyłanie...' : 'Dodaj dokument'),
                               ),
                             ],
                           ),
@@ -626,6 +935,17 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                             ],
                           ),
                         ),
+                        if ((lead.message ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          _DetailCard(
+                            title: 'Pierwotna wiadomość',
+                            subtitle: 'Źródłowa notatka z początku obsługi leada.',
+                            child: Text(
+                              lead.message!,
+                              style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF555555)),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         _DetailCard(
                           title: 'Historia',
@@ -679,6 +999,18 @@ class _LeadEntryInputResult {
   final String value;
 }
 
+class _LeadReminderInputResult {
+  const _LeadReminderInputResult({
+    required this.title,
+    required this.note,
+    required this.remindAt,
+  });
+
+  final String title;
+  final String? note;
+  final String remindAt;
+}
+
 class _LeadEntryDialog extends StatefulWidget {
   const _LeadEntryDialog({required this.kind});
 
@@ -704,23 +1036,27 @@ class _LeadEntryDialogState extends State<_LeadEntryDialog> {
     final label = _labelController.text.trim();
     final value = _valueController.text.trim();
 
-    if (widget.kind == 'INFO' && label.isEmpty) {
+    if (widget.kind != 'COMMENT' && label.isEmpty) {
       setState(() {
-        _error = 'Podaj tytul informacji.';
+        _error = widget.kind == 'INTERNAL' ? 'Podaj tytul wpisu wewnetrznego.' : 'Podaj tytul informacji.';
       });
       return;
     }
 
     if (value.isEmpty) {
       setState(() {
-        _error = widget.kind == 'COMMENT' ? 'Wpisz tresc komentarza.' : 'Wpisz komentarz lub informacje.';
+        _error = widget.kind == 'COMMENT'
+            ? 'Wpisz tresc komentarza.'
+            : widget.kind == 'INTERNAL'
+                ? 'Wpisz tresc wpisu wewnetrznego.'
+                : 'Wpisz komentarz lub informacje.';
       });
       return;
     }
 
     Navigator.of(context).pop(
       _LeadEntryInputResult(
-        label: widget.kind == 'INFO' ? label : null,
+        label: widget.kind == 'COMMENT' ? null : label,
         value: value,
       ),
     );
@@ -729,7 +1065,12 @@ class _LeadEntryDialogState extends State<_LeadEntryDialog> {
   @override
   Widget build(BuildContext context) {
     final isComment = widget.kind == 'COMMENT';
-    final accent = isComment ? VeloPrimePalette.bronzeDeep : VeloPrimePalette.sea;
+    final isInternal = widget.kind == 'INTERNAL';
+    final accent = isComment
+      ? VeloPrimePalette.bronzeDeep
+      : isInternal
+        ? VeloPrimePalette.olive
+        : VeloPrimePalette.sea;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -746,12 +1087,20 @@ class _LeadEntryDialogState extends State<_LeadEntryDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               VeloPrimeSectionEyebrow(
-                label: isComment ? 'Komentarz' : 'Informacja',
+                label: isComment
+                    ? 'Komentarz'
+                    : isInternal
+                        ? 'Wpis wewnetrzny'
+                        : 'Informacja',
                 color: accent,
               ),
               const SizedBox(height: 12),
               Text(
-                isComment ? 'Dodaj komentarz do historii leada' : 'Dodaj nowa informacje do karty klienta',
+                isComment
+                    ? 'Dodaj komentarz do historii leada'
+                    : isInternal
+                        ? 'Dodaj wpis do obslugi wewnetrznej klienta'
+                        : 'Dodaj nowa informacje do karty klienta',
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
@@ -763,7 +1112,9 @@ class _LeadEntryDialogState extends State<_LeadEntryDialog> {
               Text(
                 isComment
                     ? 'Komentarz zapisze sie w historii aktywnosci i bedzie widoczny od razu na karcie leada.'
-                    : 'Nadaj wpisowi czytelny tytul, a w tresci zapisz kontekst, ustalenie lub dodatkowa informacje operacyjna.',
+                    : isInternal
+                        ? 'To miejsce na informacje dlugoterminowe po stronie administracyjnej, na przyklad podpisana umowa, rezerwacja auta albo status wydania.'
+                        : 'Nadaj wpisowi czytelny tytul, a w tresci zapisz kontekst, ustalenie lub dodatkowa informacje operacyjna.',
                 style: const TextStyle(
                   color: VeloPrimePalette.muted,
                   height: 1.6,
@@ -773,7 +1124,7 @@ class _LeadEntryDialogState extends State<_LeadEntryDialog> {
               if (!isComment) ...[
                 TextField(
                   controller: _labelController,
-                  decoration: veloPrimeInputDecoration('Tytul informacji'),
+                  decoration: veloPrimeInputDecoration(isInternal ? 'Tytul wpisu wewnetrznego' : 'Tytul informacji'),
                 ),
                 const SizedBox(height: 14),
               ],
@@ -781,7 +1132,7 @@ class _LeadEntryDialogState extends State<_LeadEntryDialog> {
                 controller: _valueController,
                 minLines: isComment ? 6 : 5,
                 maxLines: isComment ? 10 : 8,
-                decoration: veloPrimeInputDecoration('Komentarz / informacja').copyWith(errorText: _error),
+                decoration: veloPrimeInputDecoration(isInternal ? 'Opis wpisu wewnetrznego' : 'Komentarz / informacja').copyWith(errorText: _error),
               ),
               const SizedBox(height: 20),
               Wrap(
@@ -1065,6 +1416,429 @@ class _OfferLinkCard extends StatelessWidget {
   }
 }
 
+class _LeadAttachmentCard extends StatelessWidget {
+  const _LeadAttachmentCard({
+    required this.attachment,
+    required this.dateLabel,
+    required this.onOpen,
+  });
+
+  final LeadAttachmentModel attachment;
+  final String dateLabel;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFFFF), Color(0xFFF7FAF2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: VeloPrimePalette.olive.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: VeloPrimePalette.olive.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.description_outlined, color: VeloPrimePalette.olive),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  attachment.fileName,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: VeloPrimePalette.ink),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_formatFileSize(attachment.sizeBytes)} • $dateLabel',
+                  style: const TextStyle(fontSize: 11, letterSpacing: 0.5, color: Color(0xFF8A826F)),
+                ),
+                if ((attachment.uploadedByName ?? '').isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Dodał: ${attachment.uploadedByName!}',
+                      style: const TextStyle(fontSize: 11, letterSpacing: 0.5, color: Color(0xFF8A826F)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: onOpen,
+            icon: const Icon(Icons.open_in_new_rounded),
+            label: const Text('Otwórz'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LeadAttachmentRequiredDialog extends StatelessWidget {
+  const _LeadAttachmentRequiredDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: VeloPrimeWorkspacePanel(
+          tint: VeloPrimePalette.olive,
+          radius: 32,
+          padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const VeloPrimeSectionEyebrow(label: 'Dokument wymagany', color: VeloPrimePalette.olive),
+              const SizedBox(height: 12),
+              const Text(
+                'Przed przeniesieniem leada do Wygrane dodaj dokument',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink, height: 1.08),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Może to być podpisana umowa, zamówienie, potwierdzenie wpłaty albo inny dokument finalizujący sprawę. Bez załącznika lead nie przejdzie do sekcji Wygrane.',
+                style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+              ),
+              const SizedBox(height: 22),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    icon: const Icon(Icons.close_rounded),
+                    label: const Text('Anuluj'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    icon: const Icon(Icons.attach_file_rounded),
+                    label: const Text('Dodaj dokument'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LeadAcceptedOfferDialog extends StatefulWidget {
+  const _LeadAcceptedOfferDialog({
+    required this.offers,
+    required this.initialOfferId,
+  });
+
+  final List<LeadOfferSummary> offers;
+  final String? initialOfferId;
+
+  @override
+  State<_LeadAcceptedOfferDialog> createState() => _LeadAcceptedOfferDialogState();
+}
+
+class _LeadAcceptedOfferDialogState extends State<_LeadAcceptedOfferDialog> {
+  String? _selectedOfferId;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedOfferId = widget.initialOfferId ?? widget.offers.firstOrNull?.id;
+  }
+
+  void _submit() {
+    if ((_selectedOfferId ?? '').isEmpty) {
+      setState(() {
+        _error = 'Wybierz ofertę, która została zaakceptowana przez klienta.';
+      });
+      return;
+    }
+
+    Navigator.of(context).pop(_selectedOfferId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 700),
+        child: VeloPrimeWorkspacePanel(
+          tint: VeloPrimePalette.sea,
+          radius: 32,
+          padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const VeloPrimeSectionEyebrow(label: 'Wygrana oferta', color: VeloPrimePalette.sea),
+              const SizedBox(height: 12),
+              const Text(
+                'Wskaż ofertę zaakceptowaną przez klienta',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink, height: 1.08),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Ta informacja zostanie zapisana na leadzie i będzie punktem wejścia do dalszej obsługi klienta po stronie administracyjnej.',
+                style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+              ),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedOfferId,
+                borderRadius: BorderRadius.circular(22),
+                isExpanded: true,
+                decoration: veloPrimeInputDecoration('Zaakceptowana oferta').copyWith(errorText: _error),
+                items: widget.offers
+                    .map(
+                      (offer) => DropdownMenuItem<String>(
+                        value: offer.id,
+                        child: Text('${offer.number} • ${offer.title}'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedOfferId = value;
+                    _error = null;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    label: const Text('Anuluj'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _submit,
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('Zapisz i przenieś'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LeadReminderDialog extends StatefulWidget {
+  const _LeadReminderDialog({required this.leadName});
+
+  final String leadName;
+
+  @override
+  State<_LeadReminderDialog> createState() => _LeadReminderDialogState();
+}
+
+class _LeadReminderDialogState extends State<_LeadReminderDialog> {
+  static final DateFormat _dialogDateFormat = DateFormat('dd.MM.yyyy');
+  static final DateFormat _dialogDateTimeFormat = DateFormat('dd.MM.yyyy HH:mm');
+
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+  DateTime _selectedDate = DateTime.now().add(const Duration(hours: 2));
+  TimeOfDay _selectedTime = TimeOfDay.now();
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.text = 'Kontakt z klientem ${widget.leadName}';
+    final initial = DateTime.now().add(const Duration(hours: 2));
+    _selectedDate = DateTime(initial.year, initial.month, initial.day);
+    _selectedTime = TimeOfDay(hour: initial.hour, minute: initial.minute);
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      helpText: 'Wybierz dzień przypomnienia',
+      cancelText: 'Anuluj',
+      confirmText: 'Wybierz',
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedDate = picked;
+    });
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+      helpText: 'Wybierz godzinę przypomnienia',
+      cancelText: 'Anuluj',
+      confirmText: 'Wybierz',
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedTime = picked;
+    });
+  }
+
+  void _submit() {
+    final title = _titleController.text.trim();
+    final scheduledAt = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+
+    if (title.isEmpty) {
+      setState(() {
+        _error = 'Podaj tytuł przypomnienia.';
+      });
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _LeadReminderInputResult(
+        title: title,
+        note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        remindAt: scheduledAt.toIso8601String(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheduledPreview = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: VeloPrimeWorkspacePanel(
+          tint: VeloPrimePalette.violet,
+          radius: 32,
+          padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const VeloPrimeSectionEyebrow(label: 'Przypomnienie', color: VeloPrimePalette.violet),
+              const SizedBox(height: 12),
+              const Text(
+                'Ustaw przypomnienie do tego leada',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink, height: 1.08),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Przypomnienie trafi do dzwonka w górnej nawigacji i pojawi się na dashboardzie, gdy termin będzie aktywny.',
+                style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _titleController,
+                decoration: veloPrimeInputDecoration('Tytuł przypomnienia').copyWith(errorText: _error),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _noteController,
+                minLines: 3,
+                maxLines: 5,
+                decoration: veloPrimeInputDecoration('Notatka operacyjna (opcjonalnie)'),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _pickDate,
+                    icon: const Icon(Icons.calendar_today_outlined),
+                    label: Text('Dzień: ${_dialogDateFormat.format(_selectedDate)}'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _pickTime,
+                    icon: const Icon(Icons.schedule_outlined),
+                    label: Text('Godzina: ${_selectedTime.format(context)}'),
+                  ),
+                  VeloPrimeBadge(label: 'Termin', value: _dialogDateTimeFormat.format(scheduledPreview)),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    label: const Text('Anuluj'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _submit,
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('Zapisz przypomnienie'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _HistorySection extends StatelessWidget {
   const _HistorySection({
     required this.title,
@@ -1190,6 +1964,18 @@ String _formatStatus(String value) {
     default:
       return value;
   }
+}
+
+String _formatFileSize(int bytes) {
+  if (bytes >= 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  if (bytes >= 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+
+  return '$bytes B';
 }
 
 String? _formatNullableDate(String? value, DateFormat format) {

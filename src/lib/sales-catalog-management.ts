@@ -189,10 +189,12 @@ function toRuntimePowertrain(value: string | null | undefined) {
 }
 
 function resolvePricingPriority(
-  record: Pick<
-    Prisma.SalesVersionPricingGetPayload<{}>,
-    'pricingStatus' | 'effectiveFrom' | 'effectiveTo' | 'createdAt'
-  >,
+  record: {
+    pricingStatus: SalesPricingStatus
+    effectiveFrom: Date | null
+    effectiveTo: Date | null
+    createdAt: Date
+  },
   now: Date
 ) {
   const startsOnOrBeforeNow = !record.effectiveFrom || record.effectiveFrom.getTime() <= now.getTime()
@@ -219,21 +221,18 @@ function resolvePricingPriority(
 }
 
 function selectPreferredPricing(
-  records: Array<
-    Pick<
-      Prisma.SalesVersionPricingGetPayload<{}>,
-      | 'pricingStatus'
-      | 'effectiveFrom'
-      | 'effectiveTo'
-      | 'createdAt'
-      | 'listPriceGross'
-      | 'listPriceNet'
-      | 'basePriceGross'
-      | 'basePriceNet'
-      | 'marginPoolGross'
-      | 'marginPoolNet'
-    >
-  >
+  records: Array<{
+    pricingStatus: SalesPricingStatus
+    effectiveFrom: Date | null
+    effectiveTo: Date | null
+    createdAt: Date
+    listPriceGross: Prisma.Decimal | null
+    listPriceNet: Prisma.Decimal | null
+    basePriceGross: Prisma.Decimal | null
+    basePriceNet: Prisma.Decimal | null
+    marginPoolGross: Prisma.Decimal | null
+    marginPoolNet: Prisma.Decimal | null
+  }>
 ) {
   const now = new Date()
 
@@ -270,12 +269,12 @@ function mapDbItem(input: {
   powertrainType: PowertrainType
   systemPowerHp: number | null
   pricing: {
-    listPriceGross: Prisma.Decimal
-    listPriceNet: Prisma.Decimal
-    basePriceGross: Prisma.Decimal
-    basePriceNet: Prisma.Decimal
-    marginPoolGross: Prisma.Decimal
-    marginPoolNet: Prisma.Decimal
+    listPriceGross: Prisma.Decimal | null
+    listPriceNet: Prisma.Decimal | null
+    basePriceGross: Prisma.Decimal | null
+    basePriceNet: Prisma.Decimal | null
+    marginPoolGross: Prisma.Decimal | null
+    marginPoolNet: Prisma.Decimal | null
   } | null
 }) {
   const year = input.year !== null ? String(input.year) : null
@@ -754,8 +753,6 @@ export async function syncLegacyCatalogItemsToDb(catalogItems: SalesCatalogRunti
       where: {
         brand: item.brand,
         model: item.model,
-        version: item.version,
-        year: item.year,
       },
     })
 
