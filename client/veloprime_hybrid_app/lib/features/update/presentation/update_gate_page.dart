@@ -86,8 +86,14 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
     );
   }
 
-  Uri get _msAppInstallerUri {
-    return Uri.parse('ms-appinstaller:?source=${Uri.encodeComponent(_appInstallerUri.toString())}');
+  Uri get _msixUri {
+    final baseUri = Uri.parse(ApiConfig.baseUrl);
+    return Uri(
+      scheme: baseUri.scheme,
+      host: baseUri.host,
+      port: baseUri.hasPort ? baseUri.port : null,
+      path: '/download/VeloPrime-CRM-Test.msix',
+    );
   }
 
   Future<void> _openUpdate() async {
@@ -100,21 +106,21 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
     });
 
     try {
-      final openedInInstaller = await launchUrl(
-        _msAppInstallerUri,
-        mode: LaunchMode.externalApplication,
-      );
-
-      if (openedInInstaller) {
-        return;
-      }
-
       final openedDownload = await launchUrl(
         _appInstallerUri,
         mode: LaunchMode.externalApplication,
       );
 
       if (openedDownload) {
+        return;
+      }
+
+      final openedPackage = await launchUrl(
+        _msixUri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (openedPackage) {
         return;
       }
 
@@ -246,7 +252,7 @@ class _UpdateGatePageState extends State<UpdateGatePage> {
                         const SizedBox(height: 18),
                         if (requiresApplicationUpdate) ...[
                           Text(
-                            'Aktualizacja otworzy Windows App Installer dla adresu ${_appInstallerUri.toString()}. Jesli system nie obsluzy schematu automatycznie, otworzymy bezposredni plik instalatora albo strone pobierania.',
+                            'Aktualizacja otworzy bezpieczny link HTTPS do pliku App Installer: ${_appInstallerUri.toString()}. Jesli system nie otworzy go bezposrednio, sprobuje pobrac pakiet .msix albo otworzy publiczna strone pobierania bez uzycia schematu ms-appinstaller.',
                             textAlign: TextAlign.center,
                             style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                           ),

@@ -2548,9 +2548,13 @@ class _OfferResultsPanel extends StatelessWidget {
 
   num? get _discountPrimaryValue => _isBusinessCustomer ? discountValueNet : discountValueGross;
 
+  String get _primaryValueModeLabel => _isBusinessCustomer ? 'netto' : 'brutto';
+
+  String get _secondaryValueModeLabel => _isBusinessCustomer ? 'brutto' : 'netto';
+
   String get _primaryPriceLabel => _isBusinessCustomer ? 'Cena katalogowa netto' : 'Cena katalogowa brutto';
 
-  String get _secondaryPriceLabel => _isBusinessCustomer ? 'Brutto' : 'Netto';
+  String get _secondaryPriceLabel => _isBusinessCustomer ? 'Rownowartosc brutto' : 'Rownowartosc netto';
 
   @override
   Widget build(BuildContext context) {
@@ -2679,7 +2683,7 @@ class _OfferResultsPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  hasDiscount ? 'CENA PO RABACIE' : _primaryPriceLabel.toUpperCase(),
+                  hasDiscount ? 'CENA PO RABACIE ${_primaryValueModeLabel.toUpperCase()}' : _primaryPriceLabel.toUpperCase(),
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.5, color: summaryAccentText),
                 ),
                 const SizedBox(height: 8),
@@ -2707,7 +2711,9 @@ class _OfferResultsPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _discountPrimaryValue != null ? 'Rabat klienta: ${currencyFormat.format(_discountPrimaryValue)}' : 'Rabat klienta: Brak',
+                    _discountPrimaryValue != null
+                        ? 'Rabat klienta ${_primaryValueModeLabel}: ${currencyFormat.format(_discountPrimaryValue)}'
+                        : 'Rabat klienta ${_primaryValueModeLabel}: Brak',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: summaryAccentText),
                   ),
                 ],
@@ -2759,7 +2765,9 @@ class _OfferResultsPanel extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     _DarkScenarioChip(
-                      label: hasDiscount ? 'Cena katalogowa ${_catalogPrimaryPrice != null ? currencyFormat.format(_catalogPrimaryPrice) : 'Do ustalenia'}' : 'Cena pomocnicza ${_catalogSecondaryPrice != null ? currencyFormat.format(_catalogSecondaryPrice) : 'Do ustalenia'}',
+                      label: hasDiscount
+                          ? '${_primaryPriceLabel} ${_catalogPrimaryPrice != null ? currencyFormat.format(_catalogPrimaryPrice) : 'Do ustalenia'}'
+                          : 'Cena pomocnicza ${_secondaryValueModeLabel} ${_catalogSecondaryPrice != null ? currencyFormat.format(_catalogSecondaryPrice) : 'Do ustalenia'}',
                       backgroundColor: summaryChipBackground,
                       borderColor: summaryChipBorder,
                       foregroundColor: summaryMetaText,
@@ -2784,7 +2792,7 @@ class _OfferResultsPanel extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _WorkspaceStat(label: 'Rabat klienta', value: discountValue != null ? currencyFormat.format(discountValue) : 'Brak', compact: true)),
+              Expanded(child: _WorkspaceStat(label: 'Rabat klienta ${_primaryValueModeLabel}', value: _discountPrimaryValue != null ? currencyFormat.format(_discountPrimaryValue) : 'Brak', compact: true)),
               const SizedBox(width: 12),
               Expanded(child: _WorkspaceStat(label: 'Status oferty', value: _statusStyle(offer.status).label, compact: true)),
             ],

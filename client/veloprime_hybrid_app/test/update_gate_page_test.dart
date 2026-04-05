@@ -28,6 +28,7 @@ void main() {
 
     expect(find.text('Aktualizuj teraz'), findsOneWidget);
     expect(find.text('Wroc do aplikacji'), findsOneWidget);
+    expect(find.textContaining('bez uzycia schematu ms-appinstaller'), findsOneWidget);
   });
 
   testWidgets('does not show update action when application package is current', (tester) async {
