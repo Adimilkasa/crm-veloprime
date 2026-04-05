@@ -13,6 +13,7 @@
     "db:seed": "node prisma/seed.mjs",
     "smoke:catalog-sync": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-catalog-sync.ps1",
     "smoke:accounts": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-account-flows.ps1",
+    "smoke:customer-visibility": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-customer-visibility.ps1",
     "smoke:lead-offer-online": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-lead-offer-online.ps1",
     "smoke:public-offer-share": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-public-offer-share.ps1",
     "smoke:offer-email": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\smoke-offer-email.ps1"

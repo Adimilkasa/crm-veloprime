@@ -25,6 +25,29 @@ export async function requireAdminApiSession() {
   }
 }
 
+export async function requireCustomerWorkspaceApiSession() {
+  const session = await getSession()
+
+  if (!session) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ ok: false, error: 'Brak aktywnej sesji.' }, { status: 401 }),
+    }
+  }
+
+  if (!['ADMIN', 'DIRECTOR', 'MANAGER'].includes(session.role)) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ ok: false, error: 'Brak dostępu do kart klientów.' }, { status: 403 }),
+    }
+  }
+
+  return {
+    ok: true as const,
+    session,
+  }
+}
+
 export async function readJsonRecord(request: Request) {
   let body: unknown
 

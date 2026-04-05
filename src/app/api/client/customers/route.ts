@@ -1,8 +1,8 @@
-import { jsonFromServiceResult, readJsonRecord, requireAdminApiSession } from '@/lib/api-route-helpers'
+import { jsonFromServiceResult, readJsonRecord, requireCustomerWorkspaceApiSession } from '@/lib/api-route-helpers'
 import { createManagedCustomerFromLead } from '@/lib/customer-management'
 
 export async function POST(request: Request) {
-  const session = await requireAdminApiSession()
+  const session = await requireCustomerWorkspaceApiSession()
 
   if (!session.ok) {
     return session.response

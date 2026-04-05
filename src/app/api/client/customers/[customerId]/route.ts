@@ -1,18 +1,18 @@
-import { jsonFromServiceResult, readJsonRecord, requireAdminApiSession } from '@/lib/api-route-helpers'
-import { getManagedCustomerWorkspace, updateManagedCustomer } from '@/lib/customer-management'
+import { jsonFromServiceResult, readJsonRecord, requireCustomerWorkspaceApiSession } from '@/lib/api-route-helpers'
+import { getManagedCustomerWorkspaceForSession, updateManagedCustomer } from '@/lib/customer-management'
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ customerId: string }> },
 ) {
-  const session = await requireAdminApiSession()
+  const session = await requireCustomerWorkspaceApiSession()
 
   if (!session.ok) {
     return session.response
   }
 
   const { customerId } = await context.params
-  const result = await getManagedCustomerWorkspace(customerId)
+  const result = await getManagedCustomerWorkspaceForSession(session.session, customerId)
   return jsonFromServiceResult(result, (workspace) => ({
     customer: workspace.customer,
     ownerOptions: workspace.ownerOptions,
@@ -25,7 +25,7 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ customerId: string }> },
 ) {
-  const session = await requireAdminApiSession()
+  const session = await requireCustomerWorkspaceApiSession()
 
   if (!session.ok) {
     return session.response
@@ -38,7 +38,7 @@ export async function PATCH(
   }
 
   const { customerId } = await context.params
-  const result = await updateManagedCustomer(customerId, {
+  const result = await updateManagedCustomer(session.session, customerId, {
     fullName: typeof payload.body.fullName === 'string' ? payload.body.fullName : '',
     email: typeof payload.body.email === 'string' ? payload.body.email : '',
     phone: typeof payload.body.phone === 'string' ? payload.body.phone : '',

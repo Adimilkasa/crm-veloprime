@@ -220,7 +220,8 @@ function isPrismaSchemaMismatch(error: unknown) {
 }
 
 function canUseFileLeadStorageFallback(error: unknown) {
-  return isDatabaseUnavailableError(error) || (process.env.NODE_ENV !== 'production' && isPrismaSchemaMismatch(error))
+  return process.env.NODE_ENV !== 'production'
+    && (isDatabaseUnavailableError(error) || isPrismaSchemaMismatch(error))
 }
 
 function splitFullName(fullName: string) {

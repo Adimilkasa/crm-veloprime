@@ -160,6 +160,25 @@ Test sprawdza:
 - utworzenie wersji PDF
 - pobranie snapshotu dokumentu oferty
 
+## Smoke Test widocznosci klienta po rolach
+
+Po uruchomieniu backendu na env `smoke-db` mozna wykonac automatyczny smoke test widocznosci kart klienta:
+
+```bash
+npm run dev:smoke-db
+npm run smoke:customer-visibility
+```
+
+Skrypt testuje:
+
+- logowanie seedowych ról: handlowiec, manager, dyrektor, administrator
+- utworzenie leada przez handlowca
+- utworzenie oferty przez handlowca z trwalym `leadId`
+- automatyczne pojawienie sie `customerId` na leadzie
+- otwarcie karty klienta przez managera, dyrektora i administratora
+- blokade bezposredniego dostepu handlowca do endpointu kart klienta
+- obecnosc nowego leada i oferty w historii klienta
+
 ## Runtime konfiguracja klienta Windows
 
 Klient Flutter moze odczytac adres backendu bez przebudowy aplikacji. W katalogu z plikiem `veloprime_hybrid_app.exe` umiesc plik:

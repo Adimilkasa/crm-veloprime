@@ -1,7 +1,8 @@
 import 'server-only'
 
-import { db } from '@/lib/db'
 import type { AuthSession } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { listManagedUsers, type ManagedUser } from '@/lib/user-management'
 
 export type ManagedCustomer = {
   id: string
@@ -113,13 +114,73 @@ function normalizeOptional(value: string | null | undefined) {
   return trimmed ? trimmed : null
 }
 
-async function listOwnerOptions() {
-  if (!db) {
+function buildUserHierarchyMaps(users: ManagedUser[]) {
+  const children = new Map<string, ManagedUser[]>()
+
+  for (const user of users) {
+    const supervisorId = user.reportsToUserId ?? null
+
+    if (!supervisorId) {
+      continue
+    }
+
+    const bucket = children.get(supervisorId) ?? []
+    bucket.push(user)
+    children.set(supervisorId, bucket)
+  }
+
+  return { children }
+}
+
+function collectDescendantIds(rootUserId: string, children: Map<string, ManagedUser[]>) {
+  const visible = new Set<string>([rootUserId])
+  const queue = [rootUserId]
+
+  while (queue.length > 0) {
+    const current = queue.shift()
+
+    if (!current) {
+      continue
+    }
+
+    for (const child of children.get(current) ?? []) {
+      if (visible.has(child.id)) {
+        continue
+      }
+
+      visible.add(child.id)
+      queue.push(child.id)
+    }
+  }
+
+  return visible
+}
+
+function canManageCustomers(session: AuthSession) {
+  return session.role === 'ADMIN' || session.role === 'DIRECTOR' || session.role === 'MANAGER'
+}
+
+function getVisibleCustomerOwnerIds(session: AuthSession, users: ManagedUser[]) {
+  if (session.role === 'ADMIN') {
+    return new Set(users.filter((user) => user.isActive).map((user) => user.id))
+  }
+
+  const { children } = buildUserHierarchyMaps(users)
+  return collectDescendantIds(session.sub, children)
+}
+
+async function listOwnerOptions(visibleOwnerIds: Set<string>) {
+  if (!db || visibleOwnerIds.size === 0) {
     return [] satisfies ManagedCustomerOwnerOption[]
   }
 
   const users = await db.user.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      id: {
+        in: Array.from(visibleOwnerIds),
+      },
+    },
     orderBy: [
       { role: 'asc' },
       { fullName: 'asc' },
@@ -148,6 +209,7 @@ function buildCustomerWorkspace(input: {
     pipelineStage: string
     acceptedAt: Date | null
     updatedAt: Date
+    salespersonId: string | null
     salesperson: { fullName: string } | null
   }>
   relatedOffers: Array<{
@@ -156,6 +218,7 @@ function buildCustomerWorkspace(input: {
     title: string
     status: string
     updatedAt: Date
+    ownerId: string
     owner: { fullName: string } | null
   }>
 }): ManagedCustomerWorkspace {
@@ -185,10 +248,39 @@ function buildCustomerWorkspace(input: {
   }
 }
 
-async function getManagedCustomerWorkspaceInternal(customerId: string) {
+function canViewCustomerRecord(input: {
+  session: AuthSession
+  visibleOwnerIds: Set<string>
+  customerOwnerId: string | null
+  leadSalespersonIds: Array<string | null>
+  offerOwnerIds: string[]
+}) {
+  if (input.session.role === 'ADMIN') {
+    return true
+  }
+
+  if (input.customerOwnerId && input.visibleOwnerIds.has(input.customerOwnerId)) {
+    return true
+  }
+
+  if (input.leadSalespersonIds.some((salespersonId) => salespersonId && input.visibleOwnerIds.has(salespersonId))) {
+    return true
+  }
+
+  return input.offerOwnerIds.some((ownerId) => input.visibleOwnerIds.has(ownerId))
+}
+
+async function getManagedCustomerWorkspaceInternal(session: AuthSession, customerId: string) {
   if (!db) {
     return { ok: false as const, error: 'Baza danych nie jest dostępna dla modułu klientów.', status: 503 }
   }
+
+  if (!canManageCustomers(session)) {
+    return { ok: false as const, error: 'Brak dostępu do kart klientów.', status: 403 }
+  }
+
+  const users = await listManagedUsers()
+  const visibleOwnerIds = getVisibleCustomerOwnerIds(session, users)
 
   const customer = await db.customer.findUnique({
     where: { id: customerId },
@@ -210,6 +302,7 @@ async function getManagedCustomerWorkspaceInternal(customerId: string) {
           pipelineStage: true,
           acceptedAt: true,
           updatedAt: true,
+          salespersonId: true,
           salesperson: {
             select: { fullName: true },
           },
@@ -222,6 +315,7 @@ async function getManagedCustomerWorkspaceInternal(customerId: string) {
           title: true,
           status: true,
           updatedAt: true,
+          ownerId: true,
           owner: {
             select: { fullName: true },
           },
@@ -234,21 +328,45 @@ async function getManagedCustomerWorkspaceInternal(customerId: string) {
     return { ok: false as const, error: 'Nie znaleziono karty klienta.', status: 404 }
   }
 
-  const ownerOptions = await listOwnerOptions()
+  if (!canViewCustomerRecord({
+    session,
+    visibleOwnerIds,
+    customerOwnerId: customer.ownerId,
+    leadSalespersonIds: customer.leads.map((lead) => lead.salespersonId),
+    offerOwnerIds: customer.offers.map((offer) => offer.ownerId),
+  })) {
+    return { ok: false as const, error: 'Nie znaleziono karty klienta.', status: 404 }
+  }
+
+  const relatedLeads = session.role === 'ADMIN'
+    ? customer.leads
+    : customer.leads.filter((lead) => lead.salespersonId && visibleOwnerIds.has(lead.salespersonId))
+
+  const relatedOffers = session.role === 'ADMIN'
+    ? customer.offers
+    : customer.offers.filter((offer) => visibleOwnerIds.has(offer.ownerId))
+
+  const ownerOptions = await listOwnerOptions(visibleOwnerIds)
 
   return {
     ok: true as const,
     data: buildCustomerWorkspace({
-      customer: mapManagedCustomer(customer),
+      customer: mapManagedCustomer({
+        ...customer,
+        _count: {
+          leads: relatedLeads.length,
+          offers: relatedOffers.length,
+        },
+      }),
       ownerOptions,
-      relatedLeads: customer.leads,
-      relatedOffers: customer.offers,
+      relatedLeads,
+      relatedOffers,
     }),
   }
 }
 
-export async function getManagedCustomer(customerId: string) {
-  const workspace = await getManagedCustomerWorkspaceInternal(customerId)
+export async function getManagedCustomer(session: AuthSession, customerId: string) {
+  const workspace = await getManagedCustomerWorkspaceInternal(session, customerId)
 
   if (!workspace.ok) {
     return workspace
@@ -257,11 +375,11 @@ export async function getManagedCustomer(customerId: string) {
   return { ok: true as const, data: workspace.data.customer }
 }
 
-export async function getManagedCustomerWorkspace(customerId: string) {
-  return getManagedCustomerWorkspaceInternal(customerId)
+export async function getManagedCustomerWorkspaceForSession(session: AuthSession, customerId: string) {
+  return getManagedCustomerWorkspaceInternal(session, customerId)
 }
 
-export async function updateManagedCustomer(customerId: string, input: {
+export async function updateManagedCustomer(session: AuthSession, customerId: string, input: {
   fullName: string
   email?: string | null
   phone?: string | null
@@ -273,6 +391,10 @@ export async function updateManagedCustomer(customerId: string, input: {
 }) {
   if (!db) {
     return { ok: false as const, error: 'Baza danych nie jest dostępna dla modułu klientów.', status: 503 }
+  }
+
+  if (!canManageCustomers(session)) {
+    return { ok: false as const, error: 'Brak dostępu do kart klientów.', status: 403 }
   }
 
   const fullName = input.fullName.trim().replace(/\s+/g, ' ')
@@ -290,13 +412,43 @@ export async function updateManagedCustomer(customerId: string, input: {
   const ownerId = normalizeOptional(input.ownerId)
   const { firstName, lastName } = splitFullName(fullName)
 
+  const users = await listManagedUsers()
+  const visibleOwnerIds = getVisibleCustomerOwnerIds(session, users)
+
   const existing = await db.customer.findUnique({
     where: { id: customerId },
-    select: { id: true },
+    select: {
+      id: true,
+      ownerId: true,
+      leads: {
+        select: {
+          salespersonId: true,
+        },
+      },
+      offers: {
+        select: {
+          ownerId: true,
+        },
+      },
+    },
   })
 
   if (!existing) {
     return { ok: false as const, error: 'Nie znaleziono karty klienta.', status: 404 }
+  }
+
+  if (!canViewCustomerRecord({
+    session,
+    visibleOwnerIds,
+    customerOwnerId: existing.ownerId,
+    leadSalespersonIds: existing.leads.map((lead) => lead.salespersonId),
+    offerOwnerIds: existing.offers.map((offer) => offer.ownerId),
+  })) {
+    return { ok: false as const, error: 'Nie znaleziono karty klienta.', status: 404 }
+  }
+
+  if (ownerId && !visibleOwnerIds.has(ownerId)) {
+    return { ok: false as const, error: 'Możesz przypisać klienta tylko do osoby z własnej struktury.', status: 403 }
   }
 
   const updated = await db.$transaction(async (transaction) => {
@@ -347,6 +499,13 @@ export async function createManagedCustomerFromLead(session: AuthSession, leadId
     return { ok: false as const, error: 'Baza danych nie jest dostępna dla modułu klientów.', status: 503 }
   }
 
+  if (!canManageCustomers(session)) {
+    return { ok: false as const, error: 'Brak dostępu do kart klientów.', status: 403 }
+  }
+
+  const users = await listManagedUsers()
+  const visibleOwnerIds = getVisibleCustomerOwnerIds(session, users)
+
   const lead = await db.lead.findUnique({
     where: { id: leadId },
     include: {
@@ -357,6 +516,10 @@ export async function createManagedCustomerFromLead(session: AuthSession, leadId
   })
 
   if (!lead) {
+    return { ok: false as const, error: 'Nie znaleziono leada do utworzenia klienta.', status: 404 }
+  }
+
+  if (lead.salespersonId && !visibleOwnerIds.has(lead.salespersonId) && session.role !== 'ADMIN') {
     return { ok: false as const, error: 'Nie znaleziono leada do utworzenia klienta.', status: 404 }
   }
 
@@ -424,5 +587,5 @@ export async function createManagedCustomerFromLead(session: AuthSession, leadId
     return { ok: false as const, error: 'Nie udało się przygotować karty klienta.', status: 500 }
   }
 
-  return getManagedCustomerWorkspaceInternal(resolvedCustomer.id)
+  return getManagedCustomerWorkspaceInternal(session, resolvedCustomer.id)
 }

@@ -107,6 +107,13 @@ class _CustomersHomePageState extends State<CustomersHomePage> {
   String _selectedSalespersonFilter = _allSalespeople;
   String? _error;
 
+  bool get _canManageCustomerWorkspace =>
+      widget.session.role == 'ADMIN' ||
+      widget.session.role == 'DIRECTOR' ||
+      widget.session.role == 'MANAGER';
+
+  bool get _canRenameCustomerStages => widget.session.role == 'ADMIN';
+
   @override
   void initState() {
     super.initState();
@@ -536,7 +543,7 @@ class _CustomersHomePageState extends State<CustomersHomePage> {
                                             ),
                                             const SizedBox(height: 10),
                                             Text(
-                                              widget.session.role == 'ADMIN'
+                                              _canRenameCustomerStages
                                                   ? 'Każdy lead z etapu Wygrane trafia tutaj od razu do pierwszej kolumny. Masz 8 uniwersalnych etapów i jako administrator możesz w dowolnym momencie zmienić ich nazwy.'
                                                   : 'Każdy lead z etapu Wygrane trafia tutaj od razu do pierwszej kolumny. Kanban pokazuje ręcznie ustawiony etap klienta w 8 uniwersalnych kolumnach.',
                                               style: const TextStyle(
@@ -816,21 +823,18 @@ class _CustomersHomePageState extends State<CustomersHomePage> {
                                                         )
                                                         .toList(),
                                                     canEdit:
-                                                        widget.session.role ==
-                                                            'ADMIN',
+                                                      _canManageCustomerWorkspace,
                                                     movingLeadId: _movingLeadId,
                                                     onOpenLead:
                                                         _openLeadWorkspace,
                                                     onMoveLead:
                                                         _moveCustomerWorkflowStage,
-                                                    onRenameStage: widget
-                                                                .session.role ==
-                                                            'ADMIN'
+                                                    onRenameStage:
+                                                      _canRenameCustomerStages
                                                         ? _renameCustomerWorkflowStage
                                                         : null,
                                                     onOpenCustomer:
-                                                        widget.session.role ==
-                                                                'ADMIN'
+                                                      _canManageCustomerWorkspace
                                                             ? _openCustomerCard
                                                             : null,
                                                   ),

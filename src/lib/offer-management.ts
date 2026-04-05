@@ -229,6 +229,10 @@ function buildUserHierarchyMaps(users: ManagedUser[]) {
   return { children }
 }
 
+function hasPersistedLeadId(offer: { leadId: string | null }) {
+  return typeof offer.leadId === 'string' && offer.leadId.trim().length > 0
+}
+
 function getVisibleOfferOwnerIds(session: AuthSession, users: ManagedUser[]) {
   if (session.role === 'ADMIN') {
     return new Set(users.map((user) => user.id))
@@ -723,6 +727,10 @@ async function getManagedOffer(session: AuthSession, offerId: string) {
     return null
   }
 
+  if (hasPersistedLeadId(mapped)) {
+    return mapped
+  }
+
   const leadLookupFilters = [
     record.customerId ? { customerId: record.customerId } : null,
     record.customer.email ? { email: record.customer.email } : null,
@@ -792,6 +800,11 @@ export async function listManagedOffers(session: AuthSession) {
   return offers
     .map((offer) => {
       const mapped = mapDbOfferListToManagedOffer(offer)
+
+      if (hasPersistedLeadId(mapped)) {
+        return mapped
+      }
+
       const matchedLead = matchLeadForOffer(leads, mapped)
       return matchedLead ? { ...mapped, leadId: matchedLead.id } : mapped
     })
@@ -1080,6 +1093,7 @@ export async function createManagedOffer(
       status: 'DRAFT',
       title,
       customerId: customer.id,
+      leadId: lead?.id ?? null,
       ownerId,
       salesCatalogItemId,
       customerType,
@@ -1105,6 +1119,13 @@ export async function createManagedOffer(
   })
 
   if (lead) {
+    await db.lead.update({
+      where: { id: lead.id },
+      data: {
+        customerId: customer.id,
+      },
+    })
+
     await logManagedLeadActivity(session, {
       leadId: lead.id,
       label: 'Oferta utworzona',
@@ -1276,6 +1297,15 @@ export async function updateManagedOffer(
       versions: true,
     },
   })
+
+  if (offer.leadId) {
+    await db.lead.update({
+      where: { id: offer.leadId },
+      data: {
+        customerId: updated.customerId,
+      },
+    })
+  }
 
   return { ok: true as const, offer: mapDbOfferToManagedOffer(updated) }
 }
@@ -1591,6 +1621,7 @@ export async function assignManagedOfferLead(
   const updated = await db.offer.update({
     where: { id: input.offerId },
     data: {
+      leadId: lead.id,
       customerId: customer.id,
       ownerId: nextOwnerId,
       notes: offer.notes ?? lead.message ?? null,
@@ -1617,7 +1648,7 @@ export async function assignManagedOfferLead(
     value: `Oferta ${updated.number} została przypięta do leada.`,
   })
 
-  return { ok: true as const, offer: { ...mapDbOfferToManagedOffer(updated), leadId: lead.id } }
+  return { ok: true as const, offer: mapDbOfferToManagedOffer(updated) }
 }
 
 export async function createLeadForManagedOffer(
@@ -1844,7 +1875,7 @@ function mapDbOfferToManagedOffer(offer: DbOfferRecord): ManagedOffer {
     number: offer.number,
     status: offer.status,
     title: offer.title,
-    leadId: null,
+    leadId: offer.leadId,
     customerName: offer.customer.fullName,
     customerEmail: offer.customer.email,
     customerPhone: offer.customer.phone,
@@ -1899,7 +1930,7 @@ function mapDbOfferListToManagedOffer(offer: DbOfferListRecord): ManagedOffer {
     number: offer.number,
     status: offer.status,
     title: offer.title,
-    leadId: null,
+    leadId: offer.leadId,
     customerName: offer.customer.fullName,
     customerEmail: offer.customer.email,
     customerPhone: offer.customer.phone,

@@ -175,6 +175,7 @@ model Lead {
   nextActionAt      DateTime?
   customerId        String?
   customer          Customer?   @relation(fields: [customerId], references: [id])
+  offers            Offer[]     @relation("OfferLead")
   customerWorkflowStage String?
   acceptedOfferId   String?
   acceptedAt        DateTime?
@@ -528,6 +529,8 @@ model Offer {
   title              String
   customerId         String
   customer           Customer       @relation(fields: [customerId], references: [id])
+  leadId             String?
+  lead               Lead?          @relation("OfferLead", fields: [leadId], references: [id])
   vehicleId          String?
   vehicle            Vehicle?       @relation(fields: [vehicleId], references: [id])
   salesCatalogItemId String?
@@ -551,6 +554,7 @@ model Offer {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
+  @@index([leadId])
   @@index([salesCatalogItemId])
 }
 
