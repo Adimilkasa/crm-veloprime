@@ -165,11 +165,13 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
       return;
     }
 
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
       await widget.onRefreshBootstrap();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text(
               'Lead zostal utworzony, ale nie udalo sie jeszcze odswiezyc list klientow w ofertach. $error',
@@ -177,6 +179,10 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
           ),
         );
       }
+    }
+
+    if (!mounted) {
+      return;
     }
 
     await Navigator.of(context).push(
@@ -219,6 +225,27 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
       return;
     }
 
+    final targetStage = overview.stages.where((stage) => stage.id == stageId).firstOrNull;
+    final acceptedOfferId = existing.acceptedOfferId?.trim();
+
+    if (targetStage?.kind == 'WON') {
+      if (existing.linkedOffers.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Przed przeniesieniem do Wygrane przypnij do leada ofertę.')),
+        );
+        return;
+      }
+
+      if ((acceptedOfferId ?? '').isEmpty || existing.attachmentCount == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Aby przenieść do Wygrane, otwórz leada, dodaj dokument i użyj przy ofercie akcji Ustaw jako wygraną.'),
+          ),
+        );
+        return;
+      }
+    }
+
     final now = DateTime.now().toIso8601String();
     final nextOverview = LeadsOverview(
       leads: overview.leads
@@ -237,7 +264,11 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
     });
 
     try {
-      await widget.repository.moveLeadToStage(leadId: leadId, stageId: stageId);
+      await widget.repository.moveLeadToStage(
+        leadId: leadId,
+        stageId: stageId,
+        acceptedOfferId: targetStage?.kind == 'WON' ? acceptedOfferId : null,
+      );
     } catch (error) {
       if (!mounted) {
         return;

@@ -31,7 +31,7 @@ export async function POST(
 
   if (!hasBlobStorage()) {
     return NextResponse.json(
-      { ok: false, error: 'Upload załączników wymaga skonfigurowanego Vercel Blob.' },
+      { ok: false, error: 'Upload załączników wymaga skonfigurowanego Vercel Blob po stronie serwera. To nie jest ograniczenie uprawnień handlowca.' },
       { status: 503 },
     )
   }

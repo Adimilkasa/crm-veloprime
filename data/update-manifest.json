@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v41",
-      "publishedAt": "2026-04-06T12:00:00.000Z",
+      "version": "v42",
+      "publishedAt": "2026-04-06T13:30:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.15.28 refreshes CRM lead options after lead creation, keeps the PDF offers workspace synchronized with bootstrap changes, and fixes opening offers for newly created CRM customers.",
+      "summary": "Flutter client 0.1.15.29 adds explicit winning-offer selection on lead offers, blocks invalid moves to Wygrane before documents are attached, removes permanent validation errors from the retry queue, and clarifies that attachment upload failures come from missing server-side Vercel Blob configuration.",
       "priority": "STANDARD"
     }
   ]

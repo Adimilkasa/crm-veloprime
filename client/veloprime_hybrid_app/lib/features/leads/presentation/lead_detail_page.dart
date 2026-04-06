@@ -50,6 +50,7 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
   bool _isUploadingAttachment = false;
   bool _isCreatingReminder = false;
   bool _isCreatingOffer = false;
+  bool _isSettingAcceptedOffer = false;
 
   bool get _isAdmin => widget.session.role == 'ADMIN';
 
@@ -129,6 +130,12 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
       currentPayload = _payload;
     }
 
+    final preselectedAcceptedOfferId = currentPayload.lead.acceptedOfferId?.trim() ?? '';
+    if (preselectedAcceptedOfferId.isNotEmpty) {
+      await _moveStage(stageId, acceptedOfferId: preselectedAcceptedOfferId);
+      return;
+    }
+
     final acceptedOfferId = await showDialog<String>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.22),
@@ -143,6 +150,43 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
     }
 
     await _moveStage(stageId, acceptedOfferId: acceptedOfferId);
+  }
+
+  Future<void> _setAcceptedOffer(String offerId) async {
+    if (_isSettingAcceptedOffer) {
+      return;
+    }
+
+    setState(() {
+      _isSettingAcceptedOffer = true;
+    });
+
+    try {
+      final nextPayload = await widget.repository.updateAcceptedOffer(
+        leadId: _payload.lead.id,
+        acceptedOfferId: offerId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _payload = nextPayload;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Wybrana oferta została oznaczona jako wygrana dla tego leada.')),
+      );
+    } catch (error) {
+      _showError(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSettingAcceptedOffer = false;
+        });
+      }
+    }
   }
 
   Future<bool> _pickAttachment() async {
@@ -607,7 +651,10 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                             status: _formatStatus(offer.status),
                                             versionCount: offer.versionCount,
                                             updatedAt: _formatNullableDate(offer.updatedAt, _dateTimeFormat) ?? '-',
+                                            isAccepted: offer.id == lead.acceptedOfferId,
+                                            isUpdatingAcceptedOffer: _isSettingAcceptedOffer,
                                             onOpen: () => _openOffer(offer.id),
+                                            onMarkAccepted: () => _setAcceptedOffer(offer.id),
                                           ),
                                         ),
                                       ),
@@ -928,7 +975,10 @@ class _LeadDetailPageState extends State<LeadDetailPage> {
                                       status: _formatStatus(offer.status),
                                       versionCount: offer.versionCount,
                                       updatedAt: _formatNullableDate(offer.updatedAt, _dateTimeFormat) ?? '-',
+                                      isAccepted: offer.id == lead.acceptedOfferId,
+                                      isUpdatingAcceptedOffer: _isSettingAcceptedOffer,
                                       onOpen: () => _openOffer(offer.id),
+                                      onMarkAccepted: () => _setAcceptedOffer(offer.id),
                                     ),
                                   ),
                                 ),
@@ -1355,7 +1405,10 @@ class _OfferLinkCard extends StatelessWidget {
     required this.status,
     required this.versionCount,
     required this.updatedAt,
+    required this.isAccepted,
+    required this.isUpdatingAcceptedOffer,
     required this.onOpen,
+    required this.onMarkAccepted,
   });
 
   final String title;
@@ -1363,7 +1416,10 @@ class _OfferLinkCard extends StatelessWidget {
   final String status;
   final int versionCount;
   final String updatedAt;
+  final bool isAccepted;
+  final bool isUpdatingAcceptedOffer;
   final VoidCallback onOpen;
+  final VoidCallback onMarkAccepted;
 
   @override
   Widget build(BuildContext context) {
@@ -1395,18 +1451,40 @@ class _OfferLinkCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _DetailBadge(label: status),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _DetailBadge(label: status),
+                  if (isAccepted) ...[
+                    const SizedBox(height: 8),
+                    const _DetailBadge(label: 'Wygrana'),
+                  ],
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text('Wersje: $versionCount', style: const TextStyle(fontSize: 11, letterSpacing: 0.6, color: Color(0xFF8A826F))),
-              const Spacer(),
               OutlinedButton.icon(
                 onPressed: onOpen,
                 icon: const Icon(Icons.picture_as_pdf_outlined),
                 label: const Text('PDF'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: isAccepted || isUpdatingAcceptedOffer ? null : onMarkAccepted,
+                icon: isUpdatingAcceptedOffer
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.verified_outlined),
+                label: Text(isAccepted ? 'Wybrana oferta' : 'Ustaw jako wygraną'),
               ),
             ],
           ),

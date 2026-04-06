@@ -185,6 +185,19 @@ class LeadsRepository {
     return updated;
   }
 
+  Future<LeadDetailPayload> updateAcceptedOffer({
+    required String leadId,
+    required String acceptedOfferId,
+  }) async {
+    await _apiClient.patchJson('/api/client/leads/$leadId/accepted-offer', {
+      'acceptedOfferId': acceptedOfferId,
+    });
+
+    final refreshed = await _fetchLeadDetailFromNetwork(leadId);
+    await _saveLeadPayload(refreshed);
+    return refreshed;
+  }
+
   Future<LeadDetailPayload> uploadAttachment({
     required String leadId,
     required String filePath,
@@ -766,8 +779,13 @@ class LeadsRepository {
             break;
         }
       } catch (error) {
-        stopProcessing = true;
         lastError = error.toString();
+
+        if (_isPermanentMutationError(error)) {
+          continue;
+        }
+
+        stopProcessing = true;
         remaining.add(mutation);
       }
     }
@@ -784,7 +802,30 @@ class LeadsRepository {
         clearLastError: remaining.isEmpty,
       ),
     );
+
+    if (pending.length != remaining.length) {
+      try {
+        final overview = await _fetchLeadsFromNetwork();
+        final merged = _applyPendingMutationsToOverview(overview, remaining);
+        await _storeOverview(merged);
+      } catch (_) {
+        // Keep local queue cleanup even if a refresh cannot be completed right now.
+      }
+    }
+
     return remaining;
+  }
+
+  bool _isPermanentMutationError(Object error) {
+    if (error is! ApiException) {
+      return false;
+    }
+
+    if (error.statusCode == 401 || error.statusCode == 408 || error.statusCode == 429) {
+      return false;
+    }
+
+    return error.statusCode >= 400 && error.statusCode < 500;
   }
 
   Future<void> _restoreSyncSnapshot() async {

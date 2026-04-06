@@ -1112,7 +1112,7 @@ export async function createManagedLead(session: AuthSession, input: CreateManag
   return { ok: true as const, lead: mapPersistedLead(nextLead) }
 }
 
-async function validateWonLeadTransition(input: {
+async function validateAcceptedOfferSelection(input: {
   lead: ManagedLead
   leadId: string
   acceptedOfferId: string | null
@@ -1121,12 +1121,8 @@ async function validateWonLeadTransition(input: {
     return { ok: false as const, error: 'Przed przeniesieniem do Wygrane wybierz zaakceptowaną ofertę.' }
   }
 
-  if (input.lead.attachments.length === 0) {
-    return { ok: false as const, error: 'Przed przeniesieniem do Wygrane dodaj przynajmniej jeden dokument do leada.' }
-  }
-
   if (!db) {
-    return { ok: true as const }
+    return { ok: true as const, offerLabel: 'wybraną ofertę' }
   }
 
   const [leadRecord, offer] = await Promise.all([
@@ -1136,7 +1132,7 @@ async function validateWonLeadTransition(input: {
     }),
     db.offer.findUnique({
       where: { id: input.acceptedOfferId },
-      select: { id: true, customerId: true },
+      select: { id: true, customerId: true, number: true, title: true },
     }),
   ])
 
@@ -1146,6 +1142,24 @@ async function validateWonLeadTransition(input: {
 
   if (leadRecord?.customerId && offer.customerId !== leadRecord.customerId) {
     return { ok: false as const, error: 'Wybrana oferta nie jest przypięta do tego leada.' }
+  }
+
+  return { ok: true as const, offerLabel: `${offer.number} • ${offer.title}` }
+}
+
+async function validateWonLeadTransition(input: {
+  lead: ManagedLead
+  leadId: string
+  acceptedOfferId: string | null
+}) {
+  const acceptedOfferValidation = await validateAcceptedOfferSelection(input)
+
+  if (!acceptedOfferValidation.ok) {
+    return acceptedOfferValidation
+  }
+
+  if (input.lead.attachments.length === 0) {
+    return { ok: false as const, error: 'Przed przeniesieniem do Wygrane dodaj przynajmniej jeden dokument do leada.' }
   }
 
   return { ok: true as const }
@@ -1252,6 +1266,105 @@ export async function moveManagedLeadToStage(
         kind: 'INFO',
         label: 'Zmiana etapu',
         value: `Lead został przesunięty do etapu ${stage.name}.`,
+        authorName: session.fullName,
+        createdAt: updatedAt,
+      }),
+      ...store.leads[leadIndex].details,
+    ],
+  }
+
+  await writeStore(store)
+  return { ok: true as const, lead: mapPersistedLead(store.leads[leadIndex]) }
+}
+
+export async function updateManagedLeadAcceptedOffer(
+  session: AuthSession,
+  leadId: string,
+  acceptedOfferId: string,
+) {
+  const users = await listManagedUsers()
+  const lead = await getManagedLeadByIdInternal(leadId, session)
+
+  if (!lead) {
+    return { ok: false as const, error: 'Nie znaleziono leada.' }
+  }
+
+  const normalizedAcceptedOfferId = acceptedOfferId.trim() || null
+  const validation = await validateAcceptedOfferSelection({
+    lead,
+    leadId,
+    acceptedOfferId: normalizedAcceptedOfferId,
+  })
+
+  if (!validation.ok) {
+    return validation
+  }
+
+  const updatedAt = new Date().toISOString()
+  const leadStage = STAGE_BY_ID.get(lead.stageId)
+  const acceptedAt = leadStage?.kind === 'WON' ? updatedAt : null
+  const entryValue = `Jako zaakceptowaną ofertę wybrano ${validation.offerLabel}.`
+
+  if (isPrismaLeadStorageEnabled() && db) {
+    await db.$transaction([
+      db.lead.update({
+        where: { id: leadId },
+        data: {
+          acceptedOfferId: normalizedAcceptedOfferId,
+          acceptedAt,
+        },
+      }),
+      db.leadDetailEntry.create({
+        data: {
+          leadId,
+          kind: 'INFO',
+          label: 'Wygrana oferta',
+          value: entryValue,
+          authorUserId: session.sub,
+          createdAt: new Date(updatedAt),
+        },
+      }),
+    ])
+
+    const refreshed = await db.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        manager: true,
+        salesperson: true,
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+        },
+        details: {
+          include: { authorUser: true },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    })
+
+    if (!refreshed) {
+      return { ok: false as const, error: 'Nie znaleziono leada po zapisaniu zaakceptowanej oferty.' }
+    }
+
+    return { ok: true as const, lead: mapDbLead(refreshed) }
+  }
+
+  const store = await getFileStore(users)
+  const leadIndex = store.leads.findIndex((entry) => entry.id === leadId)
+
+  if (leadIndex === -1) {
+    return { ok: false as const, error: 'Nie znaleziono leada.' }
+  }
+
+  store.leads[leadIndex] = {
+    ...store.leads[leadIndex],
+    acceptedOfferId: normalizedAcceptedOfferId,
+    acceptedAt,
+    updatedAt,
+    details: [
+      buildActivityEntry({
+        kind: 'INFO',
+        label: 'Wygrana oferta',
+        value: entryValue,
         authorName: session.fullName,
         createdAt: updatedAt,
       }),
