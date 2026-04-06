@@ -8,4 +8,8 @@ class AuthRepository {
   Future<void> login({required String email, required String password}) {
     return _apiClient.login(email: email, password: password);
   }
+
+  Future<void> logout() {
+    return _apiClient.logout();
+  }
 }

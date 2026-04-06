@@ -148,6 +148,13 @@ class LeadsLocalStore {
     );
   }
 
+  Future<void> clearAll() async {
+    final prefs = await _preferences;
+    await prefs.remove(_overviewKey);
+    await prefs.remove(_detailsKey);
+    await prefs.remove(_queueKey);
+  }
+
   Future<Map<String, dynamic>> _readRawDetailsMap(SharedPreferences prefs) async {
     final raw = prefs.getString(_detailsKey);
     if (raw == null || raw.isEmpty) {

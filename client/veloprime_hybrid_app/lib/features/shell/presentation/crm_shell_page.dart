@@ -341,6 +341,7 @@ class CrmShellPage extends StatefulWidget {
     required this.updateRepository,
     required this.usersRepository,
     required this.onRefreshBootstrap,
+    required this.onLogout,
   });
 
   final SessionInfo session;
@@ -355,6 +356,7 @@ class CrmShellPage extends StatefulWidget {
   final UpdateRepository updateRepository;
   final UsersRepository usersRepository;
   final Future<void> Function() onRefreshBootstrap;
+  final Future<void> Function() onLogout;
 
   @override
   State<CrmShellPage> createState() => _CrmShellPageState();
@@ -416,17 +418,28 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
 
   @override
   Future<void> onWindowClose() async {
+    await _requestSafeClose();
+  }
+
+  Future<bool> _confirmSessionExit(_SessionExitMode mode) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _ExitSyncDialog(
+            repository: widget.leadsRepository,
+            mode: mode,
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _requestSafeClose() async {
     if (kIsWeb || !Platform.isWindows || _isClosingWindow || _isExitFlowActive) {
       return;
     }
 
     _isExitFlowActive = true;
-    final shouldClose = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => _ExitSyncDialog(repository: widget.leadsRepository),
-        ) ??
-        false;
+    final shouldClose = await _confirmSessionExit(_SessionExitMode.closeApp);
     _isExitFlowActive = false;
 
     if (!shouldClose || !mounted) {
@@ -436,6 +449,32 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
     _isClosingWindow = true;
     await windowManager.setPreventClose(false);
     await windowManager.close();
+  }
+
+  Future<void> _startLogoutFlow() async {
+    if (_isExitFlowActive) {
+      return;
+    }
+
+    _isExitFlowActive = true;
+    final shouldLogout = await _confirmSessionExit(_SessionExitMode.logout);
+    _isExitFlowActive = false;
+
+    if (!shouldLogout || !mounted) {
+      return;
+    }
+
+    try {
+      await widget.onLogout();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nie udało się wylogować. $error')),
+      );
+    }
   }
 
   _BackgroundPreset get _activeBackgroundPreset {
@@ -1224,6 +1263,17 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
                                   );
                                 },
                               ),
+                              _ShellIconButton(
+                                icon: Icons.logout_rounded,
+                                label: 'Wyloguj',
+                                onTap: _startLogoutFlow,
+                              ),
+                              if (!kIsWeb && Platform.isWindows)
+                                _ShellIconButton(
+                                  icon: Icons.power_settings_new_rounded,
+                                  label: 'Zamknij',
+                                  onTap: _requestSafeClose,
+                                ),
                             ],
                           ),
                         ],
@@ -1265,6 +1315,8 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
     );
   }
 }
+
+enum _SessionExitMode { closeApp, logout }
 
 class _ShellDestination {
   const _ShellDestination({
@@ -1942,9 +1994,10 @@ class _ShellSyncActions extends StatelessWidget {
 }
 
 class _ExitSyncDialog extends StatefulWidget {
-  const _ExitSyncDialog({required this.repository});
+  const _ExitSyncDialog({required this.repository, required this.mode});
 
   final LeadsRepository repository;
+  final _SessionExitMode mode;
 
   @override
   State<_ExitSyncDialog> createState() => _ExitSyncDialogState();
@@ -1994,14 +2047,16 @@ class _ExitSyncDialogState extends State<_ExitSyncDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const VeloPrimeSectionEyebrow(
-                label: 'Zamykanie aplikacji',
+              VeloPrimeSectionEyebrow(
+                label: widget.mode == _SessionExitMode.logout ? 'Wylogowanie' : 'Zamykanie aplikacji',
                 color: VeloPrimePalette.bronzeDeep,
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Próbujemy wypchnąć lokalne zmiany przed zamknięciem.',
-                style: TextStyle(
+              Text(
+                widget.mode == _SessionExitMode.logout
+                    ? 'Próbujemy wypchnąć lokalne zmiany przed wylogowaniem.'
+                    : 'Próbujemy wypchnąć lokalne zmiany przed zamknięciem.',
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   color: VeloPrimePalette.ink,
@@ -2010,7 +2065,11 @@ class _ExitSyncDialogState extends State<_ExitSyncDialog> {
               const SizedBox(height: 12),
               Text(
                 _isSynchronizing
-                    ? 'Standardowe zamknięcie jest chwilowo wstrzymane do czasu zakończenia próby synchronizacji.'
+                  ? widget.mode == _SessionExitMode.logout
+                    ? 'Wylogowanie jest chwilowo wstrzymane do czasu zakończenia próby synchronizacji.'
+                    : 'Standardowe zamknięcie jest chwilowo wstrzymane do czasu zakończenia próby synchronizacji.'
+                  : widget.mode == _SessionExitMode.logout
+                    ? 'Nie wszystkie zmiany udało się wysłać. Możesz wrócić do aplikacji albo mimo ostrzeżenia wylogować się już teraz.'
                     : 'Nie wszystkie zmiany udało się wysłać. Możesz wrócić do aplikacji albo wymusić wyjście po dodatkowym ostrzeżeniu.',
                 style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
               ),
@@ -2089,11 +2148,13 @@ class _ExitSyncDialogState extends State<_ExitSyncDialog> {
               ),
               const SizedBox(height: 22),
               if (_isSynchronizing)
-                const Align(
+                Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Po udanej synchronizacji aplikacja zamknie się automatycznie.',
-                    style: TextStyle(
+                    widget.mode == _SessionExitMode.logout
+                        ? 'Po udanej synchronizacji nastąpi automatyczne wylogowanie.'
+                        : 'Po udanej synchronizacji aplikacja zamknie się automatycznie.',
+                    style: const TextStyle(
                       color: VeloPrimePalette.muted,
                       fontWeight: FontWeight.w600,
                     ),
@@ -2112,7 +2173,7 @@ class _ExitSyncDialogState extends State<_ExitSyncDialog> {
                     FilledButton.icon(
                       onPressed: () => Navigator.of(context).pop(true),
                       icon: const Icon(Icons.warning_amber_rounded),
-                      label: const Text('Wyjdź mimo to'),
+                      label: Text(widget.mode == _SessionExitMode.logout ? 'Wyloguj mimo to' : 'Wyjdź mimo to'),
                     ),
                   ],
                 ),

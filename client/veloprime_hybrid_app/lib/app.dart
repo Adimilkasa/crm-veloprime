@@ -90,6 +90,24 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
     }
   }
 
+  Future<void> _handleLogout() async {
+    await _authRepository.logout();
+    await _leadsRepository.clearSessionData();
+    ClientArtifactVersions.resetSessionSync();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _session = null;
+      _bootstrap = null;
+      _error = null;
+      _isChecking = false;
+      _startupPreparationState = null;
+    });
+  }
+
   Future<void> _prepareWorkspace() async {
     _setPreparationStep(0, StartupPreparationStepStatus.active);
 
@@ -325,6 +343,7 @@ class _VeloPrimeAppState extends State<VeloPrimeApp> {
               updateRepository: _updateRepository,
               usersRepository: _usersRepository,
               onRefreshBootstrap: _refreshBootstrap,
+              onLogout: _handleLogout,
             ),
     );
   }

@@ -42,6 +42,32 @@ class ApiClient {
     _sessionCookie = setCookieHeader.split(';').first;
   }
 
+  Future<void> logout() async {
+    try {
+      final response = await _httpClient.post(
+        _buildUri('/api/auth/logout'),
+        headers: _buildHeaders(),
+      );
+
+      final body = response.body.isEmpty ? '{}' : response.body;
+      final json = jsonDecode(body);
+
+      if (response.statusCode >= 400) {
+        if (json is Map<String, dynamic>) {
+          throw ApiException(
+            message: json['error']?.toString() ?? 'Nie udało się wylogować.',
+            statusCode: response.statusCode,
+            payload: json,
+          );
+        }
+
+        throw Exception('Nie udało się wylogować.');
+      }
+    } finally {
+      _sessionCookie = null;
+    }
+  }
+
   Future<Map<String, dynamic>> getJson(String path) async {
     final response = await _httpClient.get(_buildUri(path), headers: _buildHeaders());
     return _decodeJson(response);

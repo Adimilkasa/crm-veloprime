@@ -83,6 +83,12 @@ class LeadsRepository {
     return overview;
   }
 
+  Future<void> clearSessionData() async {
+    _cachedOverview = null;
+    await _localStore.clearAll();
+    _setSyncSnapshot(const LeadSyncSnapshot.initial());
+  }
+
   Future<LeadDetailPayload?> readCachedLeadDetail(String leadId) {
     return _localStore.readDetail(leadId);
   }
