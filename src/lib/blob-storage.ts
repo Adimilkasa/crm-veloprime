@@ -15,6 +15,21 @@ export function hasBlobStorage() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN)
 }
 
+export function describeBlobStorageError(error: unknown) {
+  const message = error instanceof Error ? error.message.trim() : String(error ?? '').trim()
+  const normalized = message.toLowerCase()
+
+  if (!message) {
+    return 'Vercel Blob odrzucil zapis pliku. Sprawdz, czy BLOB_READ_WRITE_TOKEN jest poprawnym read-write tokenem dla store podpietego do tego projektu.'
+  }
+
+  if (normalized.includes('access denied') || normalized.includes('unauthorized') || normalized.includes('forbidden')) {
+    return 'Vercel Blob odrzucil zapis pliku. Najczestsze przyczyny to nieprawidlowy BLOB_READ_WRITE_TOKEN, token z innego teamu albo store, lub token do store w trybie private, podczas gdy ta aplikacja zapisuje pliki jako public.'
+  }
+
+  return message
+}
+
 export function isBlobUrl(value: string | null | undefined) {
   return Boolean(value && /^https:\/\/.+/i.test(value) && value.includes('.public.blob.vercel-storage.com/'))
 }

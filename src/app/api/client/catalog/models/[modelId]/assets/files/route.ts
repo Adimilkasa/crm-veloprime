@@ -1,5 +1,5 @@
 import { readJsonRecord, jsonFromServiceResult, requireAdminApiSession } from '@/lib/api-route-helpers'
-import { uploadModelAssetToBlob, hasBlobStorage } from '@/lib/blob-storage'
+import { describeBlobStorageError, uploadModelAssetToBlob, hasBlobStorage } from '@/lib/blob-storage'
 import { createSalesAssetFile } from '@/lib/catalog-admin'
 import { db } from '@/lib/db'
 
@@ -48,17 +48,21 @@ async function storeUploadedFile(modelId: string, formData: FormData) {
   let fileDataBase64: string | null = fileBuffer.toString('base64')
 
   if (hasBlobStorage()) {
-    const blob = await uploadModelAssetToBlob({
-      modelCode: model?.code ?? modelId,
-      category,
-      fileName: safeFileName,
-      file: upload,
-      powertrainType: powertrainType || null,
-      mimeType,
-    })
+    try {
+      const blob = await uploadModelAssetToBlob({
+        modelCode: model?.code ?? modelId,
+        category,
+        fileName: safeFileName,
+        file: upload,
+        powertrainType: powertrainType || null,
+        mimeType,
+      })
 
-    storedPath = blob.url
-    fileDataBase64 = null
+      storedPath = blob.url
+      fileDataBase64 = null
+    } catch (error) {
+      return { ok: false as const, error: describeBlobStorageError(error) }
+    }
   } else {
     storedPath = powertrainSegment.length > 0
       ? `uploads/${modelSegment}/${categorySegment}/${powertrainSegment}/${safeFileName}`

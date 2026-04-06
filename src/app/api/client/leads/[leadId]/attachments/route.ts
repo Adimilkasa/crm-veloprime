@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import {
+  describeBlobStorageError,
   deleteBlobIfManaged,
   hasBlobStorage,
   uploadLeadAttachmentToBlob,
@@ -89,7 +90,7 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Nie udało się wysłać załącznika.' },
+      { ok: false, error: describeBlobStorageError(error) || 'Nie udało się wysłać załącznika.' },
       { status: 500 },
     )
   }

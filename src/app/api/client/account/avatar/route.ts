@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { deleteBlobIfManaged, hasBlobStorage, uploadUserAvatarToBlob } from '@/lib/blob-storage'
+import { deleteBlobIfManaged, describeBlobStorageError, hasBlobStorage, uploadUserAvatarToBlob } from '@/lib/blob-storage'
 import { getAuthUserProfile, getSession, updateAuthUserAvatar } from '@/lib/auth'
 
 const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp'])
@@ -49,16 +49,20 @@ export async function POST(request: Request) {
 
   let avatarUrl: string
 
-  if (hasBlobStorage()) {
-    const blob = await uploadUserAvatarToBlob({
-      userId: session.sub,
-      fileName: safeFileName,
-      file: upload,
-      mimeType: upload.type,
-    })
-    avatarUrl = blob.url
-  } else {
-    avatarUrl = buildDataUrl(upload, buffer)
+  try {
+    if (hasBlobStorage()) {
+      const blob = await uploadUserAvatarToBlob({
+        userId: session.sub,
+        fileName: safeFileName,
+        file: upload,
+        mimeType: upload.type,
+      })
+      avatarUrl = blob.url
+    } else {
+      avatarUrl = buildDataUrl(upload, buffer)
+    }
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: describeBlobStorageError(error) }, { status: 500 })
   }
 
   const updated = await updateAuthUserAvatar({
