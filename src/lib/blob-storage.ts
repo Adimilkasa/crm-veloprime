@@ -58,9 +58,7 @@ type UploadLeadAttachmentInput = {
 }
 
 export async function uploadModelAssetToBlob(input: UploadBlobInput) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN
-
-  if (!token) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error('Brak konfiguracji Vercel Blob.')
   }
 
@@ -75,16 +73,13 @@ export async function uploadModelAssetToBlob(input: UploadBlobInput) {
 
   return put(pathname, input.file, {
     access: 'public',
-    token,
     addRandomSuffix: false,
     contentType: (input.mimeType ?? input.file.type) || undefined,
   })
 }
 
 export async function uploadUserAvatarToBlob(input: UploadUserAvatarInput) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN
-
-  if (!token) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error('Brak konfiguracji Vercel Blob.')
   }
 
@@ -94,16 +89,13 @@ export async function uploadUserAvatarToBlob(input: UploadUserAvatarInput) {
 
   return put(pathname, input.file, {
     access: 'public',
-    token,
     addRandomSuffix: false,
     contentType: (input.mimeType ?? input.file.type) || undefined,
   })
 }
 
 export async function uploadLeadAttachmentToBlob(input: UploadLeadAttachmentInput) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN
-
-  if (!token) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error('Brak konfiguracji Vercel Blob.')
   }
 
@@ -113,7 +105,6 @@ export async function uploadLeadAttachmentToBlob(input: UploadLeadAttachmentInpu
 
   return put(pathname, input.file, {
     access: 'public',
-    token,
     addRandomSuffix: false,
     contentType: (input.mimeType ?? input.file.type) || undefined,
   })
