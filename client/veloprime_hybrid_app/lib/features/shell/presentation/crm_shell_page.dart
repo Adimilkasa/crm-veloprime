@@ -596,6 +596,12 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
   }
 
   Future<void> _openOffersWorkspaceForLead(OfferWorkspaceLaunchRequest request) async {
+    try {
+      await widget.onRefreshBootstrap();
+    } catch (_) {
+      // Open the workspace even when the shared refresh is temporarily unavailable.
+    }
+
     _offerWorkspaceLaunchNotifier.value = request;
     _openMainTab(_offersRoute);
   }
@@ -792,6 +798,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
             offersRepository: widget.offersRepository,
             remindersRepository: widget.remindersRepository,
             onRemindersChanged: _handleRemindersChanged,
+            onRefreshBootstrap: widget.onRefreshBootstrap,
             onOpenOfferWorkspaceForLead: _openOffersWorkspaceForLead,
           ),
         ),
@@ -857,6 +864,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
             bootstrap: widget.bootstrap,
             leadsRepository: widget.leadsRepository,
             offersRepository: widget.offersRepository,
+            onRefreshBootstrap: widget.onRefreshBootstrap,
             onOpenLeads: () => _openMainTab(_leadsRoute),
             workspaceLaunchNotifier: _offerWorkspaceLaunchNotifier,
           ),

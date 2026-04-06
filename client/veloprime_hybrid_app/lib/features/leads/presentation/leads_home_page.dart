@@ -22,6 +22,7 @@ class LeadsHomePage extends StatefulWidget {
     required this.offersRepository,
     required this.remindersRepository,
     required this.onRemindersChanged,
+    required this.onRefreshBootstrap,
     required this.onOpenOfferWorkspaceForLead,
   });
 
@@ -31,6 +32,7 @@ class LeadsHomePage extends StatefulWidget {
   final OffersRepository offersRepository;
   final RemindersRepository remindersRepository;
   final Future<void> Function() onRemindersChanged;
+  final Future<void> Function() onRefreshBootstrap;
   final Future<void> Function(OfferWorkspaceLaunchRequest request)
       onOpenOfferWorkspaceForLead;
 
@@ -163,6 +165,20 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
       return;
     }
 
+    try {
+      await widget.onRefreshBootstrap();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Lead zostal utworzony, ale nie udalo sie jeszcze odswiezyc list klientow w ofertach. $error',
+            ),
+          ),
+        );
+      }
+    }
+
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LeadDetailPage(
@@ -180,6 +196,12 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
 
     if (!mounted) {
       return;
+    }
+
+    try {
+      await widget.onRefreshBootstrap();
+    } catch (_) {
+      // Leave the lead workspace responsive even if the shared bootstrap refresh fails.
     }
 
     await _load();

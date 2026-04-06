@@ -34,6 +34,7 @@ class OffersHomePage extends StatefulWidget {
     required this.bootstrap,
     required this.leadsRepository,
     required this.offersRepository,
+    required this.onRefreshBootstrap,
     required this.onOpenLeads,
     required this.workspaceLaunchNotifier,
   });
@@ -42,6 +43,7 @@ class OffersHomePage extends StatefulWidget {
   final BootstrapPayload bootstrap;
   final LeadsRepository leadsRepository;
   final OffersRepository offersRepository;
+  final Future<void> Function() onRefreshBootstrap;
   final VoidCallback onOpenLeads;
   final ValueNotifier<OfferWorkspaceLaunchRequest?> workspaceLaunchNotifier;
 
@@ -135,6 +137,24 @@ class _OffersHomePageState extends State<OffersHomePage> {
   void didUpdateWidget(covariant OffersHomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    if (oldWidget.bootstrap != widget.bootstrap) {
+      final remoteOffers = List<ManagedOfferSummary>.from(widget.bootstrap.offers);
+      final localDraftSummaries = _localDraftOffers.values.map(_mapDetailToSummary).toList();
+      final localDraftIds = localDraftSummaries.map((offer) => offer.id).toSet();
+
+      _offers = [
+        ...localDraftSummaries,
+        ...remoteOffers.where((offer) => !localDraftIds.contains(offer.id)),
+      ];
+      _leadOptions = List<OfferLeadOption>.from(widget.bootstrap.leadOptions);
+
+      if (_selectedOfferId == null) {
+        _selectedOfferId = _offers.isEmpty ? null : _offers.first.id;
+      } else if (!_offers.any((offer) => offer.id == _selectedOfferId)) {
+        _selectedOfferId = _offers.isEmpty ? null : _offers.first.id;
+      }
+    }
+
     if (oldWidget.workspaceLaunchNotifier != widget.workspaceLaunchNotifier) {
       oldWidget.workspaceLaunchNotifier.removeListener(_handleWorkspaceLaunchRequest);
       widget.workspaceLaunchNotifier.addListener(_handleWorkspaceLaunchRequest);
@@ -219,6 +239,46 @@ class _OffersHomePageState extends State<OffersHomePage> {
         _flowMode = _OfferFlowMode.system;
       }
     });
+  }
+
+  Future<void> _openLeadPickerWithRefresh(_InlineLeadPickerMode mode) async {
+    if (_isSavingOffer) {
+      return;
+    }
+
+    setState(() {
+      _isSavingOffer = true;
+      _createFeedback = 'Odswiezamy liste klientow z CRM...';
+      _editorFeedback = null;
+    });
+
+    try {
+      await widget.onRefreshBootstrap();
+
+      if (!mounted) {
+        return;
+      }
+
+      _openLeadPicker(mode);
+      setState(() {
+        _createFeedback = null;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _createFeedback = 'Nie udalo sie odswiezyc listy klientow z CRM. $error';
+        _editorFeedback = _createFeedback;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingOffer = false;
+        });
+      }
+    }
   }
 
   void _handleCustomerTypeChanged(String value) {
@@ -1005,6 +1065,8 @@ class _OffersHomePageState extends State<OffersHomePage> {
         region: customerRegion,
       );
 
+      await widget.onRefreshBootstrap();
+
       if (!mounted) {
         return;
       }
@@ -1147,6 +1209,8 @@ class _OffersHomePageState extends State<OffersHomePage> {
         offerId: saved.id,
         leadId: leadId,
       );
+
+      await widget.onRefreshBootstrap();
 
       if (!mounted) {
         return;
@@ -1313,7 +1377,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                         dateFormat: _dateFormat,
                         currentFlowMode: _currentFlowMode,
                         onSelectOffer: (offerId) => _loadOffer(offerId),
-                        onCreateForSystemCustomer: () => _openLeadPicker(_InlineLeadPickerMode.createOffer),
+                        onCreateForSystemCustomer: () => _openLeadPickerWithRefresh(_InlineLeadPickerMode.createOffer),
                         onCreateFreeOffer: _createFreeOffer,
                       ),
                       if (_isCreateInlineOpen) ...[
@@ -1361,7 +1425,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                       else if (activeOffer == null)
                         _OfferEmptyState(
                           onCreateFreeOffer: _createFreeOffer,
-                          onCreateForSystemCustomer: () => _openLeadPicker(_InlineLeadPickerMode.createOffer),
+                          onCreateForSystemCustomer: () => _openLeadPickerWithRefresh(_InlineLeadPickerMode.createOffer),
                         )
                       else if (isWide)
                         Row(
@@ -1409,7 +1473,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                                 onPricingChanged: _handlePricingChanged,
                                 onColorChanged: _handleColorChanged,
                                 onSyncToCrm: _syncActiveOfferToCrm,
-                                onAttachExistingLead: () => _openLeadPicker(_InlineLeadPickerMode.attachLead),
+                                onAttachExistingLead: () => _openLeadPickerWithRefresh(_InlineLeadPickerMode.attachLead),
                                 onOpenPreview: latestGeneratedVersion == null || _isSavingOffer
                                     ? null
                                     : () => _openPreview(
@@ -1489,7 +1553,7 @@ class _OffersHomePageState extends State<OffersHomePage> {
                               onPricingChanged: _handlePricingChanged,
                               onColorChanged: _handleColorChanged,
                               onSyncToCrm: _syncActiveOfferToCrm,
-                              onAttachExistingLead: () => _openLeadPicker(_InlineLeadPickerMode.attachLead),
+                                onAttachExistingLead: () => _openLeadPickerWithRefresh(_InlineLeadPickerMode.attachLead),
                               onOpenPreview: latestGeneratedVersion == null || _isSavingOffer
                                   ? null
                                   : () => _openPreview(
