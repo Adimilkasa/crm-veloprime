@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v44",
-      "publishedAt": "2026-04-07T15:45:00.000Z",
+      "version": "v45",
+      "publishedAt": "2026-04-08T10:45:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.15.31 expands user administration to director and manager scopes, rebuilds the top shell navigation, adds side arrows in lead and customer kanban views, improves the public offer gallery lightbox, and ships avatar upload diagnostics for update verification.",
+      "summary": "Flutter client 0.1.15.32 keeps kanban arrows visible in leads and customers, surfaces avatar upload diagnostics directly in the account workspace, and adds a desktop shortcut for new Windows installs.",
       "priority": "STANDARD"
     }
   ]

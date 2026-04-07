@@ -251,7 +251,8 @@ class VeloPrimeBackgroundVisualScope extends InheritedWidget {
   final VeloPrimeBackgroundVisualData data;
 
   static VeloPrimeBackgroundVisualData of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<VeloPrimeBackgroundVisualScope>();
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<VeloPrimeBackgroundVisualScope>();
     return scope?.data ?? VeloPrimeBackgroundVisualData.fallback;
   }
 
@@ -327,6 +328,7 @@ class VeloPrimeHorizontalScrollAssist extends StatefulWidget {
     this.scrollStep = 348,
     this.leftTooltip = 'Przewiń w lewo',
     this.rightTooltip = 'Przewiń w prawo',
+    this.showButtonsWhenUnavailable = false,
   });
 
   final ScrollController controller;
@@ -334,6 +336,7 @@ class VeloPrimeHorizontalScrollAssist extends StatefulWidget {
   final double scrollStep;
   final String leftTooltip;
   final String rightTooltip;
+  final bool showButtonsWhenUnavailable;
 
   @override
   State<VeloPrimeHorizontalScrollAssist> createState() =>
@@ -386,8 +389,8 @@ class _VeloPrimeHorizontalScrollAssistState
     final hasClients = controller.hasClients;
     final hasOverflow = hasClients && controller.position.maxScrollExtent > 12;
     final canScrollBackward = hasOverflow && controller.offset > 12;
-    final canScrollForward =
-        hasOverflow && controller.offset < controller.position.maxScrollExtent - 12;
+    final canScrollForward = hasOverflow &&
+        controller.offset < controller.position.maxScrollExtent - 12;
 
     if (_hasOverflow == hasOverflow &&
         _canScrollBackward == canScrollBackward &&
@@ -425,6 +428,7 @@ class _VeloPrimeHorizontalScrollAssistState
   @override
   Widget build(BuildContext context) {
     _scheduleRefresh();
+    final shouldShowButtons = _hasOverflow || widget.showButtonsWhenUnavailable;
 
     return NotificationListener<ScrollMetricsNotification>(
       onNotification: (_) {
@@ -435,7 +439,7 @@ class _VeloPrimeHorizontalScrollAssistState
         fit: StackFit.expand,
         children: [
           widget.child,
-          if (_hasOverflow) ...[
+          if (shouldShowButtons) ...[
             Positioned(
               left: 8,
               top: 0,
@@ -612,7 +616,8 @@ class VeloPrimeWorkspaceState extends StatelessWidget {
                           valueColor: AlwaysStoppedAnimation<Color>(tint),
                         ),
                       )
-                    : Icon(icon ?? Icons.info_outline_rounded, color: tint, size: 24),
+                    : Icon(icon ?? Icons.info_outline_rounded,
+                        color: tint, size: 24),
               ),
               const SizedBox(height: 18),
               Text(
@@ -657,10 +662,12 @@ class _VeloPrimeDecoratedBackground extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_VeloPrimeDecoratedBackground> createState() => _VeloPrimeDecoratedBackgroundState();
+  State<_VeloPrimeDecoratedBackground> createState() =>
+      _VeloPrimeDecoratedBackgroundState();
 }
 
-class _VeloPrimeDecoratedBackgroundState extends State<_VeloPrimeDecoratedBackground> {
+class _VeloPrimeDecoratedBackgroundState
+    extends State<_VeloPrimeDecoratedBackground> {
   String _backgroundPresetKey = 'Błękitny';
 
   @override
@@ -793,7 +800,8 @@ class VeloPrimeCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             Color.lerp(backgroundColor, Colors.white, 0.3) ?? backgroundColor,
-            Color.lerp(backgroundColor, VeloPrimePalette.ivoryStrong, 0.94) ?? backgroundColor,
+            Color.lerp(backgroundColor, VeloPrimePalette.ivoryStrong, 0.94) ??
+                backgroundColor,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

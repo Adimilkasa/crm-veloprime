@@ -29,6 +29,16 @@ class AccountProfile {
   }
 }
 
+class AccountAvatarUpdateResult {
+  const AccountAvatarUpdateResult({
+    required this.profile,
+    this.warning,
+  });
+
+  final AccountProfile profile;
+  final String? warning;
+}
+
 class AccountRepository {
   AccountRepository(this._apiClient);
 
@@ -36,7 +46,8 @@ class AccountRepository {
 
   Future<AccountProfile> fetchProfile() async {
     final json = await _apiClient.getJson('/api/client/account');
-    return AccountProfile.fromJson(json['profile'] as Map<String, dynamic>? ?? const {});
+    return AccountProfile.fromJson(
+        json['profile'] as Map<String, dynamic>? ?? const {});
   }
 
   Future<void> changePassword({
@@ -49,7 +60,7 @@ class AccountRepository {
     });
   }
 
-  Future<AccountProfile> uploadAvatar({
+  Future<AccountAvatarUpdateResult> uploadAvatar({
     required String filePath,
     required String fileName,
   }) async {
@@ -61,11 +72,19 @@ class AccountRepository {
       fileName: fileName,
     );
 
-    return AccountProfile.fromJson(json['profile'] as Map<String, dynamic>? ?? const {});
+    return AccountAvatarUpdateResult(
+      profile: AccountProfile.fromJson(
+          json['profile'] as Map<String, dynamic>? ?? const {}),
+      warning: json['warning']?.toString(),
+    );
   }
 
-  Future<AccountProfile> removeAvatar() async {
+  Future<AccountAvatarUpdateResult> removeAvatar() async {
     final json = await _apiClient.deleteJson('/api/client/account/avatar');
-    return AccountProfile.fromJson(json['profile'] as Map<String, dynamic>? ?? const {});
+    return AccountAvatarUpdateResult(
+      profile: AccountProfile.fromJson(
+          json['profile'] as Map<String, dynamic>? ?? const {}),
+      warning: json['warning']?.toString(),
+    );
   }
 }

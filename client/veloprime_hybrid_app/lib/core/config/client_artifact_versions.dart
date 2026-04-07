@@ -3,8 +3,8 @@ class ClientArtifactVersions {
 
   static const String data = 'v1';
   static const String assets = 'v1';
-  static const String application = 'v44';
-  static const String release = '0.1.15.31';
+  static const String application = 'v45';
+  static const String release = '0.1.15.32';
 
   static String syncedDataVersion = data;
   static String syncedAssetsVersion = assets;

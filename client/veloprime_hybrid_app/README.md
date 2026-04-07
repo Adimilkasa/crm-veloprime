@@ -45,6 +45,7 @@ Przed uruchomieniem ustaw poprawny adres centrali, np.:
 - Ikona okna i pliku `.exe` jest trzymana w `windows/runner/resources/app_icon.ico`.
 - Ikona paczki MSIX i App Installer korzysta z `assets/branding/app_icon.png`.
 - Skrypt `deploy/msix/build-msix.ps1` domyslnie pakuje teraz `assets/branding/app_icon.png`, zeby branding MSIX byl zgodny z konfiguracja `msix_config`.
+- Skrypt MSIX dopisuje do manifestu wpis `windows.shortcut`, dzieki czemu instalacja tworzy skrot `VeloPrime CRM` na pulpicie na wspieranych wersjach Windows.
 - Przy zmianie brandingu Windows trzeba aktualizowac oba pliki razem: `app_icon.png` dla MSIX i `app_icon.ico` dla runnera desktopowego.
 
 ## Uwagi

@@ -225,13 +225,16 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
       return;
     }
 
-    final targetStage = overview.stages.where((stage) => stage.id == stageId).firstOrNull;
+    final targetStage =
+        overview.stages.where((stage) => stage.id == stageId).firstOrNull;
     final acceptedOfferId = existing.acceptedOfferId?.trim();
 
     if (targetStage?.kind == 'WON') {
       if (existing.linkedOffers.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Przed przeniesieniem do Wygrane przypnij do leada ofertę.')),
+          const SnackBar(
+              content: Text(
+                  'Przed przeniesieniem do Wygrane przypnij do leada ofertę.')),
         );
         return;
       }
@@ -239,7 +242,8 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
       if ((acceptedOfferId ?? '').isEmpty || existing.attachmentCount == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Aby przenieść do Wygrane, otwórz leada, dodaj dokument i użyj przy ofercie akcji Ustaw jako wygraną.'),
+            content: Text(
+                'Aby przenieść do Wygrane, otwórz leada, dodaj dokument i użyj przy ofercie akcji Ustaw jako wygraną.'),
           ),
         );
         return;
@@ -761,8 +765,11 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                   Expanded(
                                     child: VeloPrimeHorizontalScrollAssist(
                                       controller: _kanbanScrollController,
-                                      leftTooltip: 'Przesuń kanban leadów w lewo',
-                                      rightTooltip: 'Przesuń kanban leadów w prawo',
+                                      leftTooltip:
+                                          'Przesuń kanban leadów w lewo',
+                                      rightTooltip:
+                                          'Przesuń kanban leadów w prawo',
+                                      showButtonsWhenUnavailable: true,
                                       child: Scrollbar(
                                         controller: _kanbanScrollController,
                                         thumbVisibility: true,

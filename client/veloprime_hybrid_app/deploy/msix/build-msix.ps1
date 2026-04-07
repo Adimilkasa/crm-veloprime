@@ -91,6 +91,66 @@ function New-RandomPassword {
   -join $chars
 }
 
+function Add-DesktopShortcutManifestExtension {
+  param(
+    [string]$ManifestPath,
+    [string]$ShortcutName,
+    [string]$ShortcutDescription
+  )
+
+  if (-not (Test-Path $ManifestPath)) {
+    throw "AppxManifest.xml not found at $ManifestPath"
+  }
+
+  $content = Get-Content -Path $ManifestPath -Raw
+
+  if ($content -notmatch 'xmlns:desktop7=') {
+    $namespaceReplacement = @'
+          xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6" 
+          xmlns:desktop7="http://schemas.microsoft.com/appx/manifest/desktop/windows10/7" 
+          xmlns:desktop10="http://schemas.microsoft.com/appx/manifest/desktop/windows10/10" 
+'@
+    $content = $content.Replace(
+      '          xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6" ',
+      $namespaceReplacement
+    )
+  }
+
+  if ($content -match 'IgnorableNamespaces="([^"]*)"') {
+    $namespaces = $Matches[1].Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
+    $orderedNamespaces = @($namespaces + 'desktop7' + 'desktop10' | Select-Object -Unique)
+    $content = [System.Text.RegularExpressions.Regex]::Replace(
+      $content,
+      'IgnorableNamespaces="([^"]*)"',
+      ('IgnorableNamespaces="' + ($orderedNamespaces -join ' ') + '"'),
+      1
+    )
+  }
+
+  if ($content -notmatch 'Category="windows.shortcut"') {
+    $escapedShortcutName = [System.Security.SecurityElement]::Escape($ShortcutName)
+    $escapedDescription = [System.Security.SecurityElement]::Escape($ShortcutDescription)
+    $shortcutExtension = @'
+          <desktop7:Extension Category="windows.shortcut">
+            <desktop7:Shortcut
+              File="$(Desktop)\{0}.lnk"
+              Icon="Images\Square44x44Logo.png"
+              Description="{1}"
+              desktop10:DisplayName="{2}"
+              desktop10:Description="{1}" />
+          </desktop7:Extension>
+'@ -f $ShortcutName, $escapedDescription, $escapedShortcutName
+
+    if ($content -match '<Extensions>') {
+      $content = $content.Replace('</Extensions>', "$shortcutExtension`r`n        </Extensions>")
+    } else {
+      $content = $content.Replace('        </Application>', "        <Extensions>`r`n$shortcutExtension`r`n        </Extensions>`r`n      </Application>")
+    }
+  }
+
+  [System.IO.File]::WriteAllText($ManifestPath, $content, [System.Text.UTF8Encoding]::new($false))
+}
+
 Push-Location $projectRoot
 try {
   if (-not $CertificatePath) {
@@ -119,10 +179,43 @@ try {
     flutter build windows --release --dart-define="VELOPRIME_API_BASE_URL=$BaseUrl"
   }
 
-  $createArgs = @(
+  $buildArgs = @(
     'pub',
     'run',
-    'msix:create',
+    'msix:build',
+    '--build-windows', 'false',
+    '--display-name', $DisplayName,
+    '--publisher-display-name', $PublisherDisplayName,
+    '--identity-name', $IdentityName,
+    '--version', $MsixVersion,
+    '--logo-path', $resolvedLogoPath,
+    '--capabilities', 'internetClient',
+    '--publisher', $Publisher,
+    '--architecture', 'x64'
+  )
+
+  if ($resolvedCertificatePath) {
+    $buildArgs += @('--certificate-path', $resolvedCertificatePath)
+  }
+
+  if ($resolvedCertificatePassword) {
+    $buildArgs += @('--certificate-password', $resolvedCertificatePassword)
+  }
+
+  flutter @buildArgs
+
+  $manifestPath = Get-ChildItem -Path (Join-Path $projectRoot 'build\windows') -Filter 'AppxManifest.xml' -Recurse |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -ExpandProperty FullName -First 1
+  Add-DesktopShortcutManifestExtension `
+    -ManifestPath $manifestPath `
+    -ShortcutName $DisplayName `
+    -ShortcutDescription 'Skrot do klienta desktopowego VeloPrime CRM.'
+
+  $packArgs = @(
+    'pub',
+    'run',
+    'msix:pack',
     '--build-windows', 'false',
     '--display-name', $DisplayName,
     '--publisher-display-name', $PublisherDisplayName,
@@ -137,47 +230,27 @@ try {
   )
 
   if ($resolvedCertificatePath) {
-    $createArgs += @('--certificate-path', $resolvedCertificatePath)
+    $packArgs += @('--certificate-path', $resolvedCertificatePath)
   }
 
   if ($resolvedCertificatePassword) {
-    $createArgs += @('--certificate-password', $resolvedCertificatePassword)
+    $packArgs += @('--certificate-password', $resolvedCertificatePassword)
   }
 
-  flutter @createArgs
+  flutter @packArgs
 
   if (-not $PreservePublishArtifacts) {
     Get-ChildItem -Path $resolvedPublishDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force -Path $resolvedPublishDir | Out-Null
   }
 
-  $publishArgs = @(
-    'pub',
-    'run',
-    'msix:publish',
-    '--build-windows', 'false',
-    '--display-name', $DisplayName,
-    '--publisher-display-name', $PublisherDisplayName,
-    '--identity-name', $IdentityName,
-    '--version', $MsixVersion,
-    '--logo-path', $resolvedLogoPath,
-    '--capabilities', 'internetClient',
-    '--output-path', $resolvedOutputDir,
-    '--output-name', $OutputName,
-    '--publisher', $Publisher,
-    '--publish-folder-path', $resolvedPublishDir,
-    '--architecture', 'x64'
-  )
+  $publishedVersionsDir = Join-Path $resolvedPublishDir 'versions'
+  New-Item -ItemType Directory -Force -Path $publishedVersionsDir | Out-Null
 
-  if ($resolvedCertificatePath) {
-    $publishArgs += @('--certificate-path', $resolvedCertificatePath)
-  }
-
-  if ($resolvedCertificatePassword) {
-    $publishArgs += @('--certificate-password', $resolvedCertificatePassword)
-  }
-
-  flutter @publishArgs
+  $packagePath = Join-Path $resolvedOutputDir "$OutputName.msix"
+  $publishedMsixName = "veloprime_hybrid_app_${MsixVersion}.msix"
+  $publishedMsixPath = Join-Path $publishedVersionsDir $publishedMsixName
+  Copy-Item -Path $packagePath -Destination $publishedMsixPath -Force
 
   if ($PublishBaseUrl) {
     $normalizedPublishBaseUrl = $PublishBaseUrl.TrimEnd('/')
@@ -187,26 +260,34 @@ try {
       "$normalizedPublishBaseUrl/versions"
     }
     $appInstallerPath = Join-Path $resolvedPublishDir "$OutputName.appinstaller"
-    $versionsDir = Join-Path $resolvedPublishDir 'versions'
-    $publishedMsix = Get-ChildItem -Path $versionsDir -Filter '*.msix' |
-      Where-Object { $_.Name -like "*${MsixVersion}*.msix" } |
-      Select-Object -First 1
 
-    if (-not $publishedMsix) {
-      $publishedMsix = Get-ChildItem -Path $versionsDir -Filter '*.msix' |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-    }
+    $appInstallerXml = @"
+<?xml version="1.0" encoding="utf-8"?>
+<AppInstaller xmlns="http://schemas.microsoft.com/appx/appinstaller/2018" Uri="$normalizedPublishBaseUrl/$OutputName.appinstaller" Version="$MsixVersion">
+  <MainPackage Name="$IdentityName" Version="$MsixVersion" Publisher="$Publisher" Uri="$normalizedPackageBaseUrl/$publishedMsixName" ProcessorArchitecture="x64" />
+  <UpdateSettings>
+    <OnLaunch HoursBetweenUpdateChecks="0" UpdateBlocksActivation="true" ShowPrompt="true" />
+    <AutomaticBackgroundTask />
+  </UpdateSettings>
+</AppInstaller>
+"@
+    [System.IO.File]::WriteAllText($appInstallerPath, $appInstallerXml.Trim(), [System.Text.UTF8Encoding]::new($false))
 
-    if ($publishedMsix -and (Test-Path $appInstallerPath)) {
-      [xml]$appInstallerXml = Get-Content -Path $appInstallerPath
-      $appInstallerNode = $appInstallerXml.AppInstaller
-      $mainPackageNode = $appInstallerNode.MainPackage
-
-      $appInstallerNode.SetAttribute('Uri', "$normalizedPublishBaseUrl/$OutputName.appinstaller")
-      $mainPackageNode.SetAttribute('Uri', "$normalizedPackageBaseUrl/$($publishedMsix.Name)")
-      $appInstallerXml.Save($appInstallerPath)
-    }
+    $indexHtmlPath = Join-Path $resolvedPublishDir 'index.html'
+    $indexHtml = @"
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>$DisplayName</title>
+</head>
+<body>
+  <p><a href="./$OutputName.appinstaller">Zainstaluj $DisplayName</a></p>
+</body>
+</html>
+"@
+    [System.IO.File]::WriteAllText($indexHtmlPath, $indexHtml.Trim(), [System.Text.UTF8Encoding]::new($false))
   }
 
   Write-Host "MSIX artifacts: $resolvedOutputDir"

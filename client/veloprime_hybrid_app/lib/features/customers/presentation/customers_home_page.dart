@@ -797,8 +797,11 @@ class _CustomersHomePageState extends State<CustomersHomePage> {
                                   Expanded(
                                     child: VeloPrimeHorizontalScrollAssist(
                                       controller: _kanbanScrollController,
-                                      leftTooltip: 'Przesuń kanban klientów w lewo',
-                                      rightTooltip: 'Przesuń kanban klientów w prawo',
+                                      leftTooltip:
+                                          'Przesuń kanban klientów w lewo',
+                                      rightTooltip:
+                                          'Przesuń kanban klientów w prawo',
+                                      showButtonsWhenUnavailable: true,
                                       child: Scrollbar(
                                         controller: _kanbanScrollController,
                                         thumbVisibility: true,
@@ -814,7 +817,8 @@ class _CustomersHomePageState extends State<CustomersHomePage> {
                                                     padding:
                                                         const EdgeInsets.only(
                                                             right: 18),
-                                                    child: _CustomerKanbanColumn(
+                                                    child:
+                                                        _CustomerKanbanColumn(
                                                       stage: stage,
                                                       leads: customers
                                                           .where(
@@ -846,10 +850,10 @@ class _CustomersHomePageState extends State<CustomersHomePage> {
                                                   ),
                                                 )
                                                 .toList(),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
                                   ),
                                 ],
                               ),

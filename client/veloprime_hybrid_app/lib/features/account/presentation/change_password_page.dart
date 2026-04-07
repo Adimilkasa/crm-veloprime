@@ -21,15 +21,19 @@ class ChangePasswordPage extends StatefulWidget {
 }
 
 class _ChangePasswordPageState extends State<ChangePasswordPage> {
-  final TextEditingController _currentPasswordController = TextEditingController();
+  final TextEditingController _currentPasswordController =
+      TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   AccountProfile? _profile;
   bool _isLoadingProfile = true;
   bool _isSaving = false;
   bool _isUploadingAvatar = false;
-  String? _error;
+  String? _profileError;
+  String? _profileNotice;
+  String? _passwordError;
 
   @override
   void initState() {
@@ -59,6 +63,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       setState(() {
         _profile = profile;
         _isLoadingProfile = false;
+        _profileError = null;
       });
     } catch (error) {
       if (!mounted) {
@@ -67,7 +72,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
       setState(() {
         _isLoadingProfile = false;
-        _error = error.toString();
+        _profileError = error.toString();
       });
     }
   }
@@ -84,21 +89,28 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
     setState(() {
       _isUploadingAvatar = true;
-      _error = null;
+      _profileError = null;
+      _profileNotice = null;
     });
 
     try {
-      final profile = await widget.repository.uploadAvatar(filePath: file.path, fileName: file.name);
+      final result = await widget.repository
+          .uploadAvatar(filePath: file.path, fileName: file.name);
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _profile = profile;
+        _profile = result.profile;
+        _profileNotice = result.warning?.trim().isNotEmpty == true
+            ? result.warning!.trim()
+            : null;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Zdjęcie przedstawiciela zostało zapisane.')),
+        SnackBar(
+            content: Text(
+                _profileNotice ?? 'Zdjęcie przedstawiciela zostało zapisane.')),
       );
     } catch (error) {
       if (!mounted) {
@@ -106,8 +118,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       }
 
       setState(() {
-        _error = error.toString();
+        _profileError = error.toString();
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -120,21 +136,27 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   Future<void> _removeAvatar() async {
     setState(() {
       _isUploadingAvatar = true;
-      _error = null;
+      _profileError = null;
+      _profileNotice = null;
     });
 
     try {
-      final profile = await widget.repository.removeAvatar();
+      final result = await widget.repository.removeAvatar();
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _profile = profile;
+        _profile = result.profile;
+        _profileNotice = result.warning?.trim().isNotEmpty == true
+            ? result.warning!.trim()
+            : null;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Zdjęcie przedstawiciela zostało usunięte.')),
+        SnackBar(
+            content: Text(
+                _profileNotice ?? 'Zdjęcie przedstawiciela zostało usunięte.')),
       );
     } catch (error) {
       if (!mounted) {
@@ -142,8 +164,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       }
 
       setState(() {
-        _error = error.toString();
+        _profileError = error.toString();
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -159,14 +185,14 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
     if (newPassword != confirmPassword) {
       setState(() {
-        _error = 'Nowe hasla nie sa identyczne.';
+        _passwordError = 'Nowe hasla nie sa identyczne.';
       });
       return;
     }
 
     setState(() {
       _isSaving = true;
-      _error = null;
+      _passwordError = null;
     });
 
     try {
@@ -194,7 +220,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       }
 
       setState(() {
-        _error = error.toString();
+        _passwordError = error.toString();
       });
     } finally {
       if (mounted) {
@@ -225,7 +251,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     const copy = Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        VeloPrimeSectionEyebrow(label: 'Security', color: accentColor),
+                        VeloPrimeSectionEyebrow(
+                            label: 'Security', color: accentColor),
                         SizedBox(height: 12),
                         Text(
                           'Konto i bezpieczenstwo bez opuszczania klienta desktopowego.',
@@ -254,18 +281,22 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         gradient: LinearGradient(
                           colors: [
                             Colors.white.withValues(alpha: 0.9),
-                            Color.alphaBlend(accentColor.withValues(alpha: 0.08), Colors.white),
+                            Color.alphaBlend(
+                                accentColor.withValues(alpha: 0.08),
+                                Colors.white),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: accentColor.withValues(alpha: 0.14)),
+                        border: Border.all(
+                            color: accentColor.withValues(alpha: 0.14)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const VeloPrimeSectionEyebrow(label: 'Akcje', color: accentColor),
+                          const VeloPrimeSectionEyebrow(
+                              label: 'Akcje', color: accentColor),
                           const SizedBox(height: 14),
                           Wrap(
                             spacing: 10,
@@ -277,7 +308,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                                   icon: const Icon(Icons.arrow_back_rounded),
                                   label: const Text('Powrot'),
                                 ),
-                              const VeloPrimeBadge(label: 'Obszar', value: 'Sesja + konto'),
+                              const VeloPrimeBadge(
+                                  label: 'Obszar', value: 'Sesja + konto'),
                             ],
                           ),
                         ],
@@ -287,7 +319,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     if (!isWide) {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [copy, const SizedBox(height: 20), actionPanel],
+                        children: [
+                          copy,
+                          const SizedBox(height: 20),
+                          actionPanel
+                        ],
                       );
                     }
 
@@ -322,35 +358,51 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                               final profile = _profile;
                               final avatar = _AccountAvatar(
                                 avatarUrl: profile?.avatarUrl,
-                                fullName: profile?.fullName ?? 'Przedstawiciel VeloPrime',
+                                fullName: profile?.fullName ??
+                                    'Przedstawiciel VeloPrime',
                                 size: isWide ? 136 : 112,
                               );
 
                               final details = Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const VeloPrimeSectionEyebrow(label: 'Profil przedstawiciela', color: accentColor),
+                                  const VeloPrimeSectionEyebrow(
+                                      label: 'Profil przedstawiciela',
+                                      color: accentColor),
                                   const SizedBox(height: 12),
                                   Text(
                                     profile?.fullName ?? 'Aktualny użytkownik',
-                                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink),
+                                    style: const TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w800,
+                                        color: VeloPrimePalette.ink),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
                                     profile == null
                                         ? 'Pobieramy dane konta oraz zdjęcie, które będzie widoczne w wygenerowanej ofercie.'
                                         : 'To zdjęcie będzie wykorzystywane w sekcji opiekuna oferty w aplikacji i w publicznym linku dla klienta.',
-                                    style: const TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+                                    style: const TextStyle(
+                                        color: VeloPrimePalette.muted,
+                                        height: 1.6),
                                   ),
                                   const SizedBox(height: 18),
                                   Wrap(
                                     spacing: 10,
                                     runSpacing: 10,
                                     children: [
-                                      if (profile != null) VeloPrimeBadge(label: 'Email', value: profile.email),
-                                      if (profile?.phone != null && profile!.phone!.trim().isNotEmpty)
-                                        VeloPrimeBadge(label: 'Telefon', value: profile.phone!),
-                                      if (profile != null) VeloPrimeBadge(label: 'Rola', value: profile.role),
+                                      if (profile != null)
+                                        VeloPrimeBadge(
+                                            label: 'Email',
+                                            value: profile.email),
+                                      if (profile?.phone != null &&
+                                          profile!.phone!.trim().isNotEmpty)
+                                        VeloPrimeBadge(
+                                            label: 'Telefon',
+                                            value: profile.phone!),
+                                      if (profile != null)
+                                        VeloPrimeBadge(
+                                            label: 'Rola', value: profile.role),
                                     ],
                                   ),
                                   const SizedBox(height: 18),
@@ -359,23 +411,55 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                                     runSpacing: 10,
                                     children: [
                                       FilledButton.icon(
-                                        onPressed: _isUploadingAvatar ? null : _pickAvatar,
+                                        onPressed: _isUploadingAvatar
+                                            ? null
+                                            : _pickAvatar,
                                         icon: _isUploadingAvatar
                                             ? const SizedBox(
                                                 width: 16,
                                                 height: 16,
-                                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: Colors.white),
                                               )
-                                            : const Icon(Icons.add_a_photo_outlined),
-                                        label: Text(_isUploadingAvatar ? 'Wysyłanie...' : 'Dodaj lub zmień zdjęcie'),
+                                            : const Icon(
+                                                Icons.add_a_photo_outlined),
+                                        label: Text(_isUploadingAvatar
+                                            ? 'Wysyłanie...'
+                                            : 'Dodaj lub zmień zdjęcie'),
                                       ),
                                       OutlinedButton.icon(
-                                        onPressed: _isUploadingAvatar || profile?.avatarUrl == null ? null : _removeAvatar,
-                                        icon: const Icon(Icons.delete_outline_rounded),
+                                        onPressed: _isUploadingAvatar ||
+                                                profile?.avatarUrl == null
+                                            ? null
+                                            : _removeAvatar,
+                                        icon: const Icon(
+                                            Icons.delete_outline_rounded),
                                         label: const Text('Usuń zdjęcie'),
                                       ),
                                     ],
                                   ),
+                                  if (_profileError != null) ...[
+                                    const SizedBox(height: 16),
+                                    _AccountFeedbackBanner(
+                                      message: _profileError!,
+                                      icon: Icons.error_outline_rounded,
+                                      tone: const Color(0xFFB94A48),
+                                      background: const Color(0xFFFFF1EF),
+                                      foreground: const Color(0xFF7A231B),
+                                    ),
+                                  ],
+                                  if (_profileNotice != null) ...[
+                                    const SizedBox(height: 16),
+                                    _AccountFeedbackBanner(
+                                      message: _profileNotice!,
+                                      icon: Icons.info_outline_rounded,
+                                      tone: const Color(0xFFD4A84F),
+                                      background: const Color(0xFFFFF8E8),
+                                      foreground: const Color(0xFF6D5317),
+                                    ),
+                                  ],
                                 ],
                               );
 
@@ -383,7 +467,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Align(alignment: Alignment.centerLeft, child: avatar),
+                                    Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: avatar),
                                     const SizedBox(height: 18),
                                     details,
                                   ],
@@ -414,16 +500,21 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const VeloPrimeSectionEyebrow(label: 'Zmiana hasla', color: accentColor),
+                        const VeloPrimeSectionEyebrow(
+                            label: 'Zmiana hasla', color: accentColor),
                         const SizedBox(height: 12),
                         const Text(
                           'Nowe dane logowania',
-                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink),
+                          style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: VeloPrimePalette.ink),
                         ),
                         const SizedBox(height: 8),
                         const Text(
                           'Wprowadz obecne haslo, a nastepnie ustaw nowy wariant dla konta. Proces pozostaje bez zmian.',
-                          style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+                          style: TextStyle(
+                              color: VeloPrimePalette.muted, height: 1.6),
                         ),
                         const SizedBox(height: 22),
                         TextField(
@@ -441,11 +532,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         TextField(
                           controller: _confirmPasswordController,
                           obscureText: true,
-                          decoration: veloPrimeInputDecoration('Powtorz nowe haslo'),
+                          decoration:
+                              veloPrimeInputDecoration('Powtorz nowe haslo'),
                         ),
-                        if (_error != null) ...[
+                        if (_passwordError != null) ...[
                           const SizedBox(height: 14),
-                          Text(_error!, style: const TextStyle(color: Color(0xFF8E372A), fontWeight: FontWeight.w600)),
+                          _AccountFeedbackBanner(
+                            message: _passwordError!,
+                            icon: Icons.error_outline_rounded,
+                            tone: const Color(0xFFB94A48),
+                            background: const Color(0xFFFFF1EF),
+                            foreground: const Color(0xFF7A231B),
+                          ),
                         ],
                         const SizedBox(height: 22),
                         FilledButton.icon(
@@ -454,7 +552,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
                                 )
                               : const Icon(Icons.lock_reset_rounded),
                           label: const Text('Zmien haslo'),
@@ -475,11 +574,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        VeloPrimeSectionEyebrow(label: 'Wskazowki', color: accentColor),
+                        VeloPrimeSectionEyebrow(
+                            label: 'Wskazowki', color: accentColor),
                         SizedBox(height: 12),
                         Text(
                           'Po zapisaniu nowe haslo zaczyna obowiazywac dla konta powiazanego z aktualna sesja.',
-                          style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
+                          style: TextStyle(
+                              color: VeloPrimePalette.muted, height: 1.6),
                         ),
                       ],
                     ),
@@ -502,6 +603,52 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         decorateBackground: false,
         padding: const EdgeInsets.fromLTRB(28, 28, 28, 36),
         child: content,
+      ),
+    );
+  }
+}
+
+class _AccountFeedbackBanner extends StatelessWidget {
+  const _AccountFeedbackBanner({
+    required this.message,
+    required this.icon,
+    required this.tone,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String message;
+  final IconData icon;
+  final Color tone;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: tone.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: tone, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: foreground,
+                fontWeight: FontWeight.w600,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -542,9 +689,11 @@ class _AccountAvatar extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: image ?? Center(
-        child: Icon(Icons.person_rounded, size: size * 0.44, color: const Color(0xFF355274)),
-      ),
+      child: image ??
+          Center(
+            child: Icon(Icons.person_rounded,
+                size: size * 0.44, color: const Color(0xFF355274)),
+          ),
     );
   }
 
@@ -570,6 +719,8 @@ class _AccountAvatar extends StatelessWidget {
       return Image.memory(bytes, fit: BoxFit.cover);
     }
 
-    return Image.network(value, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => const SizedBox.shrink());
+    return Image.network(value,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink());
   }
 }
