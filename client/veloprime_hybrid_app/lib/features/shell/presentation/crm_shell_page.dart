@@ -618,22 +618,6 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
     setState(() => _selectedRoute = route);
   }
 
-  void _openDestination(String route) {
-    setState(() => _selectedRoute = route);
-  }
-
-  void _openAccountPage() {
-    _openDestination(_accountRoute);
-  }
-
-  void _openUsersPage() {
-    _openDestination(_usersRoute);
-  }
-
-  void _openUpdatesPage() {
-    _openDestination(_updatesRoute);
-  }
-
   Future<void> _openOffersWorkspaceForLead(OfferWorkspaceLaunchRequest request) async {
     try {
       await widget.onRefreshBootstrap();
@@ -776,7 +760,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
     switch (label) {
       case 'Dashboard':
         return VeloPrimePalette.bronzeDeep;
-      case 'Oferty / PDF':
+      case 'Oferta':
         return VeloPrimePalette.bronzeDeep;
       case 'Prowizje':
         return const Color(0xFF2F855A);
@@ -795,8 +779,45 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
     }
   }
 
+  String _sessionRoleLabel(String role) {
+    switch (role) {
+      case 'ADMIN':
+        return 'Administrator';
+      case 'DIRECTOR':
+        return 'Dyrektor';
+      case 'MANAGER':
+        return 'Manager';
+      default:
+        return 'Handlowiec';
+    }
+  }
+
   Color _accentForDestination(_ShellDestination destination) {
     return destination.accentColor ?? _navColorForLabel(destination.label);
+  }
+
+  _ShellDestination get _dashboardDestination {
+    return _allDestinations.firstWhere((destination) => destination.route == _dashboardRoute);
+  }
+
+  List<_ShellDestination> get _pinnedTopDestinations {
+    const pinnedRoutes = [_leadsRoute, _customersRoute, _offersRoute];
+    return pinnedRoutes
+        .map((route) => _allDestinations.firstWhere((destination) => destination.route == route))
+        .toList();
+  }
+
+  List<_ShellDestination> get _overflowDestinations {
+    final pinnedRoutes = {
+      _dashboardRoute,
+      ..._pinnedTopDestinations.map((destination) => destination.route),
+    };
+
+    return _allDestinations.where((destination) => !pinnedRoutes.contains(destination.route)).toList();
+  }
+
+  bool get _isOverflowRouteSelected {
+    return _overflowDestinations.any((destination) => destination.route == _selectedRoute);
   }
 
   List<_ShellDestination> get _primaryDestinations => [
@@ -892,7 +913,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
         _ShellDestination(
           route: _offersRoute,
           eyebrow: 'Oferta PDF',
-          label: 'Oferty / PDF',
+          label: 'Oferta',
           description:
               'Miejsce do przygotowania, kalkulacji i finalizacji oferty dla klienta.',
           icon: Icons.description_outlined,
@@ -959,7 +980,9 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
             embeddedInShell: true,
           ),
         ),
-        if (widget.session.role == 'ADMIN')
+        if (widget.session.role == 'ADMIN' ||
+            widget.session.role == 'DIRECTOR' ||
+            widget.session.role == 'MANAGER')
           _ShellDestination(
             route: _usersRoute,
             eyebrow: 'Administracja',
@@ -970,6 +993,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
             accentColor: const Color(0xFFC53030),
             page: UsersHomePage(
               repository: widget.usersRepository,
+              session: widget.session,
               embeddedInShell: true,
             ),
           ),
@@ -997,7 +1021,6 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    final primaryDestinations = _primaryDestinations;
     final destinations = _allDestinations;
     final activePreset = _activeBackgroundPreset;
     final selectedIndex = destinations.indexWhere((destination) => destination.route == _selectedRoute);
@@ -1084,113 +1107,83 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
                           ),
                         ],
                       ),
-                      child: Row(
-                        children: [
-                          const _ShellBrandBlock(),
-                          const SizedBox(width: 24),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  ...List.generate(primaryDestinations.length,
-                                      (index) {
-                                    final destination = primaryDestinations[index];
-                                    final selected = destination.route == _selectedRoute;
-
-                                    return Padding(
-                                      padding: EdgeInsets.only(
-                                        right: index == primaryDestinations.length - 1
-                                            ? 0
-                                            : 8,
-                                      ),
-                                      child: _ShellNavChip(
-                                        icon: selected
-                                            ? destination.selectedIcon
-                                            : destination.icon,
-                                        label: destination.label,
-                                        selected: selected,
-                                        iconColor:
-                                            _accentForDestination(destination),
-                                        onTap: () => _openMainTab(destination.route),
-                                      ),
-                                    );
-                                  }),
-                                  const SizedBox(width: 8),
-                                  PopupMenuButton<String>(
-                                    tooltip: 'Więcej',
-                                    offset: const Offset(0, 12),
-                                    color: VeloPrimePalette.overlay,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(22),
-                                      side: const BorderSide(
-                                        color: VeloPrimePalette.line,
-                                      ),
-                                    ),
-                                    itemBuilder: (context) => [
-                                      const PopupMenuItem<String>(
-                                        enabled: false,
-                                        value: 'header',
-                                        child: _PopupHeader(
-                                          title: 'Sekcje dodatkowe',
-                                          subtitle:
-                                              'Rzadziej używane moduły dostępne z jednego miejsca.',
-                                        ),
-                                      ),
-                                      const PopupMenuItem<String>(
-                                        value: 'account',
-                                        child: _MoreMenuTile(
-                                          icon: Icons.lock_outline,
-                                          label: 'Konto',
-                                          iconColor:
-                                              VeloPrimePalette.bronzeDeep,
-                                        ),
-                                      ),
-                                      if (widget.session.role == 'ADMIN')
-                                        const PopupMenuItem<String>(
-                                          value: 'updates',
-                                          child: _MoreMenuTile(
-                                            icon: Icons.publish_outlined,
-                                            label: 'Publikacje',
-                                            iconColor: VeloPrimePalette.violet,
-                                          ),
-                                        ),
-                                      if (widget.session.role == 'ADMIN')
-                                        const PopupMenuItem<String>(
-                                          value: 'users',
-                                          child: _MoreMenuTile(
-                                            icon: Icons
-                                                .admin_panel_settings_outlined,
-                                            label: 'Użytkownicy',
-                                            iconColor: Color(0xFFC53030),
-                                          ),
-                                        ),
-                                    ],
-                                    onSelected: (value) {
-                                      if (value == 'account') {
-                                        _openAccountPage();
-                                      }
-                                      if (value == 'updates') {
-                                        _openUpdatesPage();
-                                      }
-                                      if (value == 'users') {
-                                        _openUsersPage();
-                                      }
-                                    },
-                                    child: const _ShellMoreChip(),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 18),
-                          Wrap(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isCompactHeader = constraints.maxWidth < 1480;
+                          final navigationSection = Wrap(
                             spacing: 8,
                             runSpacing: 8,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
+                              const _ShellBrandBlock(),
+                              const SizedBox(width: 8),
+                              _ShellNavChip(
+                                icon: _selectedRoute == _dashboardDestination.route
+                                    ? _dashboardDestination.selectedIcon
+                                    : _dashboardDestination.icon,
+                                label: _dashboardDestination.label,
+                                selected: _selectedRoute == _dashboardDestination.route,
+                                iconColor: _accentForDestination(_dashboardDestination),
+                                onTap: () => _openMainTab(_dashboardDestination.route),
+                                iconOnly: true,
+                                tooltip: _dashboardDestination.label,
+                              ),
+                              ..._pinnedTopDestinations.map(
+                                (destination) => _ShellNavChip(
+                                  icon: _selectedRoute == destination.route ? destination.selectedIcon : destination.icon,
+                                  label: destination.label,
+                                  selected: _selectedRoute == destination.route,
+                                  iconColor: _accentForDestination(destination),
+                                  onTap: () => _openMainTab(destination.route),
+                                ),
+                              ),
+                              PopupMenuButton<String>(
+                                tooltip: 'Więcej',
+                                offset: const Offset(0, 12),
+                                color: VeloPrimePalette.overlay,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(22),
+                                  side: const BorderSide(color: VeloPrimePalette.line),
+                                ),
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem<String>(
+                                    enabled: false,
+                                    value: 'header',
+                                    child: _PopupHeader(
+                                      title: 'Sekcje dodatkowe',
+                                      subtitle: 'Pozostałe moduły są zebrane tutaj, aby nie ściskać głównej nawigacji.',
+                                    ),
+                                  ),
+                                  ..._overflowDestinations.map(
+                                    (destination) => PopupMenuItem<String>(
+                                      value: destination.route,
+                                      child: _MoreMenuTile(
+                                        icon: _selectedRoute == destination.route ? destination.selectedIcon : destination.icon,
+                                        label: destination.label,
+                                        iconColor: _accentForDestination(destination),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                onSelected: (value) {
+                                  if (value == 'header') {
+                                    return;
+                                  }
+
+                                  _openMainTab(value);
+                                },
+                                child: _ShellMoreChip(selected: _isOverflowRouteSelected),
+                              ),
+                            ],
+                          );
+                          final actionsSection = Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.end,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
                               _SessionIdentityChip(
-                                label: 'Użytkownik',
+                                label: _sessionRoleLabel(widget.session.role),
                                 value: widget.session.fullName,
                               ),
                               ValueListenableBuilder<LeadSyncSnapshot>(
@@ -1198,9 +1191,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
                                 builder: (context, snapshot, _) {
                                   return _ShellSyncActions(
                                     snapshot: snapshot,
-                                    onSyncNow: snapshot.isSyncing
-                                        ? null
-                                        : _synchronizeLocalChanges,
+                                    onSyncNow: snapshot.isSyncing ? null : _synchronizeLocalChanges,
                                   );
                                 },
                               ),
@@ -1210,9 +1201,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
                                 color: VeloPrimePalette.overlay,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(22),
-                                  side: const BorderSide(
-                                    color: VeloPrimePalette.line,
-                                  ),
+                                  side: const BorderSide(color: VeloPrimePalette.line),
                                 ),
                                 itemBuilder: (context) => [
                                   const PopupMenuItem<String>(
@@ -1220,8 +1209,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
                                     value: 'title',
                                     child: _PopupHeader(
                                       title: 'Tło aplikacji',
-                                      subtitle:
-                                          'Każdy użytkownik może dobrać własny wariant wizualny.',
+                                      subtitle: 'Każdy użytkownik może dobrać własny wariant wizualny.',
                                     ),
                                   ),
                                   ..._backgroundPresets.map(
@@ -1229,8 +1217,7 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
                                       value: preset.key,
                                       child: _BackgroundPresetTile(
                                         preset: preset,
-                                        selected:
-                                            preset.key == _backgroundPresetKey,
+                                        selected: preset.key == _backgroundPresetKey,
                                       ),
                                     ),
                                   ),
@@ -1244,7 +1231,8 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
                                 },
                                 child: const _ShellIconButton(
                                   icon: Icons.palette_outlined,
-                                  label: 'Tło',
+                                  square: true,
+                                  tooltip: 'Tło',
                                 ),
                               ),
                               _ReminderBellButton(
@@ -1265,18 +1253,39 @@ class _CrmShellPageState extends State<CrmShellPage> with WindowListener {
                               ),
                               _ShellIconButton(
                                 icon: Icons.logout_rounded,
-                                label: 'Wyloguj',
+                                square: true,
+                                tooltip: 'Wyloguj',
                                 onTap: _startLogoutFlow,
                               ),
                               if (!kIsWeb && Platform.isWindows)
                                 _ShellIconButton(
                                   icon: Icons.power_settings_new_rounded,
-                                  label: 'Zamknij',
+                                  square: true,
+                                  tooltip: 'Zamknij aplikację',
                                   onTap: _requestSafeClose,
                                 ),
                             ],
-                          ),
-                        ],
+                          );
+
+                          if (isCompactHeader) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                navigationSection,
+                                const SizedBox(height: 12),
+                                Align(alignment: Alignment.centerRight, child: actionsSection),
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(child: navigationSection),
+                              const SizedBox(width: 18),
+                              actionsSection,
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -1389,6 +1398,8 @@ class _ShellNavChip extends StatelessWidget {
     required this.selected,
     required this.iconColor,
     required this.onTap,
+    this.iconOnly = false,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -1396,10 +1407,12 @@ class _ShellNavChip extends StatelessWidget {
   final bool selected;
   final Color iconColor;
   final VoidCallback onTap;
+  final bool iconOnly;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final content = Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
@@ -1407,7 +1420,7 @@ class _ShellNavChip extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           height: 46,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: EdgeInsets.symmetric(horizontal: iconOnly ? 10 : 14),
           decoration: BoxDecoration(
             gradient: selected
                 ? const LinearGradient(
@@ -1442,8 +1455,8 @@ class _ShellNavChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 30,
-                height: 30,
+                width: iconOnly ? 34 : 30,
+                height: iconOnly ? 34 : 30,
                 decoration: BoxDecoration(
                   color: selected
                       ? const Color(0x12FFFFFF)
@@ -1453,36 +1466,48 @@ class _ShellNavChip extends StatelessWidget {
                 child: Icon(
                   icon,
                   size: 16,
-                  color: selected ? const Color(0xFF5F4416) : Colors.white,
+                  color: selected ? const Color(0xFF5F4416) : iconColor,
                 ),
               ),
-              const SizedBox(width: 10),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  color: selected ? const Color(0xFF503A12) : Colors.white,
+              if (!iconOnly) ...[
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: selected ? const Color(0xFF503A12) : Colors.white,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
       ),
     );
+
+    if ((tooltip ?? '').isEmpty) {
+      return content;
+    }
+
+    return Tooltip(message: tooltip!, child: content);
   }
 }
 
 class _ShellMoreChip extends StatelessWidget {
-  const _ShellMoreChip();
+  const _ShellMoreChip({this.selected = false});
+
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
-    return const _ShellIconButton(
+    return _ShellIconButton(
       icon: Icons.expand_more,
       label: 'Więcej',
       trailingIcon: Icons.expand_more,
       leadingIconOnly: false,
+      selected: selected,
+      tooltip: 'Więcej modułów',
     );
   }
 }
@@ -1495,6 +1520,8 @@ class _ShellIconButton extends StatelessWidget {
     this.trailingIcon,
     this.leadingIconOnly = true,
     this.onTap,
+    this.tooltip,
+    this.selected = false,
   });
 
   final IconData icon;
@@ -1503,6 +1530,8 @@ class _ShellIconButton extends StatelessWidget {
   final IconData? trailingIcon;
   final bool leadingIconOnly;
   final VoidCallback? onTap;
+  final String? tooltip;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -1519,15 +1548,15 @@ class _ShellIconButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 18, color: const Color(0xFFFFD271)),
+                Icon(icon, size: 18, color: selected ? const Color(0xFF5F4416) : const Color(0xFFFFD271)),
                 if ((label ?? '').isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Text(
                     label!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: selected ? const Color(0xFF503A12) : Colors.white,
                     ),
                   ),
                 ],
@@ -1543,7 +1572,7 @@ class _ShellIconButton extends StatelessWidget {
             ),
           );
 
-    return Material(
+    final button = Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
@@ -1552,18 +1581,24 @@ class _ShellIconButton extends StatelessWidget {
           padding:
               square ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0x22FFFFFF), Color(0x11000000)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: selected
+                ? const LinearGradient(
+                    colors: [Color(0xFFFFE8A9), Color(0xFFF4C96A), Color(0xFFD7A648)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : const LinearGradient(
+                    colors: [Color(0x22FFFFFF), Color(0x11000000)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0x22FFFFFF)),
-            boxShadow: const [
+            border: Border.all(color: selected ? const Color(0x66D6A542) : const Color(0x22FFFFFF)),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x12081426),
-                blurRadius: 12,
-                offset: Offset(0, 4),
+                color: selected ? const Color(0x22D6A542) : const Color(0x12081426),
+                blurRadius: selected ? 20 : 12,
+                offset: Offset(0, selected ? 8 : 4),
               ),
             ],
           ),
@@ -1571,6 +1606,12 @@ class _ShellIconButton extends StatelessWidget {
         ),
       ),
     );
+
+    if ((tooltip ?? '').isEmpty) {
+      return button;
+    }
+
+    return Tooltip(message: tooltip!, child: button);
   }
 }
 
@@ -1593,6 +1634,7 @@ class _ReminderBellButton extends StatelessWidget {
         _ShellIconButton(
           icon: isLoading ? Icons.notifications_active_outlined : Icons.notifications_none,
           square: true,
+          tooltip: count > 0 ? 'Przypomnienia: $count' : 'Przypomnienia',
           onTap: onTap,
         ),
         if (count > 0)
@@ -1920,72 +1962,43 @@ class _ShellSyncActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0x22000000), Color(0x1AFFFFFF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        Tooltip(
+          message: '$_title\n$_subtitle',
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0x22000000), Color(0x1AFFFFFF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0x1FFFFFFF)),
             ),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0x1FFFFFFF)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: _accentColor.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: snapshot.isSyncing
-                    ? Padding(
-                        padding: const EdgeInsets.all(7),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(_accentColor),
-                        ),
-                      )
-                    : Icon(_icon, size: 16, color: _accentColor),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    _subtitle,
-                    style: const TextStyle(
-                      color: Color(0xBBD8E5FF),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            child: Center(
+              child: snapshot.isSyncing
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(_accentColor),
+                      ),
+                    )
+                  : Icon(_icon, size: 18, color: _accentColor),
+            ),
           ),
         ),
-        const SizedBox(width: 8),
         _ShellIconButton(
           icon: snapshot.isSyncing ? Icons.sync : Icons.sync_rounded,
-          label: snapshot.isSyncing ? 'Synchronizujemy...' : 'Synchronizuj teraz',
-          leadingIconOnly: false,
+          square: true,
+          tooltip: snapshot.isSyncing ? 'Synchronizacja trwa' : 'Synchronizuj teraz',
           onTap: onSyncNow,
         ),
       ],
@@ -2194,7 +2207,7 @@ class _SessionIdentityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0x18FFFFFF), Color(0x12000000)],
@@ -2207,21 +2220,41 @@ class _SessionIdentityChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '$label:',
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFFFD271),
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: const Color(0x1FFFFFFF),
+              borderRadius: BorderRadius.circular(999),
             ),
+            child: const Icon(Icons.person_outline, size: 14, color: Color(0xFFFFD271)),
           ),
           const SizedBox(width: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFFFD271),
+                  ),
+                ),
+                Text(
+                  value,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

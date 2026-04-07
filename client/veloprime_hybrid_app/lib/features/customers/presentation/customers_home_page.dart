@@ -795,55 +795,61 @@ class _CustomersHomePageState extends State<CustomersHomePage> {
                                       ),
                                     ),
                                   Expanded(
-                                    child: Scrollbar(
+                                    child: VeloPrimeHorizontalScrollAssist(
                                       controller: _kanbanScrollController,
-                                      thumbVisibility: true,
-                                      child: SingleChildScrollView(
+                                      leftTooltip: 'Przesuń kanban klientów w lewo',
+                                      rightTooltip: 'Przesuń kanban klientów w prawo',
+                                      child: Scrollbar(
                                         controller: _kanbanScrollController,
-                                        scrollDirection: Axis.horizontal,
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: customerWorkflowStages
-                                              .map(
-                                                (stage) => Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          right: 18),
-                                                  child: _CustomerKanbanColumn(
-                                                    stage: stage,
-                                                    leads: customers
-                                                        .where(
-                                                          (lead) =>
-                                                              _customerStageKey(
-                                                                lead,
-                                                                customerWorkflowStages,
-                                                              ) ==
-                                                              stage.key,
-                                                        )
-                                                        .toList(),
-                                                    canEdit:
-                                                      _canManageCustomerWorkspace,
-                                                    movingLeadId: _movingLeadId,
-                                                    onOpenLead:
-                                                        _openLeadWorkspace,
-                                                    onMoveLead:
-                                                        _moveCustomerWorkflowStage,
-                                                    onRenameStage:
-                                                      _canRenameCustomerStages
-                                                        ? _renameCustomerWorkflowStage
-                                                        : null,
-                                                    onOpenCustomer:
-                                                      _canManageCustomerWorkspace
-                                                            ? _openCustomerCard
-                                                            : null,
+                                        thumbVisibility: true,
+                                        child: SingleChildScrollView(
+                                          controller: _kanbanScrollController,
+                                          scrollDirection: Axis.horizontal,
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: customerWorkflowStages
+                                                .map(
+                                                  (stage) => Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            right: 18),
+                                                    child: _CustomerKanbanColumn(
+                                                      stage: stage,
+                                                      leads: customers
+                                                          .where(
+                                                            (lead) =>
+                                                                _customerStageKey(
+                                                                  lead,
+                                                                  customerWorkflowStages,
+                                                                ) ==
+                                                                stage.key,
+                                                          )
+                                                          .toList(),
+                                                      canEdit:
+                                                          _canManageCustomerWorkspace,
+                                                      movingLeadId:
+                                                          _movingLeadId,
+                                                      onOpenLead:
+                                                          _openLeadWorkspace,
+                                                      onMoveLead:
+                                                          _moveCustomerWorkflowStage,
+                                                      onRenameStage:
+                                                          _canRenameCustomerStages
+                                                              ? _renameCustomerWorkflowStage
+                                                              : null,
+                                                      onOpenCustomer:
+                                                          _canManageCustomerWorkspace
+                                                              ? _openCustomerCard
+                                                              : null,
+                                                    ),
                                                   ),
-                                                ),
-                                              )
-                                              .toList(),
+                                                )
+                                                .toList(),
                                         ),
                                       ),
                                     ),
+                                  ),
                                   ),
                                 ],
                               ),
@@ -1037,10 +1043,10 @@ class _CustomerKanbanColumn extends StatelessWidget {
                               : const Color(0xFFE7DFD0),
                         ),
                       ),
-                      child: Text(
+                      child: const Text(
                         'Brak klientów w tej kolumnie.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12,
                             color: Color(0xFF8A826F),
                             height: 1.45),

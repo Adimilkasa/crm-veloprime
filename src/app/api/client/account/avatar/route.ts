@@ -20,6 +20,10 @@ function buildDataUrl(file: File, buffer: Buffer) {
   return `data:${mimeType};base64,${buffer.toString('base64')}`
 }
 
+function buildMissingProfileError(sessionUserId: string) {
+  return `Nie znaleziono profilu zalogowanego użytkownika (${sessionUserId}). Zdjęcie nie może zostać powiązane z kontem.`
+}
+
 export async function POST(request: Request) {
   const session = await getSession()
 
@@ -34,6 +38,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Nie znaleziono pliku do wysłania.' }, { status: 400 })
   }
 
+  if (upload.size <= 0) {
+    return NextResponse.json({ ok: false, error: 'Wybrany plik jest pusty.' }, { status: 400 })
+  }
+
   if (!allowedMimeTypes.has(upload.type)) {
     return NextResponse.json({ ok: false, error: 'Dozwolone są tylko pliki PNG, JPG, JPEG lub WEBP.' }, { status: 400 })
   }
@@ -43,14 +51,19 @@ export async function POST(request: Request) {
   }
 
   const currentProfile = await getAuthUserProfile(session.sub)
+  if (!currentProfile) {
+    return NextResponse.json({ ok: false, error: buildMissingProfileError(session.sub) }, { status: 404 })
+  }
+
   const originalFileName = upload.name || 'avatar'
   const safeFileName = sanitizeSegment(originalFileName) || 'avatar'
   const buffer = Buffer.from(await upload.arrayBuffer())
+  const usesBlobStorage = hasBlobStorage()
 
   let avatarUrl: string
 
   try {
-    if (hasBlobStorage()) {
+    if (usesBlobStorage) {
       const blob = await uploadUserAvatarToBlob({
         userId: session.sub,
         fileName: safeFileName,
@@ -62,23 +75,51 @@ export async function POST(request: Request) {
       avatarUrl = buildDataUrl(upload, buffer)
     }
   } catch (error) {
-    return NextResponse.json({ ok: false, error: describeBlobStorageError(error) }, { status: 500 })
+    return NextResponse.json(
+      {
+        ok: false,
+        error: usesBlobStorage
+          ? `Nie udało się wysłać zdjęcia profilu do Vercel Blob. ${describeBlobStorageError(error)}`
+          : `Nie udało się przygotować zdjęcia profilu do zapisu lokalnego. ${error instanceof Error ? error.message : String(error ?? '')}`,
+      },
+      { status: 500 },
+    )
   }
 
-  const updated = await updateAuthUserAvatar({
-    userId: session.sub,
-    avatarUrl,
-  })
+  let updated: Awaited<ReturnType<typeof updateAuthUserAvatar>>
+
+  try {
+    updated = await updateAuthUserAvatar({
+      userId: session.sub,
+      avatarUrl,
+    })
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Zdjęcie zostało przesłane, ale nie udało się zapisać pola avatarUrl w profilu użytkownika (${session.sub}). ${error instanceof Error ? error.message : String(error ?? '')}`,
+      },
+      { status: 500 },
+    )
+  }
 
   if (!updated) {
-    return NextResponse.json({ ok: false, error: 'Nie udało się zapisać zdjęcia profilu.' }, { status: 404 })
+    return NextResponse.json(
+      { ok: false, error: `Nie udało się zapisać zdjęcia profilu dla użytkownika ${session.sub}.` },
+      { status: 404 },
+    )
   }
 
+  let warning: string | null = null
   if (currentProfile?.avatarUrl && currentProfile.avatarUrl !== avatarUrl) {
-    await deleteBlobIfManaged(currentProfile.avatarUrl)
+    try {
+      await deleteBlobIfManaged(currentProfile.avatarUrl)
+    } catch (error) {
+      warning = `Nowe zdjęcie zostało zapisane, ale nie udało się usunąć poprzedniego pliku. ${error instanceof Error ? error.message : String(error ?? '')}`
+    }
   }
 
-  return NextResponse.json({ ok: true, profile: updated })
+  return NextResponse.json({ ok: true, profile: updated, warning })
 }
 
 export async function DELETE() {
@@ -89,15 +130,36 @@ export async function DELETE() {
   }
 
   const currentProfile = await getAuthUserProfile(session.sub)
-  const updated = await updateAuthUserAvatar({ userId: session.sub, avatarUrl: null })
+  if (!currentProfile) {
+    return NextResponse.json({ ok: false, error: buildMissingProfileError(session.sub) }, { status: 404 })
+  }
+
+  let updated: Awaited<ReturnType<typeof updateAuthUserAvatar>>
+
+  try {
+    updated = await updateAuthUserAvatar({ userId: session.sub, avatarUrl: null })
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Nie udało się wyczyścić pola avatarUrl w profilu użytkownika (${session.sub}). ${error instanceof Error ? error.message : String(error ?? '')}`,
+      },
+      { status: 500 },
+    )
+  }
 
   if (!updated) {
     return NextResponse.json({ ok: false, error: 'Nie udało się zaktualizować profilu.' }, { status: 404 })
   }
 
+  let warning: string | null = null
   if (currentProfile?.avatarUrl) {
-    await deleteBlobIfManaged(currentProfile.avatarUrl)
+    try {
+      await deleteBlobIfManaged(currentProfile.avatarUrl)
+    } catch (error) {
+      warning = `Zdjęcie zostało odpięte od profilu, ale nie udało się usunąć pliku z magazynu. ${error instanceof Error ? error.message : String(error ?? '')}`
+    }
   }
 
-  return NextResponse.json({ ok: true, profile: updated })
+  return NextResponse.json({ ok: true, profile: updated, warning })
 }

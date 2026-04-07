@@ -93,10 +93,37 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
     return Uri.parse(ApiConfig.baseUrl).resolveUri(parsed);
   }
 
-  Future<void> _openDocumentSource(String pathOrUrl, String label) async {
+  Future<bool> _isReachableDocumentSource(String pathOrUrl) async {
+    final uri = _resolveSourceUri(pathOrUrl);
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      return true;
+    }
+
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+    try {
+      final request = await client.openUrl('HEAD', uri);
+      final response = await request.close();
+      return response.statusCode >= 200 && response.statusCode < 400;
+    } catch (_) {
+      return false;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<void> _openDocumentSource(String pathOrUrl, String label, {String? fallbackPath}) async {
     if (_isBundledAsset(pathOrUrl)) {
       await _openBundledDocument(pathOrUrl, label);
       return;
+    }
+
+    final normalizedFallback = fallbackPath?.trim();
+    if (normalizedFallback != null && normalizedFallback.isNotEmpty) {
+      final isReachable = await _isReachableDocumentSource(pathOrUrl);
+      if (!isReachable) {
+        await _openBundledDocument(normalizedFallback, label);
+        return;
+      }
     }
 
     try {
@@ -263,6 +290,7 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
           final resolvedMedia = _ResolvedPreviewMedia.fromDocument(document, fallbackAssets);
           final heroImageSource = resolvedMedia.heroSource;
           final specDocumentSource = resolvedMedia.specSource;
+          final specFallbackSource = resolvedMedia.specFallbackSource;
           final canSendEmail = document.version != null;
           final validUntilLabel = _formatNullableDate(customer.validUntil) ?? 'Do potwierdzenia';
           final effectivePriceLabel = _isCompanyCustomer(document.payload.internal.customerType)
@@ -330,14 +358,22 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                     onBack: () => Navigator.of(context).pop(),
                     onOpenSpecification: specDocumentSource == null
                         ? null
-                        : () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
+                        : () => _openDocumentSource(
+                              specDocumentSource,
+                              'specyfikacja-modelu',
+                              fallbackPath: specFallbackSource,
+                            ),
                     onSendOffer: canSendEmail ? () => _sendOfferByEmail(document) : null,
                   ),
                   if (specDocumentSource != null) ...[
                     const SizedBox(height: 20),
                     _PreviewPdfStrip(
                       backgroundImageSource: heroImageSource,
-                      onPressed: () => _openDocumentSource(specDocumentSource, 'specyfikacja-modelu'),
+                      onPressed: () => _openDocumentSource(
+                        specDocumentSource,
+                        'specyfikacja-modelu',
+                        fallbackPath: specFallbackSource,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -426,7 +462,7 @@ class _PreviewHeroCard extends StatelessWidget {
   });
 
   final OfferDocumentSnapshot document;
-  final String? heroImageSource;
+  final _PreviewMediaImageSource? heroImageSource;
   final String validUntilLabel;
   final bool hasSpecification;
   final bool canSendEmail;
@@ -460,7 +496,7 @@ class _PreviewHeroCard extends StatelessWidget {
                         end: Alignment.bottomRight,
                       ),
                     ),
-                    child: heroImageSource?.trim().isNotEmpty == true
+                    child: heroImageSource != null
                       ? _PreviewImage(
                           source: heroImageSource!,
                           width: double.infinity,
@@ -907,14 +943,16 @@ class _AssetGallery extends StatelessWidget {
 class _ResolvedPreviewMedia {
   const _ResolvedPreviewMedia({
     required this.specSource,
+    required this.specFallbackSource,
     required this.heroSource,
     required this.gallerySources,
     required this.categories,
   });
 
   final String? specSource;
-  final String? heroSource;
-  final List<String> gallerySources;
+  final String? specFallbackSource;
+  final _PreviewMediaImageSource? heroSource;
+  final List<_PreviewMediaImageSource> gallerySources;
   final List<_PreviewGalleryCategory> categories;
 
   factory _ResolvedPreviewMedia.fromDocument(OfferDocumentSnapshot document, LocalOfferAssetBundle fallbackAssets) {
@@ -922,13 +960,33 @@ class _ResolvedPreviewMedia {
       return items.where((item) => item.trim().isNotEmpty).toSet().toList(growable: false);
     }
 
-    List<String> pick(List<String> primary, List<String> fallback) {
+    List<_PreviewMediaImageSource> pick(List<String> primary, List<String> fallback) {
       final normalizedPrimary = normalizeList(primary);
+      final normalizedFallback = normalizeList(fallback);
+
       if (normalizedPrimary.isNotEmpty) {
-        return normalizedPrimary;
+        final resolved = <_PreviewMediaImageSource>[];
+        for (var index = 0; index < normalizedPrimary.length; index += 1) {
+          resolved.add(
+            _PreviewMediaImageSource(
+              primarySource: normalizedPrimary[index],
+              fallbackSource: normalizedFallback.isEmpty ? null : normalizedFallback[index % normalizedFallback.length],
+            ),
+          );
+        }
+
+        if (normalizedFallback.length > normalizedPrimary.length) {
+          resolved.addAll(
+            normalizedFallback
+                .skip(normalizedPrimary.length)
+                .map((item) => _PreviewMediaImageSource(primarySource: item)),
+          );
+        }
+
+        return resolved;
       }
 
-      return normalizeList(fallback);
+      return normalizedFallback.map((item) => _PreviewMediaImageSource(primarySource: item)).toList(growable: false);
     }
 
     final premiumImages = pick(document.assets.premiumImages, fallbackAssets.premiumImages);
@@ -936,19 +994,18 @@ class _ResolvedPreviewMedia {
     final interiorImages = pick(document.assets.interiorImages, fallbackAssets.interiorImages);
     final detailImages = pick(document.assets.detailImages, fallbackAssets.detailImages);
 
-    final gallerySources = <String>{
-      ...premiumImages,
-      ...exteriorImages,
-      ...interiorImages,
-      ...detailImages,
-    }.toList(growable: false);
+    final gallerySources = <String, _PreviewMediaImageSource>{};
+    for (final image in [...premiumImages, ...exteriorImages, ...interiorImages, ...detailImages]) {
+      gallerySources.putIfAbsent(image.key, () => image);
+    }
 
-    final heroSource = [
+    final heroCandidates = [
       ...premiumImages,
       ...exteriorImages,
       ...detailImages,
-      if (fallbackAssets.heroImageAsset != null) fallbackAssets.heroImageAsset!,
-    ].where((item) => item.trim().isNotEmpty).cast<String?>().firstWhere((item) => item != null, orElse: () => null);
+      if (fallbackAssets.heroImageAsset != null) _PreviewMediaImageSource(primarySource: fallbackAssets.heroImageAsset!),
+    ];
+    final heroSource = heroCandidates.isEmpty ? null : heroCandidates.first;
 
     final categories = [
       _PreviewGalleryCategory(title: 'Wybrane kadry', images: premiumImages),
@@ -959,11 +1016,24 @@ class _ResolvedPreviewMedia {
 
     return _ResolvedPreviewMedia(
       specSource: document.assets.specPdfUrl?.trim().isNotEmpty == true ? document.assets.specPdfUrl : fallbackAssets.specPdfAssetPath,
+      specFallbackSource: document.assets.specPdfUrl?.trim().isNotEmpty == true ? fallbackAssets.specPdfAssetPath : null,
       heroSource: heroSource,
-      gallerySources: gallerySources,
+      gallerySources: gallerySources.values.toList(growable: false),
       categories: categories,
     );
   }
+}
+
+class _PreviewMediaImageSource {
+  const _PreviewMediaImageSource({
+    required this.primarySource,
+    this.fallbackSource,
+  });
+
+  final String primarySource;
+  final String? fallbackSource;
+
+  String get key => '$primarySource|${fallbackSource ?? ''}';
 }
 
 class _PreviewGalleryHeroTile extends StatelessWidget {
@@ -973,8 +1043,8 @@ class _PreviewGalleryHeroTile extends StatelessWidget {
     required this.title,
   });
 
-  final String source;
-  final List<String> allImages;
+  final _PreviewMediaImageSource source;
+  final List<_PreviewMediaImageSource> allImages;
   final String title;
 
   @override
@@ -997,8 +1067,8 @@ class _PreviewGalleryThumbnailColumn extends StatelessWidget {
     required this.allImages,
   });
 
-  final List<String> images;
-  final List<String> allImages;
+  final List<_PreviewMediaImageSource> images;
+  final List<_PreviewMediaImageSource> allImages;
 
   @override
   Widget build(BuildContext context) {
@@ -1044,8 +1114,8 @@ class _PreviewImageActionTile extends StatelessWidget {
     this.overlayAlignment = Alignment.bottomRight,
   });
 
-  final String source;
-  final List<String> allImages;
+  final _PreviewMediaImageSource source;
+  final List<_PreviewMediaImageSource> allImages;
   final double height;
   final String title;
   final String? subtitle;
@@ -1136,7 +1206,7 @@ class _PreviewLightboxDialog extends StatefulWidget {
     required this.initialIndex,
   });
 
-  final List<String> images;
+  final List<_PreviewMediaImageSource> images;
   final int initialIndex;
 
   @override
@@ -1211,8 +1281,8 @@ class _PreviewLightboxDialogState extends State<_PreviewLightboxDialog> {
                       );
                     },
                     child: Hero(
-                      key: ValueKey(currentSource),
-                      tag: 'offer-lightbox-$currentSource',
+                      key: ValueKey(currentSource.key),
+                      tag: 'offer-lightbox-${currentSource.key}',
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(28),
                         child: _PreviewImage(
@@ -1307,10 +1377,10 @@ class _PreviewGalleryCategory {
   });
 
   final String title;
-  final List<String> images;
+  final List<_PreviewMediaImageSource> images;
 }
 
-class _PreviewImage extends StatelessWidget {
+class _PreviewImage extends StatefulWidget {
   const _PreviewImage({
     required this.source,
     required this.width,
@@ -1319,28 +1389,77 @@ class _PreviewImage extends StatelessWidget {
     required this.missingLabel,
   });
 
-  final String source;
+  final _PreviewMediaImageSource source;
   final double width;
   final double height;
   final BoxFit fit;
   final String missingLabel;
 
   @override
+  State<_PreviewImage> createState() => _PreviewImageState();
+}
+
+class _PreviewImageState extends State<_PreviewImage> {
+  late String _activeSource;
+  bool _usingFallback = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetSource();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PreviewImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.source.key != widget.source.key) {
+      _resetSource();
+    }
+  }
+
+  void _resetSource() {
+    _activeSource = widget.source.primarySource;
+    _usingFallback = false;
+  }
+
+  Widget _handleError(double width, double height) {
+    final fallbackSource = widget.source.fallbackSource?.trim();
+    if (!_usingFallback && fallbackSource != null && fallbackSource.isNotEmpty && fallbackSource != _activeSource) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _activeSource = fallbackSource;
+          _usingFallback = true;
+        });
+      });
+
+      return SizedBox(width: width, height: height);
+    }
+
+    return _inlineMissingImage(width, height);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final imageWidget = source.startsWith('assets/')
+    final imageWidget = _activeSource.startsWith('assets/')
         ? Image.asset(
-            source,
-            width: width,
-            height: height,
-            fit: fit,
-            errorBuilder: (context, error, stackTrace) => _inlineMissingImage(width, height),
+            _activeSource,
+            width: widget.width,
+            height: widget.height,
+            fit: widget.fit,
+            gaplessPlayback: true,
+            errorBuilder: (context, error, stackTrace) => _handleError(widget.width, widget.height),
           )
         : Image.network(
-            _resolveAbsolutePreviewUrl(source),
-            width: width,
-            height: height,
-            fit: fit,
-            errorBuilder: (context, error, stackTrace) => _inlineMissingImage(width, height),
+            _resolveAbsolutePreviewUrl(_activeSource),
+            width: widget.width,
+            height: widget.height,
+            fit: widget.fit,
+            gaplessPlayback: true,
+            errorBuilder: (context, error, stackTrace) => _handleError(widget.width, widget.height),
           );
 
     return imageWidget;
@@ -1352,7 +1471,7 @@ class _PreviewImage extends StatelessWidget {
       height: height,
       color: const Color(0xFFEDE7DB),
       alignment: Alignment.center,
-      child: Text(missingLabel, style: const TextStyle(color: Colors.black45)),
+      child: Text(widget.missingLabel, style: const TextStyle(color: Colors.black45)),
     );
   }
 }
@@ -1372,7 +1491,7 @@ class _PreviewSectionCard extends StatelessWidget {
   final String? subtitle;
   final Color sectionTint;
   final double borderStrength;
-  final String? backgroundImageSource;
+  final _PreviewMediaImageSource? backgroundImageSource;
 
   @override
   Widget build(BuildContext context) {
@@ -1406,7 +1525,7 @@ class _PreviewPdfStrip extends StatelessWidget {
   const _PreviewPdfStrip({required this.onPressed, this.backgroundImageSource});
 
   final VoidCallback onPressed;
-  final String? backgroundImageSource;
+  final _PreviewMediaImageSource? backgroundImageSource;
 
   @override
   Widget build(BuildContext context) {
@@ -1500,7 +1619,7 @@ class _PreviewValueSection extends StatelessWidget {
     required this.pricingDisplayMode,
   });
 
-  final String? backgroundImageSource;
+  final _PreviewMediaImageSource? backgroundImageSource;
   final String listPriceLabel;
   final String discountLabel;
   final String discountPercentLabel;
@@ -1568,7 +1687,7 @@ class _PreviewFinancingSection extends StatelessWidget {
     required this.disclaimer,
   });
 
-  final String? backgroundImageSource;
+  final _PreviewMediaImageSource? backgroundImageSource;
   final _PreviewFinancingInsights insights;
   final String pricingDisplayMode;
   final String financingVariant;
@@ -1758,7 +1877,7 @@ class _PreviewContactSection extends StatelessWidget {
     required this.canSendEmail,
   });
 
-  final String? backgroundImageSource;
+  final _PreviewMediaImageSource? backgroundImageSource;
   final String customerName;
   final String? customerEmail;
   final String notes;
@@ -2361,17 +2480,17 @@ String? _formatCommissionCode(num? salespersonCommission, bool isNetPricing) {
   return '$normalized${isNetPricing ? 'N' : 'B'}';
 }
 
-Future<void> _openPreviewLightbox(BuildContext context, List<String> images, String selectedSource) {
+Future<void> _openPreviewLightbox(BuildContext context, List<_PreviewMediaImageSource> images, _PreviewMediaImageSource selectedSource) {
   if (images.isEmpty) {
     return Future.value();
   }
 
-  final normalizedImages = images.where((item) => item.trim().isNotEmpty).toList(growable: false);
+  final normalizedImages = images.where((item) => item.primarySource.trim().isNotEmpty).toList(growable: false);
   if (normalizedImages.isEmpty) {
     return Future.value();
   }
 
-  final initialIndex = normalizedImages.indexOf(selectedSource);
+  final initialIndex = normalizedImages.indexWhere((item) => item.key == selectedSource.key);
 
   return showGeneralDialog<void>(
     context: context,

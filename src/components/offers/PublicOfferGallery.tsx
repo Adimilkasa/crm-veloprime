@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export type PublicOfferGallerySection = {
   title: string
@@ -15,11 +15,26 @@ export function PublicOfferGallery({
   sections: PublicOfferGallerySection[]
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const touchStartXRef = useRef<number | null>(null)
 
   const allImages = useMemo(
     () => sections.flatMap((section) => section.images).filter((image, index, all) => all.indexOf(image) === index),
     [sections],
   )
+
+  const activeImage = activeIndex === null ? null : allImages[activeIndex] ?? null
+
+  function closeLightbox() {
+    setActiveIndex(null)
+  }
+
+  function showPreviousImage() {
+    setActiveIndex((current) => (current === null ? current : (current - 1 + allImages.length) % allImages.length))
+  }
+
+  function showNextImage() {
+    setActiveIndex((current) => (current === null ? current : (current + 1) % allImages.length))
+  }
 
   useEffect(() => {
     if (activeIndex === null) {
@@ -28,22 +43,35 @@ export function PublicOfferGallery({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        setActiveIndex(null)
+        closeLightbox()
         return
       }
 
       if (event.key === 'ArrowRight') {
-        setActiveIndex((current) => (current === null ? current : (current + 1) % allImages.length))
+        showNextImage()
       }
 
       if (event.key === 'ArrowLeft') {
-        setActiveIndex((current) => (current === null ? current : (current - 1 + allImages.length) % allImages.length))
+        showPreviousImage()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeIndex, allImages.length])
+
+  useEffect(() => {
+    if (activeIndex === null) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [activeIndex])
 
   if (allImages.length === 0) {
     return (
@@ -111,34 +139,115 @@ export function PublicOfferGallery({
         })}
       </div>
 
-      {activeIndex !== null ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(12,18,28,0.92)] px-4 py-6" role="dialog" aria-modal="true">
-          <button type="button" onClick={() => setActiveIndex(null)} className="absolute right-5 top-5 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/16">
-            Zamknij
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveIndex((activeIndex - 1 + allImages.length) % allImages.length)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-white transition hover:bg-white/16"
-            aria-label="Poprzednie zdjęcie"
-          >
-            ‹
-          </button>
-          <div className="mx-auto max-w-6xl">
-            {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses direct asset URLs */}
-            <img src={allImages[activeIndex]} alt={`${modelLabel} ${activeIndex + 1}`} className="max-h-[78vh] w-auto max-w-full rounded-[30px] object-contain" />
-            <div className="mt-4 text-center text-sm text-white/72">
-              {activeIndex + 1} / {allImages.length}
+      {activeIndex !== null && activeImage ? (
+        <div
+          className="fixed inset-0 z-50 bg-[rgba(8,12,18,0.88)] backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Galeria zdjęć ${modelLabel}`}
+          onClick={closeLightbox}
+        >
+          <div className="flex min-h-full items-center justify-center px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-8">
+            <div
+              className="relative flex h-[min(100%,calc(100svh-1.5rem))] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(17,24,39,0.96),rgba(10,14,22,0.98))] shadow-[0_32px_120px_rgba(0,0,0,0.46)] sm:h-[min(100%,calc(100svh-2.5rem))]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5 sm:py-4">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/46">Galeria oferty</div>
+                  <div className="mt-1 truncate text-[15px] font-medium text-white/88 sm:text-[16px]">{modelLabel}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/66 sm:text-[12px]">
+                    {activeIndex + 1} / {allImages.length}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeLightbox}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/6 text-lg text-white transition hover:bg-white/12"
+                    aria-label="Zamknij galerię"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative flex min-h-0 flex-1 items-center justify-center bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.07),transparent_56%)] px-3 py-3 sm:px-5 sm:py-5">
+                <button
+                  type="button"
+                  onClick={showPreviousImage}
+                  className="absolute left-3 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[rgba(15,23,42,0.62)] text-[28px] text-white transition hover:bg-[rgba(15,23,42,0.82)] lg:inline-flex"
+                  aria-label="Poprzednie zdjęcie"
+                >
+                  ‹
+                </button>
+
+                <div
+                  className="flex h-full w-full items-center justify-center overflow-hidden rounded-[22px] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] ring-1 ring-white/8"
+                  onTouchStart={(event) => {
+                    touchStartXRef.current = event.changedTouches[0]?.clientX ?? null
+                  }}
+                  onTouchEnd={(event) => {
+                    const startX = touchStartXRef.current
+                    const endX = event.changedTouches[0]?.clientX ?? null
+                    touchStartXRef.current = null
+
+                    if (startX == null || endX == null) {
+                      return
+                    }
+
+                    const delta = endX - startX
+                    if (Math.abs(delta) < 48) {
+                      return
+                    }
+
+                    if (delta < 0) {
+                      showNextImage()
+                      return
+                    }
+
+                    showPreviousImage()
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- product gallery uses direct asset URLs */}
+                  <img
+                    src={activeImage}
+                    alt={`${modelLabel} ${activeIndex + 1}`}
+                    className="max-h-full w-auto max-w-full object-contain select-none"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={showNextImage}
+                  className="absolute right-3 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[rgba(15,23,42,0.62)] text-[28px] text-white transition hover:bg-[rgba(15,23,42,0.82)] lg:inline-flex"
+                  aria-label="Następne zdjęcie"
+                >
+                  ›
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3 sm:px-5 sm:py-4 lg:hidden">
+                <button
+                  type="button"
+                  onClick={showPreviousImage}
+                  className="inline-flex min-w-[96px] items-center justify-center rounded-full border border-white/10 bg-white/6 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/12"
+                >
+                  Wstecz
+                </button>
+                <div className="text-center text-[12px] font-medium text-white/62">
+                  Przesuń palcem lub użyj przycisków
+                </div>
+                <button
+                  type="button"
+                  onClick={showNextImage}
+                  className="inline-flex min-w-[96px] items-center justify-center rounded-full border border-white/10 bg-white/6 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/12"
+                >
+                  Dalej
+                </button>
+              </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setActiveIndex((activeIndex + 1) % allImages.length)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-white transition hover:bg-white/16"
-            aria-label="Następne zdjęcie"
-          >
-            ›
-          </button>
         </div>
       ) : null}
     </>

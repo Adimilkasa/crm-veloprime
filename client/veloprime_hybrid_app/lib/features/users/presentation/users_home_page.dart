@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/presentation/veloprime_ui.dart';
+import '../../bootstrap/models/bootstrap_payload.dart';
 import '../data/users_repository.dart';
 import '../models/user_models.dart';
 
@@ -9,11 +10,13 @@ class UsersHomePage extends StatefulWidget {
   const UsersHomePage({
     super.key,
     required this.repository,
+    required this.session,
     this.onBack,
     this.embeddedInShell = false,
   });
 
   final UsersRepository repository;
+  final SessionInfo session;
   final VoidCallback? onBack;
   final bool embeddedInShell;
 
@@ -38,6 +41,19 @@ class _UsersHomePageState extends State<UsersHomePage> {
   String? _reportsToUserId;
   bool _isCreating = false;
 
+  List<String> get _assignableRoles {
+    switch (widget.session.role) {
+      case 'ADMIN':
+        return const ['ADMIN', 'DIRECTOR', 'MANAGER', 'SALES'];
+      case 'DIRECTOR':
+        return const ['MANAGER', 'SALES'];
+      case 'MANAGER':
+        return const ['SALES'];
+      default:
+        return const ['SALES'];
+    }
+  }
+
   List<SupervisorOptionModel> get _supervisorOptions {
     final overview = _overview;
     if (overview == null) {
@@ -54,9 +70,34 @@ class _UsersHomePageState extends State<UsersHomePage> {
     }
   }
 
+  String get _managementScopeLabel {
+    switch (widget.session.role) {
+      case 'ADMIN':
+        return 'Pełna administracja kontami i wszystkich ról.';
+      case 'DIRECTOR':
+        return 'Możesz dodawać managerów i handlowców w swojej strukturze.';
+      case 'MANAGER':
+        return 'Możesz dodawać handlowców w swoim zespole.';
+      default:
+        return 'Zakres administracji kont jest ograniczony.';
+    }
+  }
+
+  String get _supervisorHelperText {
+    switch (_role) {
+      case 'MANAGER':
+        return 'Manager może być przypisany do administratora lub dyrektora widocznego w Twojej strukturze.';
+      case 'SALES':
+        return 'Handlowca możesz przypisać do administratora, dyrektora albo managera z Twojej struktury.';
+      default:
+        return 'Ta rola nie wymaga przypisanego przełożonego.';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _role = _assignableRoles.first;
     _load();
   }
 
@@ -86,6 +127,10 @@ class _UsersHomePageState extends State<UsersHomePage> {
 
       setState(() {
         _overview = overview;
+        if (!_assignableRoles.contains(_role)) {
+          _role = _assignableRoles.first;
+          _reportsToUserId = null;
+        }
         _isLoading = false;
       });
     } catch (error) {
@@ -129,7 +174,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
       _regionController.clear();
       _teamController.clear();
       setState(() {
-        _role = 'SALES';
+        _role = _assignableRoles.first;
         _reportsToUserId = null;
       });
 
@@ -237,12 +282,12 @@ class _UsersHomePageState extends State<UsersHomePage> {
                           child: LayoutBuilder(
                             builder: (context, constraints) {
                               final isWide = constraints.maxWidth >= 1060;
-                              final copy = const Column(
+                              final copy = Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  VeloPrimeSectionEyebrow(label: 'Użytkownicy', color: accentColor),
-                                  SizedBox(height: 12),
-                                  Text(
+                                  const VeloPrimeSectionEyebrow(label: 'Użytkownicy', color: accentColor),
+                                  const SizedBox(height: 12),
+                                  const Text(
                                     'Administracja kontami w jednym miejscu.',
                                     style: TextStyle(
                                       color: VeloPrimePalette.ink,
@@ -251,13 +296,22 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  SizedBox(height: 14),
-                                  Text(
+                                  const SizedBox(height: 14),
+                                  const Text(
                                     'Twórz konta, resetuj hasła i zarządzaj dostępem zespołu.',
                                     style: TextStyle(
                                       color: VeloPrimePalette.muted,
                                       fontSize: 15,
                                       height: 1.6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    _managementScopeLabel,
+                                    style: const TextStyle(
+                                      color: accentColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],
@@ -351,7 +405,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
                               const Text('Dodaj nowe konto', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: VeloPrimePalette.ink)),
                               const SizedBox(height: 8),
                               const Text(
-                                'Uzupełnij dane użytkownika i nadaj mu odpowiednią rolę w systemie.',
+                                'Uzupełnij dane użytkownika i nadaj mu odpowiednią rolę w zakresie Twoich uprawnień.',
                                 style: TextStyle(color: VeloPrimePalette.muted, height: 1.6),
                               ),
                               const SizedBox(height: 16),
@@ -367,12 +421,9 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                     width: 220,
                                     child: DropdownButtonFormField<String>(
                                       initialValue: _role,
-                                      items: const [
-                                        DropdownMenuItem(value: 'ADMIN', child: Text('Administrator')),
-                                        DropdownMenuItem(value: 'DIRECTOR', child: Text('Dyrektor')),
-                                        DropdownMenuItem(value: 'MANAGER', child: Text('Manager')),
-                                        DropdownMenuItem(value: 'SALES', child: Text('Handlowiec')),
-                                      ],
+                                      items: _assignableRoles
+                                          .map((role) => DropdownMenuItem(value: role, child: Text(_roleLabel(role))))
+                                          .toList(),
                                       onChanged: (value) {
                                         if (value == null) {
                                           return;
@@ -418,9 +469,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                         ),
                                       ],
                                       decoration: veloPrimeInputDecoration('Przełożony').copyWith(
-                                        helperText: _role == 'MANAGER' || _role == 'SALES'
-                                            ? 'Możesz przypisać handlowca lub managera także bezpośrednio do administratora.'
-                                            : 'Ta rola nie wymaga przypisanego przełożonego.',
+                                        helperText: _supervisorHelperText,
                                       ),
                                     ),
                                   ),
@@ -468,6 +517,7 @@ class _UsersHomePageState extends State<UsersHomePage> {
                                           runSpacing: 12,
                                           children: [
                                             VeloPrimeBadge(label: 'Status', value: user.isActive ? 'Aktywny' : 'Zablokowany'),
+                                            VeloPrimeBadge(label: 'Rola', value: _roleLabel(user.role)),
                                             VeloPrimeBadge(label: 'Region', value: user.region ?? 'Brak'),
                                             VeloPrimeBadge(label: 'Źródło', value: user.source),
                                             VeloPrimeBadge(label: 'Dodano', value: _formatDate(user.createdAt)),

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
-import { resetManagedUserPassword } from '@/lib/user-management'
+import { canAccessUserAdministration, resetManagedUserPasswordForSession } from '@/lib/user-management'
 
 export async function POST(
   request: Request,
@@ -13,7 +13,7 @@ export async function POST(
     return NextResponse.json({ ok: false, error: 'Brak aktywnej sesji.' }, { status: 401 })
   }
 
-  if (session.role !== 'ADMIN') {
+  if (!canAccessUserAdministration(session.role)) {
     return NextResponse.json({ ok: false, error: 'Brak dostępu do administracji kontami.' }, { status: 403 })
   }
 
@@ -28,7 +28,8 @@ export async function POST(
   }
 
   const payload = body as Record<string, unknown>
-  const result = await resetManagedUserPassword(
+  const result = await resetManagedUserPasswordForSession(
+    session,
     userId,
     typeof payload.newPassword === 'string' ? payload.newPassword : undefined,
   )

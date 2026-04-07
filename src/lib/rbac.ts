@@ -68,7 +68,7 @@ export const navigationItems: NavigationItem[] = [
     href: '/users',
     label: 'Użytkownicy',
     icon: ShieldCheck,
-    roles: ['ADMIN'],
+    roles: ['ADMIN', 'DIRECTOR', 'MANAGER'],
   },
   {
     href: '/pricing',

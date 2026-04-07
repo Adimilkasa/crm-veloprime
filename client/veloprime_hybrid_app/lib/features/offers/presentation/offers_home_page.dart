@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/presentation/veloprime_ui.dart';
 import '../../bootstrap/models/bootstrap_payload.dart';
 import '../../leads/data/leads_repository.dart';
@@ -25,6 +26,15 @@ class OfferWorkspaceLaunchRequest {
   final String leadId;
   final String leadName;
   final String? offerId;
+}
+
+class _OfferGenerationStageException implements Exception {
+  const _OfferGenerationStageException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 class OffersHomePage extends StatefulWidget {
@@ -1284,6 +1294,32 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
   }
 
+  String _describeOfferGenerationError(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    return error.toString();
+  }
+
+  Future<T> _runOfferGenerationStage<T>({
+    required String progressMessage,
+    required String failurePrefix,
+    required Future<T> Function() action,
+  }) async {
+    if (mounted) {
+      setState(() {
+        _editorFeedback = progressMessage;
+      });
+    }
+
+    try {
+      return await action();
+    } catch (error) {
+      throw _OfferGenerationStageException('$failurePrefix ${_describeOfferGenerationError(error)}');
+    }
+  }
+
   Future<void> _createVersionForSelected() async {
     final offer = _activeOffer;
     if (offer == null || _isCreatingVersion) {
@@ -1304,7 +1340,11 @@ class _OffersHomePageState extends State<OffersHomePage> {
     });
 
     try {
-      final saved = await _saveOfferDraft(offer);
+      final saved = await _runOfferGenerationStage(
+        progressMessage: 'Zapisujemy szkic oferty przed wygenerowaniem dokumentu...',
+        failurePrefix: 'Nie udało się zapisać szkicu oferty.',
+        action: () => _saveOfferDraft(offer),
+      );
 
       if (!mounted) {
         return;
@@ -1313,8 +1353,16 @@ class _OffersHomePageState extends State<OffersHomePage> {
       _replaceOffer(saved, replacingOfferId: offer.id);
       _populateForm(saved);
 
-      final version = await widget.offersRepository.createOfferVersion(offerId: saved.id);
-      final updatedOffer = await widget.offersRepository.fetchOfferDetail(saved.id);
+      final version = await _runOfferGenerationStage(
+        progressMessage: 'Tworzymy nową wersję oferty na serwerze...',
+        failurePrefix: 'Nie udało się utworzyć wersji oferty.',
+        action: () => widget.offersRepository.createOfferVersion(offerId: saved.id),
+      );
+      final updatedOffer = await _runOfferGenerationStage(
+        progressMessage: 'Odświeżamy dane zapisanej oferty...',
+        failurePrefix: 'Nie udało się odświeżyć danych oferty po utworzeniu wersji.',
+        action: () => widget.offersRepository.fetchOfferDetail(saved.id),
+      );
 
       if (!mounted) {
         return;

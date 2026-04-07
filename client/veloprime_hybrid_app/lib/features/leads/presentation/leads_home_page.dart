@@ -759,36 +759,42 @@ class _LeadsHomePageState extends State<LeadsHomePage> {
                                   ),
                                   const SizedBox(height: 18),
                                   Expanded(
-                                    child: Scrollbar(
+                                    child: VeloPrimeHorizontalScrollAssist(
                                       controller: _kanbanScrollController,
-                                      thumbVisibility: true,
-                                      child: SingleChildScrollView(
+                                      leftTooltip: 'Przesuń kanban leadów w lewo',
+                                      rightTooltip: 'Przesuń kanban leadów w prawo',
+                                      child: Scrollbar(
                                         controller: _kanbanScrollController,
-                                        scrollDirection: Axis.horizontal,
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: overview.stages
-                                              .map(
-                                                (stage) => Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          right: 18),
-                                                  child: _KanbanStageColumn(
-                                                    stage: stage,
-                                                    leads: filteredLeads
-                                                        .where((lead) =>
-                                                            lead.stageId ==
-                                                            stage.id)
-                                                        .toList(),
-                                                    dateFormat: _dateFormat,
-                                                    movingLeadId: _movingLeadId,
-                                                    onOpenLead: _openLead,
-                                                    onMoveLead: _moveLead,
+                                        thumbVisibility: true,
+                                        child: SingleChildScrollView(
+                                          controller: _kanbanScrollController,
+                                          scrollDirection: Axis.horizontal,
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: overview.stages
+                                                .map(
+                                                  (stage) => Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            right: 18),
+                                                    child: _KanbanStageColumn(
+                                                      stage: stage,
+                                                      leads: filteredLeads
+                                                          .where((lead) =>
+                                                              lead.stageId ==
+                                                              stage.id)
+                                                          .toList(),
+                                                      dateFormat: _dateFormat,
+                                                      movingLeadId:
+                                                          _movingLeadId,
+                                                      onOpenLead: _openLead,
+                                                      onMoveLead: _moveLead,
+                                                    ),
                                                   ),
-                                                ),
-                                              )
-                                              .toList(),
+                                                )
+                                                .toList(),
+                                          ),
                                         ),
                                       ),
                                     ),

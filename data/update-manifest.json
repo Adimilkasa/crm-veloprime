@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v43",
-      "publishedAt": "2026-04-07T09:30:00.000Z",
+      "version": "v44",
+      "publishedAt": "2026-04-07T15:45:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.15.30 adds explicit logout in the desktop shell, gives users a clear safe-close action with final synchronization before exit, clears local lead cache on logout, and routes logout through the new API endpoint.",
+      "summary": "Flutter client 0.1.15.31 expands user administration to director and manager scopes, rebuilds the top shell navigation, adds side arrows in lead and customer kanban views, improves the public offer gallery lightbox, and ships avatar upload diagnostics for update verification.",
       "priority": "STANDARD"
     }
   ]

@@ -319,6 +319,221 @@ class VeloPrimeWorkspacePanel extends StatelessWidget {
   }
 }
 
+class VeloPrimeHorizontalScrollAssist extends StatefulWidget {
+  const VeloPrimeHorizontalScrollAssist({
+    super.key,
+    required this.controller,
+    required this.child,
+    this.scrollStep = 348,
+    this.leftTooltip = 'Przewiń w lewo',
+    this.rightTooltip = 'Przewiń w prawo',
+  });
+
+  final ScrollController controller;
+  final Widget child;
+  final double scrollStep;
+  final String leftTooltip;
+  final String rightTooltip;
+
+  @override
+  State<VeloPrimeHorizontalScrollAssist> createState() =>
+      _VeloPrimeHorizontalScrollAssistState();
+}
+
+class _VeloPrimeHorizontalScrollAssistState
+    extends State<VeloPrimeHorizontalScrollAssist> {
+  bool _hasOverflow = false;
+  bool _canScrollBackward = false;
+  bool _canScrollForward = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_refreshIndicators);
+    _scheduleRefresh();
+  }
+
+  @override
+  void didUpdateWidget(covariant VeloPrimeHorizontalScrollAssist oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller == widget.controller) {
+      _scheduleRefresh();
+      return;
+    }
+
+    oldWidget.controller.removeListener(_refreshIndicators);
+    widget.controller.addListener(_refreshIndicators);
+    _scheduleRefresh();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_refreshIndicators);
+    super.dispose();
+  }
+
+  void _scheduleRefresh() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _refreshIndicators();
+    });
+  }
+
+  void _refreshIndicators() {
+    final controller = widget.controller;
+    final hasClients = controller.hasClients;
+    final hasOverflow = hasClients && controller.position.maxScrollExtent > 12;
+    final canScrollBackward = hasOverflow && controller.offset > 12;
+    final canScrollForward =
+        hasOverflow && controller.offset < controller.position.maxScrollExtent - 12;
+
+    if (_hasOverflow == hasOverflow &&
+        _canScrollBackward == canScrollBackward &&
+        _canScrollForward == canScrollForward) {
+      return;
+    }
+
+    setState(() {
+      _hasOverflow = hasOverflow;
+      _canScrollBackward = canScrollBackward;
+      _canScrollForward = canScrollForward;
+    });
+  }
+
+  Future<void> _animateBy(double delta) async {
+    final controller = widget.controller;
+    if (!controller.hasClients) {
+      return;
+    }
+
+    final targetOffset = (controller.offset + delta)
+        .clamp(0.0, controller.position.maxScrollExtent);
+
+    if ((targetOffset - controller.offset).abs() < 1) {
+      return;
+    }
+
+    await controller.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _scheduleRefresh();
+
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (_) {
+        _scheduleRefresh();
+        return false;
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.child,
+          if (_hasOverflow) ...[
+            Positioned(
+              left: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: _HorizontalScrollAssistButton(
+                  icon: Icons.chevron_left_rounded,
+                  tooltip: widget.leftTooltip,
+                  enabled: _canScrollBackward,
+                  onTap: _canScrollBackward
+                      ? () => _animateBy(-widget.scrollStep)
+                      : null,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: _HorizontalScrollAssistButton(
+                  icon: Icons.chevron_right_rounded,
+                  tooltip: widget.rightTooltip,
+                  enabled: _canScrollForward,
+                  onTap: _canScrollForward
+                      ? () => _animateBy(widget.scrollStep)
+                      : null,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HorizontalScrollAssistButton extends StatelessWidget {
+  const _HorizontalScrollAssistButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: enabled ? 0.94 : 0.26,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: onTap,
+            child: Ink(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: 0.88),
+                    Color.alphaBlend(
+                      VeloPrimePalette.sea.withValues(alpha: 0.08),
+                      Colors.white,
+                    ),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: const Color(0x1F3159B9)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A102040),
+                    blurRadius: 18,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: const Color(0xFF3159B9), size: 24),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return Tooltip(message: tooltip, child: button);
+  }
+}
+
 class VeloPrimeSectionEyebrow extends StatelessWidget {
   const VeloPrimeSectionEyebrow({
     super.key,

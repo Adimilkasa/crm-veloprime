@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 
 import { getSession } from '@/lib/auth'
 import type { UserRoleKey } from '@/lib/rbac'
-import { listManagedUsers, createManagedUser } from '@/lib/user-management'
-
-function isAdmin(role: string) {
-  return role === 'ADMIN'
-}
+import {
+  canAccessUserAdministration,
+  createManagedUserForSession,
+  listManagedUsersForSession,
+  listSupervisorOptionsForManagedUser,
+} from '@/lib/user-management'
 
 export async function GET() {
   const session = await getSession()
@@ -15,12 +16,14 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: 'Brak aktywnej sesji.' }, { status: 401 })
   }
 
-  if (!isAdmin(session.role)) {
+  if (!canAccessUserAdministration(session.role)) {
     return NextResponse.json({ ok: false, error: 'Brak dostępu do administracji kontami.' }, { status: 403 })
   }
 
-  const users = await listManagedUsers()
-  const supervisorOptions = users.filter((user) => user.isActive && (user.role === 'ADMIN' || user.role === 'DIRECTOR' || user.role === 'MANAGER'))
+  const [users, supervisorOptions] = await Promise.all([
+    listManagedUsersForSession(session),
+    listSupervisorOptionsForManagedUser(session),
+  ])
 
   return NextResponse.json({ ok: true, users, supervisorOptions })
 }
@@ -32,7 +35,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Brak aktywnej sesji.' }, { status: 401 })
   }
 
-  if (!isAdmin(session.role)) {
+  if (!canAccessUserAdministration(session.role)) {
     return NextResponse.json({ ok: false, error: 'Brak dostępu do administracji kontami.' }, { status: 403 })
   }
 
@@ -45,7 +48,7 @@ export async function POST(request: Request) {
   }
 
   const payload = body as Record<string, unknown>
-  const result = await createManagedUser({
+  const result = await createManagedUserForSession(session, {
     fullName: typeof payload.fullName === 'string' ? payload.fullName : '',
     email: typeof payload.email === 'string' ? payload.email : '',
     phone: typeof payload.phone === 'string' ? payload.phone : '',

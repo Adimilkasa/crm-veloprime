@@ -6,16 +6,16 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { syncCommissionRules } from '@/lib/commission-management'
 import type { UserRoleKey } from '@/lib/rbac'
-import { createManagedUser, toggleManagedUserStatus } from '@/lib/user-management'
+import { canAccessUserAdministration, createManagedUserForSession, toggleManagedUserStatusForSession } from '@/lib/user-management'
 
-async function requireAdmin() {
+async function requireUserAdministration() {
   const session = await getSession()
 
   if (!session) {
     redirect('/login')
   }
 
-  if (session.role !== 'ADMIN') {
+  if (!canAccessUserAdministration(session.role)) {
     redirect('/dashboard')
   }
 
@@ -23,9 +23,9 @@ async function requireAdmin() {
 }
 
 export async function createUserAction(formData: FormData) {
-  const session = await requireAdmin()
+  const session = await requireUserAdministration()
 
-  const result = await createManagedUser({
+  const result = await createManagedUserForSession(session, {
     fullName: String(formData.get('fullName') || ''),
     email: String(formData.get('email') || ''),
     phone: String(formData.get('phone') || ''),
@@ -54,10 +54,10 @@ export async function createUserAction(formData: FormData) {
 }
 
 export async function toggleUserStatusAction(formData: FormData) {
-  const session = await requireAdmin()
+  const session = await requireUserAdministration()
 
   const userId = String(formData.get('userId') || '')
-  const result = await toggleManagedUserStatus(userId)
+  const result = await toggleManagedUserStatusForSession(session, userId)
 
   if (!result.ok) {
     redirect(`/users?error=${encodeURIComponent(result.error)}`)

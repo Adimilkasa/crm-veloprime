@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/auth'
 import { roleDefinitions } from '@/lib/rbac'
-import { listManagedUsers } from '@/lib/user-management'
+import { canAccessUserAdministration, listManagedUsersForSession, listSupervisorOptionsForManagedUser } from '@/lib/user-management'
 import { createUserAction, toggleUserStatusAction } from '@/app/(app)/users/actions'
 
 function formatDate(value: string) {
@@ -23,14 +23,28 @@ export default async function UsersPage({
     redirect('/login')
   }
 
-  if (session.role !== 'ADMIN') {
+  if (!canAccessUserAdministration(session.role)) {
     redirect('/dashboard')
   }
 
-  const users = await listManagedUsers()
+  const [users, supervisorOptions] = await Promise.all([
+    listManagedUsersForSession(session),
+    listSupervisorOptionsForManagedUser(session),
+  ])
+  const assignableRoles = roleDefinitions.filter((role) => {
+    if (session.role === 'ADMIN') {
+      return true
+    }
+    if (session.role === 'DIRECTOR') {
+      return role.key === 'MANAGER' || role.key === 'SALES'
+    }
+    if (session.role === 'MANAGER') {
+      return role.key === 'SALES'
+    }
+    return false
+  })
   const { error, success, tempPassword } = await searchParams
   const usersById = new Map(users.map((user) => [user.id, user]))
-  const supervisorOptions = users.filter((user) => user.isActive && (user.role === 'DIRECTOR' || user.role === 'MANAGER'))
 
   return (
     <main className="grid gap-6">
@@ -39,7 +53,7 @@ export default async function UsersPage({
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b27]">Administracja kontami</div>
           <h2 className="mt-3 text-[28px] font-semibold text-[#1f1f1f]">Użytkownicy i uprawnienia</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[#5f5a4f]">
-            To jest pierwszy moduł administracyjny CRM. Administrator może tworzyć konta foundation, przypisywać role oraz czasowo blokować dostęp użytkownikom.
+            Zarządzasz tylko kontami w zakresie swojej struktury. Dostępne role i akcje są ograniczane zgodnie z poziomem Twoich uprawnień.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -53,7 +67,7 @@ export default async function UsersPage({
             </div>
             <div className="rounded-[24px] border border-[#ece6d9] bg-white/90 p-5 shadow-[0_16px_34px_rgba(31,31,31,0.04)]">
               <div className="text-sm text-[#7a7466]">Role systemowe</div>
-              <div className="mt-2 text-3xl font-semibold text-[#1f1f1f]">{roleDefinitions.length}</div>
+              <div className="mt-2 text-3xl font-semibold text-[#1f1f1f]">{assignableRoles.length}</div>
             </div>
           </div>
         </article>
@@ -86,7 +100,7 @@ export default async function UsersPage({
             <label className="block">
               <span className="text-sm font-medium text-[#2f2a22]">Rola</span>
               <select name="role" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white">
-                {roleDefinitions.map((role) => (
+                {assignableRoles.map((role) => (
                   <option key={role.key} value={role.key}>
                     {role.label}
                   </option>
@@ -117,7 +131,7 @@ export default async function UsersPage({
                 ))}
               </select>
               <p className="mt-2 text-xs leading-6 text-[#7a7466]">
-                Manager powinien wskazywać dyrektora. Handlowiec powinien wskazywać managera albo bezpośrednio dyrektora.
+                Lista przełożonych jest zawężona do aktywnych użytkowników, których możesz wykorzystać w swojej strukturze.
               </p>
             </label>
 
