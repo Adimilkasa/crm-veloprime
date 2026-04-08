@@ -91,66 +91,6 @@ function New-RandomPassword {
   -join $chars
 }
 
-function Add-DesktopShortcutManifestExtension {
-  param(
-    [string]$ManifestPath,
-    [string]$ShortcutName,
-    [string]$ShortcutDescription
-  )
-
-  if (-not (Test-Path $ManifestPath)) {
-    throw "AppxManifest.xml not found at $ManifestPath"
-  }
-
-  $content = Get-Content -Path $ManifestPath -Raw
-
-  if ($content -notmatch 'xmlns:desktop7=') {
-    $namespaceReplacement = @'
-          xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6" 
-          xmlns:desktop7="http://schemas.microsoft.com/appx/manifest/desktop/windows10/7" 
-          xmlns:desktop10="http://schemas.microsoft.com/appx/manifest/desktop/windows10/10" 
-'@
-    $content = $content.Replace(
-      '          xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6" ',
-      $namespaceReplacement
-    )
-  }
-
-  if ($content -match 'IgnorableNamespaces="([^"]*)"') {
-    $namespaces = $Matches[1].Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
-    $orderedNamespaces = @($namespaces + 'desktop7' + 'desktop10' | Select-Object -Unique)
-    $content = [System.Text.RegularExpressions.Regex]::Replace(
-      $content,
-      'IgnorableNamespaces="([^"]*)"',
-      ('IgnorableNamespaces="' + ($orderedNamespaces -join ' ') + '"'),
-      1
-    )
-  }
-
-  if ($content -notmatch 'Category="windows.shortcut"') {
-    $escapedShortcutName = [System.Security.SecurityElement]::Escape($ShortcutName)
-    $escapedDescription = [System.Security.SecurityElement]::Escape($ShortcutDescription)
-    $shortcutExtension = @'
-          <desktop7:Extension Category="windows.shortcut">
-            <desktop7:Shortcut
-              File="$(Desktop)\{0}.lnk"
-              Icon="Images\Square44x44Logo.png"
-              Description="{1}"
-              desktop10:DisplayName="{2}"
-              desktop10:Description="{1}" />
-          </desktop7:Extension>
-'@ -f $ShortcutName, $escapedDescription, $escapedShortcutName
-
-    if ($content -match '<Extensions>') {
-      $content = $content.Replace('</Extensions>', "$shortcutExtension`r`n        </Extensions>")
-    } else {
-      $content = $content.Replace('        </Application>', "        <Extensions>`r`n$shortcutExtension`r`n        </Extensions>`r`n      </Application>")
-    }
-  }
-
-  [System.IO.File]::WriteAllText($ManifestPath, $content, [System.Text.UTF8Encoding]::new($false))
-}
-
 Push-Location $projectRoot
 try {
   if (-not $CertificatePath) {
@@ -203,14 +143,6 @@ try {
   }
 
   flutter @buildArgs
-
-  $manifestPath = Get-ChildItem -Path (Join-Path $projectRoot 'build\windows') -Filter 'AppxManifest.xml' -Recurse |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -ExpandProperty FullName -First 1
-  Add-DesktopShortcutManifestExtension `
-    -ManifestPath $manifestPath `
-    -ShortcutName $DisplayName `
-    -ShortcutDescription 'Skrot do klienta desktopowego VeloPrime CRM.'
 
   $packArgs = @(
     'pub',
