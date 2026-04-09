@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/presentation/veloprime_ui.dart';
 
@@ -19,8 +20,69 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _emailController = TextEditingController(text: 'admin@veloprime.pl');
-  final _passwordController = TextEditingController(text: 'Admin123!');
+  static const _rememberCredentialsKey = 'auth.rememberCredentials';
+  static const _savedEmailKey = 'auth.savedEmail';
+  static const _savedPasswordKey = 'auth.savedPassword';
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _rememberCredentials = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreRememberedCredentials();
+  }
+
+  Future<void> _restoreRememberedCredentials() async {
+    final preferences = await SharedPreferences.getInstance();
+    final rememberCredentials = preferences.getBool(_rememberCredentialsKey) ?? false;
+
+    if (!mounted || !rememberCredentials) {
+      return;
+    }
+
+    setState(() {
+      _rememberCredentials = true;
+      _emailController.text = preferences.getString(_savedEmailKey) ?? '';
+      _passwordController.text = preferences.getString(_savedPasswordKey) ?? '';
+    });
+  }
+
+  Future<void> _persistRememberedCredentials(String email, String password) async {
+    final preferences = await SharedPreferences.getInstance();
+
+    if (_rememberCredentials) {
+      await preferences.setBool(_rememberCredentialsKey, true);
+      await preferences.setString(_savedEmailKey, email);
+      await preferences.setString(_savedPasswordKey, password);
+      return;
+    }
+
+    await preferences.setBool(_rememberCredentialsKey, false);
+    await preferences.remove(_savedEmailKey);
+    await preferences.remove(_savedPasswordKey);
+  }
+
+  Future<void> _setRememberCredentials(bool value) async {
+    setState(() {
+      _rememberCredentials = value;
+    });
+
+    if (value) {
+      return;
+    }
+
+    await _persistRememberedCredentials('', '');
+  }
+
+  Future<void> _submitLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    await widget.onLogin(email, password);
+    await _persistRememberedCredentials(email, password);
+  }
 
   @override
   void dispose() {
@@ -174,13 +236,34 @@ class _LoginPageState extends State<LoginPage> {
                               const SizedBox(height: 24),
                               TextField(
                                 controller: _emailController,
-                                decoration: veloPrimeInputDecoration('Email', hintText: 'admin@veloprime.pl'),
+                                decoration: veloPrimeInputDecoration('Email', hintText: 'Wpisz swój login'),
                               ),
                               const SizedBox(height: 14),
                               TextField(
                                 controller: _passwordController,
                                 obscureText: true,
                                 decoration: veloPrimeInputDecoration('Hasło'),
+                              ),
+                              const SizedBox(height: 14),
+                              CheckboxListTile(
+                                value: _rememberCredentials,
+                                onChanged: widget.isLoading
+                                    ? null
+                                    : (value) => _setRememberCredentials(value ?? false),
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                controlAffinity: ListTileControlAffinity.leading,
+                                title: const Text(
+                                  'Zapamiętaj login i hasło na tym komputerze',
+                                  style: TextStyle(
+                                    color: VeloPrimePalette.ink,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: const Text(
+                                  'Dane zostaną zapisane dopiero po udanym logowaniu.',
+                                  style: TextStyle(color: VeloPrimePalette.muted),
+                                ),
                               ),
                               if (widget.errorMessage != null) ...[
                                 const SizedBox(height: 14),
@@ -205,10 +288,7 @@ class _LoginPageState extends State<LoginPage> {
                               FilledButton(
                                 onPressed: widget.isLoading
                                     ? null
-                                    : () => widget.onLogin(
-                                          _emailController.text.trim(),
-                                          _passwordController.text,
-                                        ),
+                                    : _submitLogin,
                                 child: widget.isLoading
                                     ? const SizedBox(
                                         height: 18,

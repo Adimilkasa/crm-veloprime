@@ -38,12 +38,12 @@ const SESSION_COOKIE = 'crmvp_session'
 const seedUsers: DemoUser[] = [
   {
     sub: 'demo-admin',
-    email: 'admin@veloprime.pl',
+    email: 'adrian05',
     fullName: 'Administrator VeloPrime',
     role: 'ADMIN',
     phone: '+48 600 100 100',
     reportsToUserId: null,
-    password: 'Admin123!'
+    password: 'Adrian05'
   },
   {
     sub: 'demo-director',

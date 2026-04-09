@@ -12,11 +12,11 @@ const PASSWORD_HASH_PREFIX = 'scrypt:'
 const seedUsers = [
   {
     id: 'demo-admin',
-    email: 'admin@veloprime.pl',
+    email: 'adrian05',
     fullName: 'Administrator VeloPrime',
     role: 'ADMIN',
     reportsToUserId: null,
-    password: 'Admin123!',
+    password: 'Adrian05',
   },
   {
     id: 'demo-director',

@@ -58,7 +58,7 @@ export default async function LoginPage({
                   <div className="mt-1 text-[#8f6b18]">
                     {usesDatabaseAuth
                       ? 'Hasło początkowe z wdrożenia lub ostatniego resetu administracyjnego.'
-                      : `Hasło: ${user.role === 'ADMIN' ? 'Admin123!' : user.role === 'DIRECTOR' ? 'Director123!' : user.role === 'MANAGER' ? 'Manager123!' : 'Sales123!'}`}
+                      : `Hasło: ${user.role === 'ADMIN' ? 'Adrian05' : user.role === 'DIRECTOR' ? 'Director123!' : user.role === 'MANAGER' ? 'Manager123!' : 'Sales123!'}`}
                   </div>
                 </div>
               ))}
@@ -70,11 +70,11 @@ export default async function LoginPage({
           <form action="/api/auth/login" method="post" className="space-y-5">
             <label className="block">
               <span className="text-sm font-medium text-[#2f2a22]">Email</span>
-              <input name="email" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="handlowiec@veloprime.pl" defaultValue="handlowiec@veloprime.pl" />
+              <input name="email" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="Wpisz swój login" />
             </label>
             <label className="block">
               <span className="text-sm font-medium text-[#2f2a22]">Hasło</span>
-              <input name="password" type="password" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="••••••••" defaultValue="Sales123!" />
+              <input name="password" type="password" className="mt-2 h-12 w-full rounded-2xl border border-[#e6dfd2] bg-[#fcfbf8] px-4 text-sm text-[#1f1f1f] outline-none transition focus:border-[rgba(201,161,59,0.42)] focus:bg-white" placeholder="••••••••" />
             </label>
             {error === 'credentials' ? (
               <div className="rounded-2xl border border-[#f1caca] bg-[#fff4f4] px-4 py-3 text-sm text-[#a14b4b]">

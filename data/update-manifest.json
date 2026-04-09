@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v46",
-      "publishedAt": "2026-04-08T12:10:00.000Z",
+      "version": "v47",
+      "publishedAt": "2026-04-09T20:05:04.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.15.33 keeps kanban arrows visible in leads and customers, surfaces avatar upload diagnostics directly in the account workspace, and recreates the desktop shortcut on first Windows launch without raising the OS requirement.",
+      "summary": "Flutter client 0.1.15.34 no longer pre-fills administrator credentials on the login screen, seeds the administrator account as adrian05 / Adrian05, and lets each user explicitly remember their own login and password on a given computer.",
       "priority": "STANDARD"
     }
   ]
