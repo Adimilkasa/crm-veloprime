@@ -18,10 +18,10 @@
     },
     {
       "artifactType": "APPLICATION",
-      "version": "v48",
-      "publishedAt": "2026-04-10T09:30:00.000Z",
+      "version": "v49",
+      "publishedAt": "2026-04-12T10:30:00.000Z",
       "publishedBy": "release",
-      "summary": "Flutter client 0.1.15.35 switches the financing fallback to an annuity model with buyout, keeps the desktop offer preview aligned with the new installment logic, and makes price mode labels explicit across generated offers and offer emails.",
+      "summary": "Flutter client 0.1.15.36 adds a compatibility hotfix for offer financing so bootstrap, offer reads, and offer saves keep working even before the latest financing migration is applied on the database.",
       "priority": "STANDARD"
     }
   ]

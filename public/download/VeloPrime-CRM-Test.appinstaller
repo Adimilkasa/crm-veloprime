@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<AppInstaller xmlns="http://schemas.microsoft.com/appx/appinstaller/2018" Uri="https://crm.veloprime.pl/download/VeloPrime-CRM-Test.appinstaller" Version="0.1.15.35">
-  <MainPackage Name="pl.veloprime.crm" Version="0.1.15.35" Publisher="CN=VeloPrime CRM Test" Uri="https://github.com/Adimilkasa/crm-veloprime/releases/download/v0.1.15.35/veloprime_hybrid_app_0.1.15.35.msix" ProcessorArchitecture="x64" />
+<AppInstaller xmlns="http://schemas.microsoft.com/appx/appinstaller/2018" Uri="https://crm.veloprime.pl/download/VeloPrime-CRM-Test.appinstaller" Version="0.1.15.36">
+  <MainPackage Name="pl.veloprime.crm" Version="0.1.15.36" Publisher="CN=VeloPrime CRM Test" Uri="https://github.com/Adimilkasa/crm-veloprime/releases/download/v0.1.15.36/veloprime_hybrid_app_0.1.15.36.msix" ProcessorArchitecture="x64" />
   <UpdateSettings>
     <OnLaunch HoursBetweenUpdateChecks="0" UpdateBlocksActivation="true" ShowPrompt="true" />
     <AutomaticBackgroundTask />

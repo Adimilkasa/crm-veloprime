@@ -174,33 +174,50 @@ export type ManagedOfferShare = {
 
 export type OfferColorPaletteOption = ModelColorPalette
 
+const legacyFinancingSelect = Prisma.validator<Prisma.OfferFinancingSelect>()({
+  termMonths: true,
+  downPaymentInputMode: true,
+  downPaymentInputValue: true,
+  buyoutPercent: true,
+  estimatedInstallment: true,
+  disclaimerText: true,
+})
+
+const offerRecordInclude = Prisma.validator<Prisma.OfferInclude>()({
+  customer: true,
+  owner: true,
+  salesCatalogItem: true,
+  financing: {
+    select: legacyFinancingSelect,
+  },
+  versions: true,
+})
+
+const offerListInclude = Prisma.validator<Prisma.OfferInclude>()({
+  customer: true,
+  owner: true,
+  salesCatalogItem: true,
+  financing: {
+    select: legacyFinancingSelect,
+  },
+  versions: {
+    select: {
+      id: true,
+      versionNumber: true,
+      createdAt: true,
+      shareToken: true,
+      sharedAt: true,
+      shareExpiresAt: true,
+    },
+  },
+})
+
 type DbOfferRecord = Prisma.OfferGetPayload<{
-  include: {
-    customer: true
-    owner: true
-    salesCatalogItem: true
-    financing: true
-    versions: true
-  }
+  include: typeof offerRecordInclude
 }>
 
 type DbOfferListRecord = Prisma.OfferGetPayload<{
-  include: {
-    customer: true
-    owner: true
-    salesCatalogItem: true
-    financing: true
-    versions: {
-      select: {
-        id: true
-        versionNumber: true
-        createdAt: true
-        shareToken: true
-        sharedAt: true
-        shareExpiresAt: true
-      }
-    }
-  }
+  include: typeof offerListInclude
 }>
 
 export const offerStatusOptions: Array<{ value: OfferStatus; label: string }> = [
@@ -269,6 +286,30 @@ function canViewOffer(offer: ManagedOffer, visibleOwnerIds: Set<string>) {
 
 function normalizeComparable(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? ''
+}
+
+function isPrismaSchemaMismatch(error: unknown) {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && ['P2021', 'P2022'].includes((error as { code?: string }).code ?? '')
+}
+
+function toLegacyFinancingPersistence(financing: Prisma.OfferFinancingCreateWithoutOfferInput) {
+  return {
+    termMonths: financing.termMonths,
+    downPaymentInputMode: financing.downPaymentInputMode,
+    downPaymentInputValue: financing.downPaymentInputValue,
+    downPaymentAmount: financing.downPaymentAmount,
+    downPaymentPercent: financing.downPaymentPercent,
+    buyoutPercent: financing.buyoutPercent,
+    buyoutAmount: financing.buyoutAmount,
+    financedAssetValue: financing.financedAssetValue,
+    leaseTotalFactor: financing.leaseTotalFactor,
+    totalLeaseCost: financing.totalLeaseCost,
+    estimatedInstallment: financing.estimatedInstallment,
+    disclaimerText: financing.disclaimerText,
+  } satisfies Prisma.OfferFinancingCreateWithoutOfferInput
 }
 
 function matchLeadForOffer(leads: ManagedLead[], offer: Pick<ManagedOffer, 'customerName' | 'customerEmail' | 'customerPhone'>) {
@@ -721,13 +762,7 @@ async function getManagedOffer(session: AuthSession, offerId: string) {
 
   const record = await db.offer.findUnique({
     where: { id: offerId },
-    include: {
-      customer: true,
-      owner: true,
-      salesCatalogItem: true,
-      financing: true,
-      versions: true,
-    },
+    include: offerRecordInclude,
   })
 
   if (!record) {
@@ -789,22 +824,7 @@ export async function listManagedOffers(session: AuthSession) {
   }
 
   const offers = await db.offer.findMany({
-    include: {
-      customer: true,
-      owner: true,
-      salesCatalogItem: true,
-      financing: true,
-      versions: {
-        select: {
-          id: true,
-          versionNumber: true,
-          createdAt: true,
-          shareToken: true,
-          sharedAt: true,
-          shareExpiresAt: true,
-        },
-      },
-    },
+    include: offerListInclude,
     orderBy: {
       updatedAt: 'desc',
     },
@@ -1101,8 +1121,7 @@ export async function createManagedOffer(
   }
 
   const offers = await listManagedOffers(session)
-  const created = await db.offer.create({
-    data: {
+  const createData = {
       number: nextOfferNumber(offers),
       status: 'DRAFT',
       title,
@@ -1122,15 +1141,30 @@ export async function createManagedOffer(
       financingVariant: input.financingVariant?.trim() || null,
       notes: input.notes?.trim() || lead?.message || null,
       ...(financingPersistence ? { financing: { create: financingPersistence } } : {}),
-    },
-    include: {
-      customer: true,
-      owner: true,
-      salesCatalogItem: true,
-      financing: true,
-      versions: true,
-    },
-  })
+  }
+
+  let created: DbOfferRecord
+
+  try {
+    created = await db.offer.create({
+      data: createData,
+      include: offerRecordInclude,
+    })
+  } catch (error) {
+    if (!financingPersistence || !isPrismaSchemaMismatch(error)) {
+      throw error
+    }
+
+    created = await db.offer.create({
+      data: {
+        ...createData,
+        financing: {
+          create: toLegacyFinancingPersistence(financingPersistence),
+        },
+      },
+      include: offerRecordInclude,
+    })
+  }
 
   if (lead) {
     await db.lead.update({
@@ -1270,9 +1304,7 @@ export async function updateManagedOffer(
     }
   }
 
-  const updated = await db.offer.update({
-    where: { id: input.offerId },
-    data: {
+  const updateData = {
       title: input.title.trim() || offer.title,
       status: input.status,
       salesCatalogItemId,
@@ -1303,15 +1335,35 @@ export async function updateManagedOffer(
               },
             }
           : {}),
-    },
-    include: {
-      customer: true,
-      owner: true,
-      salesCatalogItem: true,
-      financing: true,
-      versions: true,
-    },
-  })
+  }
+
+  let updated: DbOfferRecord
+
+  try {
+    updated = await db.offer.update({
+      where: { id: input.offerId },
+      data: updateData,
+      include: offerRecordInclude,
+    })
+  } catch (error) {
+    if (!financingPersistence || !isPrismaSchemaMismatch(error)) {
+      throw error
+    }
+
+    updated = await db.offer.update({
+      where: { id: input.offerId },
+      data: {
+        ...updateData,
+        financing: {
+          upsert: {
+            create: toLegacyFinancingPersistence(financingPersistence),
+            update: toLegacyFinancingPersistence(financingPersistence),
+          },
+        },
+      },
+      include: offerRecordInclude,
+    })
+  }
 
   if (offer.leadId) {
     await db.lead.update({
