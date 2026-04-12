@@ -217,6 +217,8 @@ export default async function PublicOfferPage({
   const modelLabel = buildModelLabel(payload.customer.modelName, document.title)
   const parsedCatalogKey = parseCatalogKey(payload.internal.catalogKey)
   const pricingDisplayMode = isCompanyCustomer(payload.internal.customerType) ? 'netto' : 'brutto'
+  const listPriceTitle = pricingDisplayMode === 'netto' ? 'Cena katalogowa netto' : 'Cena katalogowa brutto'
+  const discountTitle = pricingDisplayMode === 'netto' ? 'Rabat netto' : 'Rabat brutto'
   const effectivePriceLabel = pricingDisplayMode === 'netto' ? payload.customer.finalNetLabel : payload.customer.finalGrossLabel
   const effectivePriceTitle = pricingDisplayMode === 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto'
   const advisorName = payload.advisor.fullName || payload.internal.ownerName || 'Opiekun VeloPrime'
@@ -258,9 +260,9 @@ export default async function PublicOfferPage({
   const primaryFinalPriceLabel = pricingDisplayMode === 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto'
   const secondaryFinalPriceLabel = pricingDisplayMode === 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto'
   const financeRows = [
-    { label: 'Cena auta', value: payload.customer.listPriceLabel },
-    { label: 'Rabat', value: `${payload.customer.discountLabel} (${payload.customer.discountPercentLabel})` },
-    { label: 'Cena końcowa', value: priceFallbackText, emphasize: true },
+    { label: listPriceTitle, value: payload.customer.listPriceLabel },
+    { label: discountTitle, value: `${payload.customer.discountLabel} (${payload.customer.discountPercentLabel})` },
+    { label: effectivePriceTitle, value: priceFallbackText, emphasize: true },
     { label: 'Wpłata własna', value: financingSummary?.downPaymentAmount ? formatMoney(financingSummary.downPaymentAmount) : 'Do ustalenia' },
     { label: 'Okres', value: financingSummary?.termMonths ? `${financingSummary.termMonths} mies.` : 'Do ustalenia' },
     { label: 'Wykup', value: financingSummary?.buyoutPercent ? `${financingSummary.buyoutPercent}%` : 'Do ustalenia' },

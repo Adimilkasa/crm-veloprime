@@ -70,6 +70,12 @@ enum FinancingInputMode {
   PERCENT
 }
 
+enum FinancingCalculationEngine {
+  PRESET
+  INTERPOLATED
+  ANNUITY_FALLBACK
+}
+
 enum OfferColorKind {
   BASE
   EXTRA_PAID
@@ -563,6 +569,7 @@ model OfferFinancing {
   offerId                    String             @unique
   offer                      Offer              @relation(fields: [offerId], references: [id], onDelete: Cascade)
   termMonths                 Int
+  calculationEngine          FinancingCalculationEngine @default(ANNUITY_FALLBACK)
   downPaymentInputMode       FinancingInputMode
   downPaymentInputValue      Decimal            @db.Decimal(12, 2)
   downPaymentAmount          Decimal?           @db.Decimal(12, 2)
@@ -570,6 +577,11 @@ model OfferFinancing {
   buyoutPercent              Decimal?           @db.Decimal(7, 4)
   buyoutAmount               Decimal?           @db.Decimal(12, 2)
   financedAssetValue         Decimal?           @db.Decimal(12, 2)
+  monthlyRate                Decimal?           @db.Decimal(9, 6)
+  presentValue               Decimal?           @db.Decimal(12, 2)
+  futureValue                Decimal?           @db.Decimal(12, 2)
+  annuityPayment             Decimal?           @db.Decimal(12, 2)
+  heuristicProfileCode       String?
   leaseTotalFactor           Decimal?           @db.Decimal(6, 4)
   totalLeaseCost             Decimal?           @db.Decimal(12, 2)
   estimatedInstallment       Decimal?           @db.Decimal(12, 2)

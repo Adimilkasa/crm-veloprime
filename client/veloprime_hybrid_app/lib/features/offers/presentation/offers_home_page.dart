@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -569,6 +570,29 @@ class _OffersHomePageState extends State<OffersHomePage> {
     return _isBusinessCustomer ? discount : discount / 1.23;
   }
 
+  double _roundMonthlyRate(double value) => double.parse(value.toStringAsFixed(6));
+
+  double get _estimatedMonthlyRate {
+    final variant = _financingVariant.trim().toLowerCase();
+    final baseRate = _isBusinessCustomer
+        ? switch (variant) {
+            'leasing operacyjny' => 0.0074,
+            'wynajem długoterminowy' => 0.0081,
+            _ => 0.0078,
+          }
+        : switch (variant) {
+            'kredyt' => 0.0099,
+            'leasing konsumencki' => 0.0091,
+            'wynajem' => 0.0087,
+            _ => 0.0092,
+          };
+    final currentTerm = _termMonths ?? 0;
+    final currentBuyoutPercent = _buyoutPercent ?? 0;
+    final termAdjustment = currentTerm >= 60 ? 0.00035 : currentTerm >= 48 ? 0.0002 : 0;
+    final buyoutAdjustment = currentBuyoutPercent > 50 ? 0.0002 : currentBuyoutPercent > 30 ? 0.0001 : 0;
+    return _roundMonthlyRate(baseRate + termAdjustment + buyoutAdjustment);
+  }
+
   num? get _remainingDiscountBudget {
     final availableDiscountGross = _selectedPricingOption?.marginPoolGross ?? _activeOffer?.calculation?.availableDiscount;
     if (availableDiscountGross == null) {
@@ -729,10 +753,25 @@ class _OffersHomePageState extends State<OffersHomePage> {
     }
 
     final downPayment = _downPayment ?? 0;
+    if (downPayment >= calculationBase) {
+      return null;
+    }
+
     final buyoutPercent = _buyoutPercent ?? 0;
     final buyoutValue = calculationBase * (buyoutPercent / 100);
-    final totalLeaseCost = calculationBase * 1.2;
-    final installment = (totalLeaseCost - downPayment - buyoutValue) / term;
+    final presentValue = calculationBase - downPayment;
+    if (buyoutValue >= presentValue) {
+      return null;
+    }
+
+    final monthlyRate = _estimatedMonthlyRate;
+    final futureValueDiscounted = buyoutValue / math.pow(1 + monthlyRate, term);
+    final numerator = monthlyRate * (presentValue - futureValueDiscounted);
+    final denominator = 1 - math.pow(1 + monthlyRate, -term);
+    if (denominator == 0) {
+      return null;
+    }
+    final installment = numerator / denominator;
     if (installment <= 0) {
       return 0;
     }
@@ -2660,6 +2699,38 @@ class _OfferResultsPanel extends StatelessWidget {
 
   num? get _discountPrimaryValue => _isBusinessCustomer ? discountValueNet : discountValueGross;
 
+  double _roundRate(double value) => double.parse(value.toStringAsFixed(6));
+
+  String get _normalizedFinancingVariant => financingVariant.trim().toLowerCase();
+
+  double get _heuristicMonthlyRate {
+    final variant = _normalizedFinancingVariant;
+    final baseRate = _isBusinessCustomer
+        ? switch (variant) {
+            'leasing operacyjny' => 0.0074,
+            'wynajem długoterminowy' => 0.0081,
+            _ => 0.0078,
+          }
+        : switch (variant) {
+            'kredyt' => 0.0099,
+            'leasing konsumencki' => 0.0091,
+            'wynajem' => 0.0087,
+            _ => 0.0092,
+          };
+    final currentTerm = termMonths ?? 0;
+    final currentBuyoutPercent = buyoutPercent ?? 0;
+    final termAdjustment = currentTerm >= 60 ? 0.00035 : currentTerm >= 48 ? 0.0002 : 0;
+    final buyoutAdjustment = currentBuyoutPercent > 50 ? 0.0002 : currentBuyoutPercent > 30 ? 0.0001 : 0;
+    return _roundRate(baseRate + termAdjustment + buyoutAdjustment);
+  }
+
+  String get _financingCalculationLabel => 'Fallback annuitetowy';
+
+  String get _financingCalculationDescription {
+    final baseLabel = _isBusinessCustomer ? 'netto' : 'brutto';
+    return 'Rata szacunkowa liczona modelem annuitetowym od ceny końcowej $baseLabel z uwzględnieniem wpłaty i wykupu.';
+  }
+
   String get _primaryValueModeLabel => _isBusinessCustomer ? 'netto' : 'brutto';
 
   String get _secondaryValueModeLabel => _isBusinessCustomer ? 'brutto' : 'netto';
@@ -2918,9 +2989,16 @@ class _OfferResultsPanel extends StatelessWidget {
               children: [
                 _KeyValueLine(label: 'Typ klienta', value: customerType == 'BUSINESS' ? 'Firma' : 'Klient prywatny'),
                 _KeyValueLine(label: 'Wariant', value: financingVariant.isEmpty ? 'Brak' : financingVariant),
+                _KeyValueLine(label: 'Model kalkulacji', value: _financingCalculationLabel),
                 _KeyValueLine(label: 'Okres', value: termMonths != null ? '$termMonths mies.' : 'Brak'),
                 _KeyValueLine(label: 'Wpłata własna', value: downPayment != null ? currencyFormat.format(downPayment) : 'Brak'),
                 _KeyValueLine(label: 'Wykup', value: buyoutPercent != null ? '$buyoutPercent%' : 'Brak'),
+                _KeyValueLine(label: 'Miesięczna stopa', value: '${(_heuristicMonthlyRate * 100).toStringAsFixed(4)}%'),
+                const SizedBox(height: 8),
+                Text(
+                  _financingCalculationDescription,
+                  style: const TextStyle(color: VeloPrimePalette.muted, height: 1.5),
+                ),
               ],
             ),
           ),

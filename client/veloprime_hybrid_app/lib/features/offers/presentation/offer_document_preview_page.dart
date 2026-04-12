@@ -297,6 +297,9 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
               ? customer.finalNetLabel
               : customer.finalGrossLabel;
           final pricingDisplayMode = _isCompanyCustomer(document.payload.internal.customerType) ? 'netto' : 'brutto';
+            final listPriceTitle = pricingDisplayMode == 'netto' ? 'Cena katalogowa netto' : 'Cena katalogowa brutto';
+            final discountTitle = pricingDisplayMode == 'netto' ? 'Rabat netto' : 'Rabat brutto';
+            final effectivePriceTitle = pricingDisplayMode == 'netto' ? 'Cena po rabacie netto' : 'Cena po rabacie brutto';
           final financingInsights = _extractFinancingInsights(customer.financingSummary, customer.financingVariant);
           final formalNotice = customer.financingDisclaimer ?? _defaultFinancingDisclaimer;
           final parsedCatalogKey = _parseCatalogKey(document.payload.internal.catalogKey);
@@ -400,9 +403,12 @@ class _OfferDocumentPreviewPageState extends State<OfferDocumentPreviewPage> {
                   const SizedBox(height: 24),
                   _PreviewValueSection(
                     backgroundImageSource: heroImageSource,
+                    listPriceTitle: listPriceTitle,
                     listPriceLabel: customer.listPriceLabel,
+                    discountTitle: discountTitle,
                     discountLabel: customer.discountLabel,
                     discountPercentLabel: customer.discountPercentLabel,
+                    effectivePriceTitle: effectivePriceTitle,
                     effectivePriceLabel: effectivePriceLabel,
                     secondaryPriceLabel: pricingDisplayMode == 'netto' ? customer.finalGrossLabel : customer.finalNetLabel,
                     pricingDisplayMode: pricingDisplayMode,
@@ -1611,18 +1617,24 @@ class _PreviewPdfStrip extends StatelessWidget {
 class _PreviewValueSection extends StatelessWidget {
   const _PreviewValueSection({
     required this.backgroundImageSource,
+    required this.listPriceTitle,
     required this.listPriceLabel,
+    required this.discountTitle,
     required this.discountLabel,
     required this.discountPercentLabel,
+    required this.effectivePriceTitle,
     required this.effectivePriceLabel,
     required this.secondaryPriceLabel,
     required this.pricingDisplayMode,
   });
 
   final _PreviewMediaImageSource? backgroundImageSource;
+  final String listPriceTitle;
   final String listPriceLabel;
+  final String discountTitle;
   final String discountLabel;
   final String discountPercentLabel;
+  final String effectivePriceTitle;
   final String effectivePriceLabel;
   final String secondaryPriceLabel;
   final String pricingDisplayMode;
@@ -1638,9 +1650,9 @@ class _PreviewValueSection extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final cards = [
-            _PreviewPricingStatCard(label: 'Cena katalogowa', value: listPriceLabel),
-            _PreviewPricingStatCard(label: 'Rabat', value: '$discountLabel  •  $discountPercentLabel'),
-            _PreviewPricingStatCard(label: 'Cena po rabacie', value: effectivePriceLabel, accent: true),
+            _PreviewPricingStatCard(label: listPriceTitle, value: listPriceLabel),
+            _PreviewPricingStatCard(label: discountTitle, value: '$discountLabel  •  $discountPercentLabel'),
+            _PreviewPricingStatCard(label: effectivePriceTitle, value: effectivePriceLabel, accent: true),
           ];
 
           return Column(

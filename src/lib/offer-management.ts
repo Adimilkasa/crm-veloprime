@@ -327,6 +327,7 @@ function buildFinancingPersistence(input: {
 
   return {
     termMonths: input.financingTermMonths,
+    calculationEngine: input.financingSummary?.calculationEngine ?? 'ANNUITY_FALLBACK',
     downPaymentInputMode: input.financingInputMode,
     downPaymentInputValue: input.financingInputValue,
     downPaymentAmount: input.financingSummary?.downPaymentAmount ?? null,
@@ -334,8 +335,13 @@ function buildFinancingPersistence(input: {
     buyoutPercent: input.financingBuyoutPercent,
     buyoutAmount: input.financingSummary?.buyoutAmount ?? null,
     financedAssetValue: input.financingSummary?.financedAssetValue ?? null,
-    leaseTotalFactor: input.financingSummary?.leaseTotalFactor ?? null,
-    totalLeaseCost: input.financingSummary?.totalLeaseCost ?? null,
+    monthlyRate: input.financingSummary?.monthlyRate ?? null,
+    presentValue: input.financingSummary?.presentValue ?? null,
+    futureValue: input.financingSummary?.futureValue ?? null,
+    annuityPayment: input.financingSummary?.annuityPayment ?? null,
+    heuristicProfileCode: input.financingSummary?.heuristicProfileCode ?? null,
+    leaseTotalFactor: null,
+    totalLeaseCost: null,
     estimatedInstallment: input.financingSummary?.estimatedInstallment ?? null,
     disclaimerText: input.financingSummary?.disclaimerText ?? null,
   } satisfies Prisma.OfferFinancingCreateWithoutOfferInput
@@ -401,7 +407,11 @@ function buildOfferEmailContent(input: {
   customerName: string
   offerNumber: string
   validUntil: string | null
-  finalGrossLabel: string
+  pricingDisplayMode: 'netto' | 'brutto'
+  primaryFinalPriceLabel: string
+  primaryFinalPrice: string
+  secondaryFinalPriceLabel: string
+  secondaryFinalPrice: string
   financingSummary: string | null
   advisorName: string
   advisorEmail: string | null
@@ -433,8 +443,9 @@ function buildOfferEmailContent(input: {
               <div style="margin-top:10px;font-size:18px;font-weight:700;color:#172033;">${input.offerNumber}</div>
             </div>
             <div style="border:1px solid rgba(20,33,61,0.08);border-radius:20px;padding:16px;background:#ffffff;">
-              <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">Cena końcowa</div>
-              <div style="margin-top:10px;font-size:18px;font-weight:700;color:#172033;">${input.finalGrossLabel}</div>
+              <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">${input.primaryFinalPriceLabel}</div>
+              <div style="margin-top:10px;font-size:18px;font-weight:700;color:#172033;">${input.primaryFinalPrice}</div>
+              <div style="margin-top:8px;font-size:13px;font-weight:600;color:#55627d;">${input.secondaryFinalPriceLabel}: ${input.secondaryFinalPrice}</div>
             </div>
             <div style="border:1px solid rgba(20,33,61,0.08);border-radius:20px;padding:16px;background:#ffffff;">
               <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">Ważność</div>
@@ -444,7 +455,7 @@ function buildOfferEmailContent(input: {
 
           <div style="margin-top:18px;border:1px solid rgba(20,33,61,0.08);border-radius:24px;background:linear-gradient(180deg,#f9fbfe 0%,#f4f7fb 100%);padding:18px 20px;">
             <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b7746;font-weight:700;">Finansowanie</div>
-            <p style="margin:12px 0 0;font-size:15px;line-height:1.8;color:#55627d;">${financingLabel}</p>
+            <p style="margin:12px 0 0;font-size:15px;line-height:1.8;color:#55627d;">${financingLabel} Główne kwoty pokazujemy w trybie ${input.pricingDisplayMode}.</p>
           </div>
 
           <div style="margin-top:24px;text-align:center;">
@@ -467,7 +478,8 @@ function buildOfferEmailContent(input: {
     '',
     `Klient: ${input.customerName}`,
     `Numer oferty: ${input.offerNumber}`,
-    `Cena końcowa: ${input.finalGrossLabel}`,
+    `${input.primaryFinalPriceLabel}: ${input.primaryFinalPrice}`,
+    `${input.secondaryFinalPriceLabel}: ${input.secondaryFinalPrice}`,
     `Ważność: ${validityLabel}`,
     `Finansowanie: ${financingLabel}`,
     '',
@@ -539,6 +551,7 @@ function buildOfferVersionSnapshot(
     customerType: offer.customerType,
     finalPriceGross: offer.totalGross,
     finalPriceNet: offer.totalNet,
+    financingVariant: offer.financingVariant,
     termMonths: offer.financingTermMonths,
     downPaymentInputMode: offer.financingInputMode,
     downPaymentInputValue: offer.financingInputValue,
@@ -1036,6 +1049,7 @@ export async function createManagedOffer(
         customerType,
         finalPriceGross: pricingResult.calculation.finalPriceGross,
         finalPriceNet: pricingResult.calculation.finalPriceNet,
+        financingVariant: input.financingVariant,
         termMonths: financingTermMonths,
         downPaymentInputMode: financingInputMode,
         downPaymentInputValue: financingInputValue,
@@ -1209,6 +1223,7 @@ export async function updateManagedOffer(
         customerType,
         finalPriceGross: pricingResult.calculation.finalPriceGross,
         finalPriceNet: pricingResult.calculation.finalPriceNet,
+        financingVariant: input.financingVariant,
         termMonths: financingTermMonths,
         downPaymentInputMode: financingInputMode,
         downPaymentInputValue: financingInputValue,
@@ -1537,6 +1552,7 @@ export async function sendManagedOfferEmail(
   const heroImage = assets.images.premium[0] ?? assets.images.exterior[0] ?? assets.images.other[0] ?? null
   const absoluteHeroImage = heroImage ? buildAbsoluteUrl(origin, heroImage) : null
   const advisorName = document.payload.advisor.fullName || document.payload.internal.ownerName || 'Opiekun VeloPrime'
+  const pricingDisplayMode = document.payload.internal.customerType === 'BUSINESS' ? 'netto' : 'brutto'
   const { html, text } = buildOfferEmailContent({
     publicUrl,
     logoUrl: absoluteLogoUrl,
@@ -1545,7 +1561,11 @@ export async function sendManagedOfferEmail(
     customerName: document.payload.customer.customerName,
     offerNumber: document.payload.customer.offerNumber,
     validUntil: document.payload.customer.validUntil ?? shareResult.share.expiresAt,
-    finalGrossLabel: document.payload.customer.finalGrossLabel,
+    pricingDisplayMode,
+    primaryFinalPriceLabel: pricingDisplayMode === 'netto' ? 'Cena końcowa netto' : 'Cena końcowa brutto',
+    primaryFinalPrice: pricingDisplayMode === 'netto' ? document.payload.customer.finalNetLabel : document.payload.customer.finalGrossLabel,
+    secondaryFinalPriceLabel: pricingDisplayMode === 'netto' ? 'Cena końcowa brutto' : 'Cena końcowa netto',
+    secondaryFinalPrice: pricingDisplayMode === 'netto' ? document.payload.customer.finalGrossLabel : document.payload.customer.finalNetLabel,
     financingSummary: document.payload.customer.financingSummary ?? document.payload.customer.financingVariant,
     advisorName,
     advisorEmail: document.payload.advisor.email,
